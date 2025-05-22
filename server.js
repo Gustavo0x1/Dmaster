@@ -62,15 +62,15 @@ wss.on("connection", (ws) => {
       // Atualiza o token no array
       scenario.tokens[tokenIndex].posx = posX;
       scenario.tokens[tokenIndex].posy = posY;
-      console.log(`Token ${tokenId} no cenário ${sceneId} atualizado para (${posX}, ${posY})`);
-
+      
       // Faz broadcast do cenário ATUALIZADO para todos os clientes
       broadcast({
-        type: "syncScenario", // Ou um novo tipo como "tokenUpdated"
+        type: "SyncTokenPosition", // Ou um novo tipo como "tokenUpdated"
         data: {
-          scenarioId: sceneId,
-          tokens: scenario.tokens,
-          map: scenario.map
+          id: tokenId,
+          x: posX,
+          y:posY
+        
         },
       });
     } else {
@@ -99,13 +99,32 @@ wss.on("connection", (ws) => {
 
 // Função para enviar mensagem a todos os clientes conectados
 function broadcast(message) {
+
   for (const ws of connections) {
     if (ws.readyState === WebSocket.OPEN) {
+      console.log("broadcasting: ",JSON.stringify(message))
       ws.send(JSON.stringify(message));
     }
   }
 }
+const intervalo = setInterval(minhaFuncao, 3000);
 
+setTimeout(() => {
+    clearInterval(intervalo);
+    console.log("Timer parado.");
+}, 30000);
+function minhaFuncao() {
+          broadcast({
+        type: "SyncTokenPosition", // Ou um novo tipo como "tokenUpdated"
+        data: {
+          id: 1,
+          x: Math.floor(Math.random() * 5),
+          y:Math.floor(Math.random() * 5)
+        
+        },
+      });
+    console.log("Testando..");
+}
 // Servidor Express ouvindo na porta 5000
 const PORT = 5000;
 server.listen(PORT, () => {

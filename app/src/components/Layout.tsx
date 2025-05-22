@@ -2,7 +2,8 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import Header from "./Header";
 import Grid from './MainGrid';
-
+import ScreenCoverBanner from "./ScreenCoverBanner";
+import DiceApp from "./DiceRoller";
 // Context API para o layout
 interface LayoutContextProps {
   addContentToLeft: (content: ReactNode) => void;
@@ -41,18 +42,17 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
     >
       
         <Header />
-        <div className="layout-container">
+        <div className="layout-container " >
           
-          <div className={`column left-column ${column === "left" ? "active" : ""}`}>
-        
+          <div className={`column  left-column ${column === "left" ? "active" : ""}`}>
+         
             {leftContent}
+       
           </div>
 
           {/* Coluna central */}
-          <div className={`column center-column ${column === "center" ? "active" : ""}`}>
-        
-    
-        
+          <div className={`column tavern center-column ${column === "center" ? "active" : ""}`}>
+
                 {children || <Grid />}
           
             {centerContent}

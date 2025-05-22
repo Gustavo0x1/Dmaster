@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState ,useRef,useEffect} from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import img from '../img/1.png'
+
 type Message = {
   id: number;
   text: string;
@@ -8,16 +9,28 @@ type Message = {
 };
 
 const Chat: React.FC = () => {
+
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, text: 'Olá! Como posso te ajudar?', sender: 'other' },
-    { id: 2, text: 'Gostaria de saber mais sobre o projeto.', sender: 'user' },
+    { id: 1, text: 'Olá! Como posso te ajudar?', sender: 'user' },
+    { id: 2, text: 'Gostaria de saber mais sobre o projeto.', sender: 'other' },
   ]);
 
-  const [newMessage, setNewMessage] = useState<string>('');
+ const [newMessage, setNewMessage] = useState<string>('');
+  const handleCommand = (command: string) => {
+    if (command.startsWith("/roll")) {
 
-  const handleSendMessage = () => {
+    }
+  };
+  const handleSendMessage = (): void => {
     if (newMessage.trim() !== '') {
-      setMessages([...messages, { id: messages.length + 1, text: newMessage, sender: 'user' }]);
+      if (newMessage.startsWith('/')) {
+        handleCommand(newMessage);
+      } else {
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { id: prevMessages.length + 1, text: newMessage, sender: 'user' },
+        ]);
+      }
       setNewMessage('');
     }
   };
@@ -30,7 +43,9 @@ const Chat: React.FC = () => {
   };
 
   return (
+
     <div className="d-flex flex-column" style={{ height: 'calc(90vh)', overflow: 'hidden' }}>
+
       <div className="flex-grow-1 overflow-auto  p-3" style={{ overflowY: 'auto' }}>
         {messages.map((message) => (
           <div

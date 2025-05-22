@@ -6,7 +6,7 @@ const url = require('url')
 const path = require('path')
 
 
-let mainWindow;
+let MainWindow;
 let ws;
 
 // Função para iniciar a conexão WebSocket
@@ -21,17 +21,19 @@ ws.on("message", (message) => {
   try {
     const { type, data } = JSON.parse(message);
 
-    if (!mainWindow) {
-      console.warn("mainWindow ainda não está pronta para enviar mensagens");
+    if (!MainWindow) {
+      console.warn("MainWindow ainda não está pronta para enviar mensagens");
       return;
     }
 
-    if (type === "syncScenario") {
-      mainWindow.webContents.send("sync-scenario", data);
+    if (type === "SyncTokenPosition") {
+    
+      MainWindow.webContents.send("SyncTokenPosition", data);
+
     }
 
     if (type === "syncAll") {
-      mainWindow.webContents.send("sync-all", data);
+      MainWindow.webContents.send("sync-all", data);
       console.log(1)
     }
   } catch (err) {
@@ -51,7 +53,7 @@ ws.on("message", (message) => {
 }
 function createMainWindow(){
 
-    const MainWindow = new BrowserWindow({
+    MainWindow = new BrowserWindow({
 
         width:1280,
         height:720,
@@ -67,7 +69,7 @@ function createMainWindow(){
         pathname:path.join(__dirname,'./app/build/index.html'),
         protocol:'file'
     })
-    MainWindow.loadURL("http://localhost:3000/")
+    MainWindow.loadURL('http://localhost:3000')
 }
 
 app.whenReady().then(()=>{
