@@ -2,16 +2,21 @@
   import ReactDOM from 'react-dom/client';
   import 'bootstrap/dist/css/bootstrap.min.css';
   import 'bootstrap/dist/js/bootstrap.min.js';
+  import 'bootstrap-icons/font/bootstrap-icons.css';
   import './index.css';
+  
   import reportWebVitals from './reportWebVitals';
   import {Route ,Routes, HashRouter,} from 'react-router-dom';
   import { Layout } from './components/Layout';
   import { Inventory } from './pages/Inventory';
-
+  import {Actions} from './pages/Actions'
+  import RPGGrid from './components/MainGrid';
+  import FullCharSheet from './components/CharacterSheet/CharacterSheetManager';
 
   const root = ReactDOM.createRoot(
     document.getElementById('root') as HTMLElement
   );
+
   root.render(
     
     <React.StrictMode>
@@ -21,9 +26,10 @@
    
       
     <Route path="/" element={<Layout />}>
+      <Route path='/' element={<RPGGrid/>}/>
+      <Route path='/acoes' element={<Actions/>}/>
+      <Route path='/ficha' element={ <FullCharSheet></FullCharSheet>}/>
       <Route path='/inventario' element={<Inventory/>}/>
-
-      <Route path='/ficha' element={<Inventory/>}/>
 
 
 

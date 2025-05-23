@@ -1,0 +1,663 @@
+* {
+
+  user-select: none;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+    overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+}
+
+
+        html, body {
+            background-color: #202020;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            color:white;
+        }
+  
+        .container {
+            width: 100%;
+            padding-right: var(--bs-gutter-x, .75rem);
+            padding-left: var(--bs-gutter-x, .75rem);
+            margin-right: auto;
+            margin-left: auto;
+            max-width: 1400px; /* Ajuste conforme necessário para sua aplicação Electron */
+        }
+        .d-flex {
+            display: flex !important;
+        }
+        .flex-wrap {
+            flex-wrap: wrap !important;
+        }
+        .align-items-center {
+            align-items: center !important;
+        }
+        .justify-content-center {
+            justify-content: center !important;
+        }
+        .justify-content-lg-start {
+            justify-content: flex-start !important;
+        }
+        .link-light {
+            color: #f8f9fa !important;
+        }
+        .text-decoration-none {
+            text-decoration: none !important;
+        }
+        .bi {
+            fill: currentColor;
+            vertical-align: -.125em;
+        }
+        .me-2 {
+            margin-right: .5rem !important;
+        }
+        .mb-2 {
+            margin-bottom: .5rem !important;
+        }
+        .mb-lg-0 {
+            margin-bottom: 0 !important;
+        }
+        .nav {
+            display: flex;
+            padding-left: 0;
+            margin-bottom: 0;
+            list-style: none;
+        }
+        .nav-link {
+            display: block;
+            padding: .5rem 1rem;
+            text-decoration: none;
+            transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out;
+        }
+        .px-2 {
+            padding-right: .5rem !important;
+            padding-left: .5rem !important;
+        }
+        .col-12 {
+            width: 100%;
+        }
+        @media (min-width: 992px) {
+            .col-lg-auto {
+                flex: 0 0 auto;
+                width: auto;
+                max-width: 100%;
+            }
+            .me-lg-auto {
+                margin-right: auto !important;
+            }
+            .mb-md-0 {
+                margin-bottom: 0 !important;
+            }
+        }
+        .justify-content-md-0 {
+            justify-content: flex-start !important; /* Ajuste conforme necessário */
+        }
+        .dropdown {
+            position: relative;
+        }
+        .text-end {
+            text-align: right !important;
+        }
+        .d-block {
+            display: block !important;
+        }
+        .dropdown-toggle::after {
+            width: 0;
+            height: 0;
+            margin-left: .255em;
+            vertical-align: .255em;
+            content: "";
+            border-top: .3em solid;
+            border-right: .3em solid transparent;
+            border-bottom: 0;
+            border-left: .3em solid transparent;
+        }
+        .rounded-circle {
+            border-radius: 50% !important;
+        }
+        .dropdown-menu {
+            position: absolute;
+            z-index: 1000;
+            display: none;
+            min-width: 10rem;
+            padding: .5rem 0;
+            margin: 0;
+            font-size: 1rem;
+            color: #212529;
+            text-align: left;
+            list-style: none;
+            background-color: #fff;
+            background-clip: padding-box;
+            border: 1px solid rgba(0,0,0,.15);
+            border-radius: .25rem;
+        }
+        .dropdown-menu.show {
+            display: block;
+        }
+        .text-small {
+            font-size: .875em !important;
+        }
+        .dropdown-item {
+            display: block;
+            width: 100%;
+            padding: .25rem 1.5rem;
+            clear: both;
+            font-weight: 400;
+            color: #212529;
+            text-align: inherit;
+            white-space: nowrap;
+            background-color: transparent;
+            border: 0;
+        }
+        .dropdown-item:hover, .dropdown-item:focus {
+            color: #1e2125;
+            background-color: #e9ecef;
+        }
+        .dropdown-divider {
+            height: 0;
+            margin: .5rem 0;
+            overflow: hidden;
+            border-top: 1px solid #dee2e6;
+        }
+        .container-fluid {
+            flex-grow: 1;
+            padding: 0;
+            display: flex;
+            flex-direction: row;
+            height: 0;
+        }
+        .left-sidebar{
+            width: 15%;
+            max-width: 15%;
+            display: flex;
+            flex-direction: column;
+        }
+        .right-sidebar {
+            width: 20%;
+            max-width: 20%;
+            display: flex;
+            flex-direction: column;
+        }
+        .middle-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        /* Estilos para o esboço do chat na barra lateral direita */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 95%;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .chat-message {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .chat-message.user {
+            background-color: #e9ecef;
+            justify-content: flex-start;
+        }
+        .chat-message.self {
+            background-color: #f0f8ff;
+            justify-content: flex-end;
+        }
+        .message-text {
+            flex-grow: 1;
+            margin: 0 8px;
+            color:#222
+        }
+        .message-icon {
+            font-size: 1.2em;
+        }
+        .chat-input {
+            padding: 10px;
+            border-top: 1px solid #dee2e6;
+        }
+        .chat-input textarea {
+            width: calc(100% - 70px);
+            height: 60px;
+            margin-right: 5px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+        .chat-input button {
+            width: 60px;
+            height: 60px;
+        }
+/* Configura o layout principal */
+.layout-container {
+  display: flex;
+  
+  width: 100%; /* 100% da largura da página */
+}
+
+/* Coluna esquerda */
+.left-column {
+  flex: 0 0 20%; /* Largura fixa de 20% */
+
+  border-right: 1px solid #dee2e6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+/* Coluna central */
+.center-column {
+  flex: 0 0 60%; /* Largura fixa de 60% */
+
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+    height: 90%; /* Garantir que ocupe a altura completa do contêiner pai */
+}
+
+/* Coluna direita */
+.right-column {
+  flex: 0 0 20%; /* Largura fixa de 20% */
+  border-left: 1px solid #dee2e6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start; /* Alinhar conteúdo no topo */
+  padding: 1rem;
+  height: 95%; /* Garantir que ocupe a altura completa do contêiner pai */
+}
+
+.tavern {
+   padding: 25px;
+
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none; /* Remove a aparência padrão */
+  margin: 0; /* Remove a margem que as setinhas poderiam ocupar */
+}
+
+/* Para Firefox */
+input[type="number"] {
+  -moz-appearance: textfield; /* Faz o input number se comportar como um campo de texto normal */
+}
+
+
+/* src/index.css (ou seu arquivo CSS principal) */
+
+/* Garante que o corpo da página e o html também permitam o layout de 100vh */
+html, body, #root, .App {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    
+    display: flex;
+    flex-direction: column;
+}
+
+/* Novo wrapper para o Layout componente, que ocupa toda a altura da viewport */
+.character-sheet-layout-wrapper {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    
+}
+
+/* Container principal da ficha de personagem (envolve as 3 colunas) */
+.layout-container {
+    flex-grow: 1; /* Ocupa todo o espaço vertical restante */
+    display: flex;
+    width: 100%;
+    padding: 15px;
+    
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    color: #f8f9fa; /* Cor do texto padrão */
+    gap: 15px; /* Espaçamento entre as colunas */
+}
+
+/* Estilos para as colunas individuais (.column do Layout.tsx) */
+.column {
+    flex-grow: 1;
+    height: 100%; /* Ocupa a altura total do layout-container */
+    display: flex;
+    flex-direction: column;
+    padding: 1rem; /* Padding interno para o conteúdo da coluna */
+    
+    border-radius: 5px;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Definindo larguras para as colunas em telas maiores (simulando col-md-*) */
+/* Otimizado para 1280x720px e acima */
+@media (min-width: 992px) { /* Usar min-width: 992px (lg) ou 1200px (xl) para alvos de tela maiores */
+    .left-column {
+        flex-basis: 22%; /* Um pouco mais estreita que col-md-3, para 1280px */
+        max-width: 22%;
+    }
+    .center-column {
+        flex-basis: 56%; /* Mais larga para perícias e ações */
+        max-width: 56%;
+    }
+    .right-column {
+        flex-basis: 22%; /* Alinhada com a esquerda */
+        max-width: 22%;
+    }
+    /* Garante que todas as colunas sejam visíveis e não "single active" */
+    .column:not(.active) {
+        display: flex !important; /* Sobrescreve d-none se Layout.tsx usa a classe 'active' para mobile */
+    }
+}
+/* Para telas entre 768px e 991px (md) */
+@media (min-width: 768px) and (max-width: 991.98px) {
+    .left-column {
+        flex-basis: 25%;
+        max-width: 25%;
+    }
+    .center-column {
+        flex-basis: 50%;
+        max-width: 50%;
+    }
+    .right-column {
+        flex-basis: 25%;
+        max-width: 25%;
+    }
+    .column:not(.active) {
+        display: flex !important;
+    }
+}
+
+
+/* Estilos de Card genéricos que seus componentes usam (ActionCreator, CombatActions) */
+.card.bg-dark {
+    
+    border-color: #6c757d !important;
+    color: #f8f9fa !important;
+}
+.card.bg-secondary {
+    
+    border-color: #6c757d !important;
+}
+
+/* Cores de texto */
+.text-warning {
+    color: #ffc107 !important;
+}
+.text-info {
+    color: #0dcaf0 !important;
+}
+.text-muted {
+    color: #adb5bd !important;
+}
+
+/* Inputs e Selects */
+.form-control, .form-select {
+    
+    color: #f8f9fa !important;
+    border-color: #6c757d !important;
+}
+.form-control::placeholder {
+    color: #ced4da !important;
+}
+.form-control:focus, .form-select:focus {
+  
+    color: #f8f9fa !important;
+    border-color: #ffc107 !important;
+    box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25) !important;
+}
+
+/* Botões de Grupo (Ataque/Magia, Dano/Utilidade) */
+.btn-group .btn {
+    border-color: #6c757d !important;
+}
+.btn-group .btn-primary {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+}
+.btn-group .btn-outline-primary {
+    color: #0d6efd !important;
+    border-color: #0d6efd !important;
+}
+.btn-group .btn-outline-primary:hover {
+    background-color: #0d6efd !important;
+    color: #fff !important;
+}
+
+/* Barras de Rolagem Customizadas (para overflow-auto) */
+.custom-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.custom-scroll::-webkit-scrollbar-track {
+  background: #495057;
+  border-radius: 10px;
+}
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: #6c757d;
+  border-radius: 10px;
+}
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: #868e96;
+}
+
+/* Remover setinhas de input type="number" */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Força os componentes .card a ocupar 100% da altura da coluna pai, permitindo scroll interno */
+.column > .card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+/* Faz o card-body preencher o espaço restante e permitir scroll */
+.column > .card > .card-body.custom-scroll {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 15px;
+    padding-left: 15px;
+}
+/* Força o padding para card-body que não tem custom-scroll (se houver) */
+.column > .card > .card-body:not(.custom-scroll) {
+    padding: 1rem !important;
+}
+
+/* Refinamentos para os componentes individuais para caberem bem */
+
+/* AttributesSection: Reduz o tamanho de fonte e padding dos cards de atributo */
+.attributes-card .card-body {
+    padding: 0.75rem !important; /* Reduz padding interno */
+}
+.attributes-card .card-title {
+    font-size: 0.9rem; /* Reduz tamanho do título do atributo */
+}
+.attributes-card .font-weight-bold {
+    font-size: 1rem; /* Reduz tamanho do valor do atributo */
+}
+.attributes-card .badge {
+    font-size: 0.7rem; /* Reduz tamanho dos badges */
+}
+
+
+/* HealthController: Ajusta tamanho da imagem e barra de vida */
+.character-portrait-container img {
+    width: 100px !important; /* Reduz a imagem do personagem */
+    height: 100px !important;
+}
+.health-controller-card {
+    max-width: 180px; /* Garante que o card de vida não fique muito largo */
+    padding: 0.75rem !important; /* Reduz o padding interno do card de vida */
+}
+.health-controller-card .progress {
+    height: 1rem; /* Reduz a altura da barra de vida */
+}
+.health-controller-card .progress input,
+.health-controller-card .progress small {
+    font-size: 0.8rem; /* Reduz o tamanho da fonte na barra de vida */
+    line-height: 1rem; /* Ajusta line-height para caber na barra */
+}
+.health-controller-card .health-controls .form-control-sm {
+    max-width: 60px !important; /* Reduz a largura do input de ajuste */
+}
+.health-controller-card .btn-sm {
+    font-size: 0.7rem; /* Reduz tamanho da fonte dos botões de ajuste/edição */
+    padding: 0.2rem 0.4rem !important; /* Ajusta padding dos botões */
+}
+
+
+/* ActionCreator e CombatActions: Ajusta tamanho da fonte dos form-labels */
+.action-creator-section .form-label,
+.combat-actions-section .form-label {
+    font-size: 0.75rem; /* Reduz a fonte das labels para economizar espaço */
+}
+.action-creator-section .form-control-sm,
+.combat-actions-section .form-control-sm,
+.action-creator-section .form-select-sm,
+.combat-actions-section .form-select-sm {
+    font-size: 0.8rem; /* Reduz a fonte dos inputs/selects */
+    padding: 0.3rem 0.5rem; /* Ajusta padding */
+}
+.action-creator-section .btn-sm,
+.combat-actions-section .btn-sm {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+}
+.combat-actions-section .card-subtitle,
+.combat-actions-section p.small {
+    font-size: 0.85rem; /* Reduz fonte dos detalhes da ação */
+}
+
+/* src/index.css (ou seu arquivo CSS principal) */
+
+/* ... (Todo o CSS anterior do seu index.css) ... */
+
+/* Estilos para as Abas (Tabs) no ActionManager */
+.nav-tabs {
+    border-bottom: 1px solid #6c757d; /* Borda inferior para as abas */
+}
+.nav-tabs .nav-link {
+    color: #adb5bd; /* Cor do texto das abas inativas */
+    border: 1px solid transparent;
+    border-top-left-radius: 0.25rem;
+    border-top-right-radius: 0.25rem;
+    margin-bottom: -1px; /* Para as bordas se sobreporem */
+    background-color: transparent;
+}
+.nav-tabs .nav-link:hover, .nav-tabs .nav-link:focus {
+    color: #ffc107; /* Cor ao passar o mouse/focar */
+    border-color: transparent transparent #6c757d; /* Borda inferior no hover */
+    background-color: #495057; /* Fundo sutil no hover */
+}
+.nav-tabs .nav-link.active {
+    color: #ffc107; /* Cor da aba ativa */
+    background-color: #343a40; /* Fundo da aba ativa, igual ao background do card */
+    border-color: #6c757d #6c757d #343a40; /* Borda da aba ativa */
+    font-weight: bold;
+}
+.tab-content {
+    /* Garante que o conteúdo das abas ocupe o espaço restante */
+    flex-grow: 1;
+    display: flex; /* Para que o tab-pane show active ocupe a altura total */
+}
+.tab-content .tab-pane.show.active {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column; /* Para que o card dentro preencha a altura */
+}
+
+/* Opcional: Ajustes para garantir que o texto das abas não seja muito grande */
+.nav-tabs .nav-item .nav-link {
+    font-size: 0.85rem;
+}
+
+/* Estilos para os botões de Editar/Excluir nas Ações Salvas */
+.combat-actions-card .card-body .list-group-item {
+    display: flex;
+    justify-content: space-between; /* Espaço entre nome e botões */
+    align-items: center;
+    background-color: transparent;
+    border-color: #6c757d;
+    padding-left: 0;
+    padding-right: 0;
+}
+.combat-actions-card .action-buttons {
+    display: flex;
+    gap: 5px; /* Espaçamento entre os botões */
+}
+.combat-actions-card .action-buttons .btn-sm {
+    font-size: 0.7rem;
+    padding: 0.1rem 0.3rem;
+}
+.nav-tabs {
+    border-bottom: 1px solid #6c757d;
+    /* Remover justify-content-center daqui se já estiver no JSX para evitar duplicação */
+    /* Se você quer que as abas preencham 100% e os links dentro se justifiquem, 'nav-justified' no JSX já faz isso */
+    /* Se quiser centralizar todo o bloco de nav-tabs, use margin: 0 auto; em um container pai. */
+}
+/* Faz os itens da aba ocuparem o espaço disponível, garantindo 100% de largura total para a navegação */
+.nav-tabs .nav-item {
+    flex-grow: 1; /* Permite que cada item ocupe o espaço igual */
+    text-align: center; /* Centraliza o texto dentro de cada item da aba */
+}
+.nav-tabs .nav-link {
+    color: #adb5bd;
+    border: 1px solid transparent;
+    border-top-left-radius: 0.25rem;
+    border-top-right-radius: 0.25rem;
+    margin-bottom: -1px;
+    background-color: transparent;
+    display: block; /* Garante que o link ocupe todo o espaço do item */
+    padding: 0.5rem 0.75rem; /* Ajuste o padding para o tamanho desejado */
+    white-space: nowrap; /* Evita que o texto quebre em várias linhas */
+    overflow: hidden; /* Oculta o texto que excede o espaço */
+    text-overflow: ellipsis; /* Adiciona reticências se o texto for cortado */
+}
+.nav-tabs .nav-link:hover, .nav-tabs .nav-link:focus {
+    color: #ffc107;
+    border-color: transparent transparent #6c757d;
+    background-color: #495057;
+}
+.nav-tabs .nav-link.active {
+    color: #ffc107;
+    background-color: #343a40;
+    border-color: #6c757d #6c757d #343a40;
+    font-weight: bold;
+}
+/* Garante que o conteúdo das abas ocupe o espaço restante */
+.tab-content {
+    flex-grow: 1;
+    display: flex; /* Para que o tab-pane show active ocupe a altura total */
+}
+.tab-content .tab-pane.show.active {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column; /* Para que o card dentro preencha a altura */
+}

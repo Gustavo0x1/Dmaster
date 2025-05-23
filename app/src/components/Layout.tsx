@@ -1,14 +1,19 @@
-// Layout.tsx
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useCallback } from "react";
 import Header from "./Header";
-import Grid from './MainGrid';
-import ScreenCoverBanner from "./ScreenCoverBanner";
-import DiceApp from "./DiceRoller";
+import { Outlet } from 'react-router-dom';
+import { Token } from '../types'; // Importe o tipo Token
+
 // Context API para o layout
 interface LayoutContextProps {
   addContentToLeft: (content: ReactNode) => void;
   addContentToCenter: (content: ReactNode) => void;
   addContentToRight: (content: ReactNode) => void;
+
+   clearContentFromLeft: () => void; // NOVO: Limpa apenas a coluna esquerda
+  clearContentFromCenter: () => void; // NOVO: Limpa apenas a coluna central
+  clearContentFromRight: () => void; // NOVO: Limpa apenas a coluna direita
+  selectedTokens: Token[]; // NOVO: Tokens selecionados do grid
+  setSelectedTokens: (tokens: Token[]) => void; // NOVO: Função para atualizar os tokens selecionados
 }
 
 const LayoutContext = createContext<LayoutContextProps | undefined>(undefined);
@@ -28,43 +33,65 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
   const [leftContent, setLeftContent] = useState<React.ReactNode>(null);
   const [centerContent, setCenterContent] = useState<React.ReactNode>(null);
   const [rightContent, setRightContent] = useState<React.ReactNode>(null);
+  const [selectedTokens, setSelectedTokens] = useState<Token[]>([]); // NOVO: Estado para tokens selecionados no Layout
 
- const addContentToLeft = (content: ReactNode) => setLeftContent(content);
-  const addContentToCenter = (content: ReactNode) => setCenterContent(content);
-  const addContentToRight = (content: ReactNode) => setRightContent(content);
+  // Memoizar funções com useCallback
+  const addContentToLeft = useCallback((content: ReactNode) => {
+    setLeftContent(content);
+  }, []);
+
+  const addContentToCenter = useCallback((content: ReactNode) => {
+    setCenterContent(content);
+  }, []);
+
+  const addContentToRight = useCallback((content: ReactNode) => {
+    setRightContent(content);
+  }, []);
+
+  const clearContentFromLeft = useCallback(() => {
+    setLeftContent(null);
+  }, []);
+
+  const clearContentFromCenter = useCallback(() => {
+    setCenterContent(null);
+  }, []);
+
+  const clearContentFromRight = useCallback(() => {
+    setRightContent(null);
+  }, []);
+
   return (
     <LayoutContext.Provider
       value={{
         addContentToLeft,
         addContentToCenter,
         addContentToRight,
+       clearContentFromLeft, // Exporta a nova função
+        clearContentFromCenter, // Exporta a nova função
+        clearContentFromRight,
+        selectedTokens, // Passa o estado dos tokens selecionados
+        setSelectedTokens, // Passa a função para atualizar os tokens selecionados
       }}
     >
-      
+      <header>
         <Header />
-        <div className="layout-container " >
-          
-          <div className={`column  left-column ${column === "left" ? "active" : ""}`}>
-         
-            {leftContent}
-       
-          </div>
-
-          {/* Coluna central */}
-          <div className={`column tavern center-column ${column === "center" ? "active" : ""}`}>
-
-                {children || <Grid />}
-          
-            {centerContent}
-          </div>
-
-          {/* Coluna direita */}
-          <div className={`column right-column ${column === "right" ? "active" : ""}`}>
-
-            {rightContent}
-          </div>
+      </header>
+      
+      <div className="layout-container">
+        
+        <div className={`column left-column ${column === "left" ? "active" : ""}`}>
+          {leftContent}
         </div>
-    
+
+        <div className={`column tavern center-column ${column === "center" ? "active" : ""}`}>
+          {children || <Outlet />}
+          {centerContent}
+        </div>
+
+        <div className={`column right-column ${column === "right" ? "active" : ""}`}>
+          {rightContent}
+        </div>
+      </div>
     </LayoutContext.Provider>
   );
 };

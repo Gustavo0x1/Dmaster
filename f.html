@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Criador de Ações de Combate D&D PT-BR (Busca Sem Acentuação, Dano/Utilidade)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        /* Estilos customizados para o seu tema escuro */
+        body {
+            background-color: #212529;
+            color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+        .text-warning {
+            color: #ffc107 !important;
+        }
+        .text-info {
+            color: #0dcaf0 !important;
+        }
+        .text-muted {
+            color: #adb5bd !important;
+        }
+        .bg-dark {
+            background-color: #343a40 !important;
+        }
+        .bg-secondary {
+            background-color: #495057 !important;
+        }
+        .border-secondary {
+            border-color: #6c757d !important;
+        }
+        .form-control, .form-select, .form-control:focus, .form-select:focus {
+            background-color: #343a40;
+            color: #f8f9fa;
+            border-color: #6c757d;
+        }
+        .form-control::placeholder {
+            color: #ced4da;
+        }
+        .action-creator-section {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #2c3034;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        input[type="number"] {
+          -moz-appearance: textfield;
+        }
+        .fields-group, .damage-utility-group {
+            display: none;
+        }
+        .fields-group.active, .damage-utility-group.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="action-creator-section">
+        <h5 class="text-warning mb-3">Criar Ação de Combate</h5>
+
+        <div class="card bg-transparent border-secondary text-white p-3">
+            <div class="mb-3">
+                <label for="spellSearchInput" class="form-label small text-muted">Buscar Magia Predefinida:</label>
+                <input
+                    type="text"
+                    id="spellSearchInput"
+                    class="form-control form-control-sm bg-dark text-white border-secondary"
+                    list="predefinedSpellsDatalist"
+                    placeholder="Comece a digitar o nome da magia..."
+                    autocomplete="off"
+                    disabled
+                >
+                <datalist id="predefinedSpellsDatalist">
+                    </datalist>
+                <small id="spellLoadStatus" class="text-info mt-1 d-block">Carregando magias do arquivo local...</small>
+            </div>
+
+            <hr class="border-secondary my-3"/>
+
+            <div class="mb-3">
+                <label class="form-label small text-muted">Ou Crie Manualmente:</label>
+                <div class="btn-group w-100" role="group">
+                    <button type="button" class="btn btn-primary" id="btnAttack">
+                        <i class="bi bi-sword me-2"></i>Ataque Físico
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="btnSpell">
+                        <i class="bi bi-stars me-2"></i>Magia
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="actionName" class="form-label small text-muted">Nome da Ação:</label>
+                <input type="text" id="actionName" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Ex: Espada Longa, Bola de Fogo">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label small text-muted">Tipo de Efeito:</label>
+                <div class="btn-group w-100" role="group">
+                    <button type="button" class="btn btn-primary" id="btnDamage">
+                        <i class="bi bi-fire me-2"></i>Dano
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="btnUtility">
+                        <i class="bi bi-lightbulb me-2"></i>Utilidade
+                    </button>
+                </div>
+            </div>
+
+            <div id="damageFields" class="damage-utility-group active">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label for="damageDice" class="form-label small text-muted">Dados de Dano (ex: 1d8):</label>
+                        <input type="text" id="damageDice" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Ex: 1d8">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="damageModifier" class="form-label small text-muted">Modificador de Dano (ex: +3):</label>
+                        <input type="text" id="damageModifier" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Ex: +3">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="damageType" class="form-label small text-muted">Tipo de Dano (ex: Cortante, Fogo):</label>
+                    <input type="text" id="damageType" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Ex: Perfurante, Radiante">
+                </div>
+            </div>
+
+            <div id="utilityFields" class="damage-utility-group">
+                <div class="mb-3">
+                    <label for="utilityTitle" class="form-label small text-muted">Título da Utilidade (ex: Cura):</label>
+                    <input type="text" id="utilityTitle" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Ex: Cura, Buff, Controle">
+                </div>
+                <div class="mb-3">
+                    <label for="utilityValue" class="form-label small text-muted">Valor/Dados de Utilidade (ex: 1d6):</label>
+                    <input type="text" id="utilityValue" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Ex: 1d6, +2 CA, Desvantagem">
+                </div>
+            </div>
+
+
+            <div class="mb-3">
+                <label for="range" class="form-label small text-muted">Alcance (ex: 1.5m, 18m):</label>
+                <input type="text" id="range" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Ex: 1.5m, 30/120ft">
+            </div>
+
+            <div id="attackFields" class="fields-group active">
+                <div class="mb-3">
+                    <label for="properties" class="form-label small text-muted">Propriedades (separadas por vírgula):</label>
+                    <input type="text" id="properties" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Ex: Versátil (1d10), Acuidade, Pesado">
+                </div>
+            </div>
+
+            <div id="spellFields" class="fields-group">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label for="spellLevel" class="form-label small text-muted">Nível da Magia (0 para Truque):</label>
+                        <input type="number" id="spellLevel" class="form-control form-control-sm bg-dark text-white border-secondary" min="0" max="9">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="castingTime" class="form-label small text-muted">Tempo de Conjuração:</label>
+                        <input type="text" id="castingTime" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Ex: 1 Ação, 1 Reação">
+                    </div>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label for="duration" class="form-label small text-muted">Duração:</label>
+                        <input type="text" id="duration" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Ex: Concentração (1 minuto), Instantâneo">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="spellSchool" class="form-label small text-muted">Escola da Magia:</label>
+                        <input type="text" id="spellSchool" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Ex: Evocação, Ilusão">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="saveDC" class="form-label small text-muted">Teste de Resistência / Efeito (ex: Sabedoria, Metade do Dano):</label>
+                    <input type="text" id="saveDC" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Ex: Força (sem efeito)">
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label small text-muted">Descrição / Efeito:</label>
+                    <textarea id="description" class="form-control form-control-sm bg-dark text-white border-secondary" rows="5" placeholder="Breve descrição da magia e seus efeitos..."></textarea>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-success mt-3 w-100" id="btnSaveAction">
+                <i class="bi bi-save me-2"></i>Salvar Ação
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script>
+        let predefinedSpellsData = [];
+        const JSON_FILE_PATH = 'Magias_PT-BR_PHB.json'; // Caminho para o seu arquivo JSON local
+
+        // Função auxiliar para remover acentos e converter para minúsculas
+        function normalizeString(str) {
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        }
+
+        // Elementos do DOM
+        const spellSearchInput = document.getElementById('spellSearchInput');
+        const predefinedSpellsDatalist = document.getElementById('predefinedSpellsDatalist');
+        const spellLoadStatus = document.getElementById('spellLoadStatus');
+        const btnAttack = document.getElementById('btnAttack');
+        const btnSpell = document.getElementById('btnSpell');
+        const btnDamage = document.getElementById('btnDamage'); // Novo
+        const btnUtility = document.getElementById('btnUtility'); // Novo
+        const attackFields = document.getElementById('attackFields');
+        const spellFields = document.getElementById('spellFields');
+        const damageFields = document.getElementById('damageFields'); // Novo
+        const utilityFields = document.getElementById('utilityFields'); // Novo
+        const actionNameInput = document.getElementById('actionName');
+        const damageDiceInput = document.getElementById('damageDice');
+        const damageModifierInput = document.getElementById('damageModifier');
+        const damageTypeInput = document.getElementById('damageType');
+        const utilityTitleInput = document.getElementById('utilityTitle'); // Novo
+        const utilityValueInput = document.getElementById('utilityValue'); // Novo
+        const rangeInput = document.getElementById('range');
+        const propertiesInput = document.getElementById('properties');
+        const spellLevelInput = document.getElementById('spellLevel');
+        const castingTimeInput = document.getElementById('castingTime');
+        const durationInput = document.getElementById('duration');
+        const spellSchoolInput = document.getElementById('spellSchool');
+        const saveDCInput = document.getElementById('saveDC');
+        const descriptionInput = document.getElementById('description');
+        const btnSaveAction = document.getElementById('btnSaveAction');
+
+        let currentActionType = 'attack'; // 'attack' ou 'spell'
+        let currentEffectType = 'damage'; // 'damage' ou 'utility'
+
+        function clearFormFields() {
+            actionNameInput.value = '';
+            damageDiceInput.value = '';
+            damageModifierInput.value = '';
+            damageTypeInput.value = '';
+            utilityTitleInput.value = ''; // Limpa
+            utilityValueInput.value = ''; // Limpa
+            rangeInput.value = '';
+            propertiesInput.value = '';
+            spellLevelInput.value = '0';
+            castingTimeInput.value = '';
+            durationInput.value = '';
+            spellSchoolInput.value = '';
+            saveDCInput.value = '';
+            descriptionInput.value = '';
+            spellSearchInput.value = '';
+        }
+
+        function setActionType(type) {
+            currentActionType = type;
+            clearFormFields();
+            if (type === 'attack') {
+                attackFields.classList.add('active');
+                spellFields.classList.remove('active');
+                btnAttack.classList.add('btn-primary');
+                btnAttack.classList.remove('btn-outline-primary');
+                btnSpell.classList.add('btn-outline-primary');
+                btnSpell.classList.remove('btn-primary');
+                // Ataques geralmente são de dano por padrão
+                setEffectType('damage');
+            } else { // spell
+                attackFields.classList.remove('active');
+                spellFields.classList.add('active');
+                btnSpell.classList.add('btn-primary');
+                btnSpell.classList.remove('btn-outline-primary');
+                btnAttack.classList.add('btn-outline-primary');
+                btnAttack.classList.remove('btn-primary');
+                // Magias podem ser de dano ou utilidade, manter o último selecionado ou definir padrão
+                setEffectType(currentEffectType); // Mantém o último selecionado ou define 'damage' como padrão
+            }
+        }
+
+        // Novo: Função para alternar entre campos de Dano e Utilidade
+        function setEffectType(type) {
+            currentEffectType = type;
+            if (type === 'damage') {
+                damageFields.classList.add('active');
+                utilityFields.classList.remove('active');
+                btnDamage.classList.add('btn-primary');
+                btnDamage.classList.remove('btn-outline-primary');
+                btnUtility.classList.add('btn-outline-primary');
+                btnUtility.classList.remove('btn-primary');
+            } else { // utility
+                damageFields.classList.remove('active');
+                utilityFields.classList.add('active');
+                btnUtility.classList.add('btn-primary');
+                btnUtility.classList.remove('btn-outline-primary');
+                btnDamage.classList.add('btn-outline-primary');
+                btnDamage.classList.remove('btn-primary');
+            }
+        }
+
+        // Função para processar o objeto 'entries' e 'entriesHigherLevel'
+        function processEntries(entriesArray) {
+            if (!entriesArray || !Array.isArray(entriesArray)) return '';
+            
+            return entriesArray.map(entry => {
+                if (typeof entry === 'string') return entry;
+                
+                // Se o entry for um objeto, tentamos extrair o texto de forma mais inteligente
+                // O JSON do D&D5e-PTBR tem objetos como {"type": "list", "items": ["item1", "item2"]}
+                // ou {"type": "table", "caption": "...", "colLabels": [...], "rows": [...]}
+                // Para simplificar, vou extrair 'items' de listas ou converter o objeto para string.
+                if (entry.type === 'list' && Array.isArray(entry.items)) {
+                    return entry.items.map(item => `  • ${item}`).join('\n');
+                }
+                // Adicione mais lógicas aqui se precisar de formatação para tabelas, etc.
+                // Por enquanto, apenas tenta pegar 'name' ou serializa
+                return entry.name || JSON.stringify(entry); 
+            }).join('\n\n'); // Junta as entradas com duas quebras de linha para parágrafos
+        }
+
+
+        function fillFormWithSpellData(spell) {
+            setActionType('spell'); // Força o tipo para magia
+            actionNameInput.value = spell.name || '';
+            
+            // Verifica se a magia tem dano para definir o tipo de efeito
+            if (spell.damage || spell.damageType) {
+                setEffectType('damage');
+                damageDiceInput.value = spell.damage || '';
+                damageModifierInput.value = '';
+                damageTypeInput.value = spell.damageType || '';
+                utilityTitleInput.value = '';
+                utilityValueInput.value = '';
+            } else {
+                setEffectType('utility');
+                utilityTitleInput.value = spell.name; // Usa o nome da magia como título de utilidade
+                utilityValueInput.value = ''; // Limpa valor de utilidade, ou preencha com efeito relevante se o JSON tiver
+                damageDiceInput.value = '';
+                damageModifierInput.value = '';
+                damageTypeInput.value = '';
+            }
+
+            // Mapeamento para o objeto 'range'
+            let formattedRange = '';
+            if (spell.range && spell.range.type) {
+                if (spell.range.type === 'point' && spell.range.distance) {
+                    formattedRange = `${spell.range.distance.amount} ${spell.range.distance.type === 'feet' ? 'pés' : spell.range.distance.type === 'miles' ? 'milhas' : spell.range.distance.type === 'foot' ? 'pé' : spell.range.distance.type}`;
+                } else if (spell.range.type === 'radius' && spell.range.distance) {
+                    formattedRange = `${spell.range.distance.amount} ${spell.range.distance.type === 'feet' ? 'pés' : spell.range.distance.type} de raio`;
+                } else if (spell.range.type === 'cone' && spell.range.distance) {
+                    formattedRange = `${spell.range.distance.amount} ${spell.range.distance.type} de cone`;
+                } else if (spell.range.type === 'hemisphere' && spell.range.distance) {
+                    formattedRange = `${spell.range.distance.amount} ${spell.range.distance.type} de hemisfério`;
+                } else if (spell.range.type === 'sphere' && spell.range.distance) {
+                    formattedRange = `${spell.range.distance.amount} ${spell.range.distance.type} de esfera`;
+                }
+                else {
+                    formattedRange = spell.range.type === 'touch' ? 'Toque' : spell.range.type === 'self' ? 'Pessoal' : spell.range.type;
+                }
+            }
+            rangeInput.value = formattedRange;
+            propertiesInput.value = ''; // Magias não têm propriedades de arma
+
+            let level = '0';
+            if (spell.level !== undefined) {
+                if (typeof spell.level === 'string' && spell.level.toLowerCase() === 'cantrip') {
+                    level = '0';
+                } else if (typeof spell.level === 'number') {
+                    level = spell.level.toString();
+                } else {
+                    const match = String(spell.level).match(/\d+/);
+                    level = match ? match[0] : '0';
+                }
+            }
+            spellLevelInput.value = level;
+
+            castingTimeInput.value = spell.time && spell.time.length > 0 ? `${spell.time[0].number} ${spell.time[0].unit === 'action' ? 'Ação' : spell.time[0].unit === 'bonus' ? 'Ação Bônus' : spell.time[0].unit === 'reaction' ? 'Reação' : spell.time[0].unit === 'minute' ? 'Minuto' : spell.time[0].unit === 'hour' ? 'Hora' : spell.time[0].unit}` : '';
+            if (spell.time && spell.time.length > 0 && spell.time[0].unit === 'minute' && spell.time[0].number > 1) castingTimeInput.value += 's';
+            if (spell.time && spell.time.length > 0 && spell.time[0].unit === 'hour' && spell.time[0].number > 1) castingTimeInput.value += 's';
+            
+            let formattedDuration = '';
+            if (spell.duration && spell.duration.length > 0) {
+                const dur = spell.duration[0];
+                if (dur.type === 'timed' && dur.duration) {
+                    formattedDuration = `${dur.duration.amount} ${dur.duration.type === 'minute' ? 'minuto' : dur.duration.type === 'hour' ? 'hora' : dur.duration.type === 'day' ? 'dia' : dur.duration.type === 'round' ? 'rodada' : dur.duration.type}${dur.duration.amount > 1 && dur.duration.type !== 'instant' ? 's' : ''}`;
+                } else {
+                    formattedDuration = dur.type === 'instant' ? 'Instantâneo' : dur.type === 'until_dispelled' ? 'Até ser Dissipada' : dur.type === 'special' ? 'Especial' : dur.type;
+                }
+                if (dur.concentration) { // Se houver concentração
+                    formattedDuration = `Concentração, até ${formattedDuration}`;
+                }
+            }
+            durationInput.value = formattedDuration;
+
+            // Mapeamento da escola de magia (abreviação para nome completo)
+            const schoolMap = {
+                "A": "Abjuração", "C": "Conjuração", "D": "Adivinhação", "En": "Encantamento",
+                "Ev": "Evocação", "I": "Ilusão", "N": "Nigromancia", "T": "Transmutação"
+            };
+            spellSchoolInput.value = schoolMap[spell.school] || spell.school || '';
+
+            let saveDCString = '';
+            if (spell.save && spell.save.length > 0) {
+                spell.save.forEach(s => {
+                    if (s.type) {
+                        const saveTypeMap = {
+                            "str": "Força", "dex": "Destreza", "con": "Constituição",
+                            "int": "Inteligência", "wis": "Sabedoria", "cha": "Carisma"
+                        };
+                        const translatedType = saveTypeMap[s.type] || s.type.charAt(0).toUpperCase() + s.type.slice(1);
+                        
+                        saveDCString += `${translatedType}`;
+                        if (s.outcome) {
+                            saveDCString += ` (${s.outcome === 'half' ? 'metade do dano' : s.outcome === 'negates' ? 'nega o dano' : s.outcome})`;
+                        }
+                        saveDCString += ', ';
+                    }
+                });
+                saveDCString = saveDCString.slice(0, -2);
+            } else if (spell.opposedCheck && spell.opposedCheck.length > 0) {
+                const checkTypeMap = {
+                    "strength": "Força", "dexterity": "Destreza", "constitution": "Constituição",
+                    "intelligence": "Inteligência", "wisdom": "Sabedoria", "charisma": "Carisma"
+                };
+                const translatedCheckType = checkTypeMap[spell.opposedCheck[0]] || spell.opposedCheck[0].charAt(0).toUpperCase() + spell.opposedCheck[0].slice(1);
+                saveDCString = `${translatedCheckType} (Teste Oposto)`;
+            }
+
+            saveDCInput.value = saveDCString;
+
+            // Processa entries e entriesHigherLevel com a nova função
+            let descriptionText = processEntries(spell.entries);
+            if (spell.entriesHigherLevel && spell.entriesHigherLevel.length > 0) {
+                descriptionText += `\n\nEm Níveis Maiores: ${processEntries(spell.entriesHigherLevel)}`;
+            }
+            descriptionInput.value = descriptionText;
+        }
+
+        // Event Listeners
+        btnAttack.addEventListener('click', () => setActionType('attack'));
+        btnSpell.addEventListener('click', () => setActionType('spell'));
+        btnDamage.addEventListener('click', () => setEffectType('damage')); // Novo listener
+        btnUtility.addEventListener('click', () => setEffectType('utility')); // Novo listener
+
+        // Manipulador para o input de busca (sem acentuação)
+        spellSearchInput.addEventListener('input', () => {
+            const searchTerm = normalizeString(spellSearchInput.value);
+            predefinedSpellsDatalist.innerHTML = ''; 
+
+            if (searchTerm.length > 0) {
+                const filteredSpells = predefinedSpellsData.filter(spell =>
+                    normalizeString(spell.name).includes(searchTerm)
+                ).slice(0, 20);
+
+                filteredSpells.forEach(spell => {
+                    const option = document.createElement('option');
+                    option.value = spell.name;
+                    predefinedSpellsDatalist.appendChild(option);
+                });
+            }
+        });
+        
+        // Quando uma sugestão é selecionada no input de busca (e não apenas digitada)
+        spellSearchInput.addEventListener('change', () => {
+            const selectedName = spellSearchInput.value;
+            const selectedSpell = predefinedSpellsData.find(spell => spell.name === selectedName);
+            if (selectedSpell) {
+                fillFormWithSpellData(selectedSpell);
+            } else {
+                clearFormFields();
+            }
+        });
+
+        btnSaveAction.addEventListener('click', () => {
+            const actionData = {
+                type: currentActionType,
+                effectType: currentEffectType, // Adiciona tipo de efeito
+                name: actionNameInput.value,
+                // Campos de Dano ou Utilidade
+                damage: currentEffectType === 'damage' ? `${damageDiceInput.value}${damageModifierInput.value} ${damageTypeInput.value}`.trim() : undefined,
+                utilityTitle: currentEffectType === 'utility' ? utilityTitleInput.value : undefined,
+                utilityValue: currentEffectType === 'utility' ? utilityValueInput.value : undefined,
+                
+                range: rangeInput.value,
+                properties: currentActionType === 'attack' ? propertiesInput.value : undefined,
+                spellLevel: currentActionType === 'spell' ? parseInt(spellLevelInput.value, 10) : undefined,
+                castingTime: currentActionType === 'spell' ? castingTimeInput.value : undefined,
+                duration: currentActionType === 'spell' ? durationInput.value : undefined,
+                description: currentActionType === 'spell' ? descriptionInput.value : undefined,
+                saveDC: currentActionType === 'spell' ? saveDCInput.value : undefined,
+                spellSchool: currentActionType === 'spell' ? spellSchoolInput.value : undefined,
+            };
+            alert(`Ação Salva (visualização): ${JSON.stringify(actionData, null, 2)}`);
+            console.log("Dados da Ação Salva:", actionData);
+            clearFormFields();
+        });
+
+        // --- Lógica de Carregamento do JSON Local ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const xhr = new XMLHttpRequest();
+            xhr.overrideMimeType("application/json");
+            xhr.open('GET', JSON_FILE_PATH, true);
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            const rawData = JSON.parse(xhr.responseText);
+                            if (rawData && Array.isArray(rawData.spell)) {
+                                predefinedSpellsData = rawData.spell;
+                                spellLoadStatus.textContent = '';
+                                spellSearchInput.disabled = false;
+                            } else {
+                                throw new Error("O JSON carregado não contém um array 'spell' válido ou está vazio.");
+                            }
+                        } catch (e) {
+                            console.error("Erro ao fazer parse ou processar JSON local:", e);
+                            spellLoadStatus.textContent = `Erro: Dados JSON inválidos ou inesperados. Detalhes: ${e.message}`;
+                            spellLoadStatus.classList.remove('text-info');
+                            spellLoadStatus.classList.add('text-danger');
+                            spellSearchInput.disabled = true;
+                        }
+                    } else {
+                        console.error("Erro ao carregar o arquivo JSON local. Status:", xhr.status, "Resposta:", xhr.responseText);
+                        spellLoadStatus.textContent = `Erro ao carregar magias. Código: ${xhr.status}. Verifique se '${JSON_FILE_PATH}' existe e está sendo servido corretamente.`;
+                        spellLoadStatus.classList.remove('text-info');
+                        spellLoadStatus.classList.add('text-danger');
+                        spellSearchInput.disabled = true;
+                    }
+                }
+            };
+            xhr.send(null);
+
+            // Garante que o estado inicial é de ataque e dano
+            setActionType('attack');
+            setEffectType('damage'); // Define o padrão para Dano
+        });
+    </script>
+</body>
+</html>

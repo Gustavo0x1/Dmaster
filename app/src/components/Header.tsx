@@ -11,6 +11,7 @@ function Header() {
                <Link to="/"  className="nav-link px-2 link-light">Gs_DungeonMaster</Link>
                <Link to="/"  id="btn-home" className="nav-link px-2 link-light">Inicio</Link>
                <Link to="/ficha"  id="btn-ficha" className="nav-link px-2 link-light">Ficha</Link>
+               <Link to="/acoes" id="btn-act" className="nav-link px-2 link-light">Ações</Link>
                <Link to="/inventario" id="btn-inv" className="nav-link px-2 link-light">Inventário</Link>
           </ul>
 

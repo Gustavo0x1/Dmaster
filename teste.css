@@ -1,0 +1,86 @@
+/* src/index.css - Apenas o Essencial para AttributesSection Uniforme */
+
+/* 1. Estilos para o contêiner flex dos cards de atributo */
+/* Este é o div raiz do AttributesSection.tsx */
+.d-flex.flex-wrap.justify-content-center.gap-2 {
+    /* Garante que o contêiner dos cards tenha um limite de largura para que o flex-wrap funcione */
+    /* Se esta seção for inserida em uma coluna com largura limitada, este max-width pode ser removido */
+    max-width: 800px; /* Exemplo: limite a largura da seção de atributos */
+    margin: 0 auto; /* Centraliza a seção se ela for menor que o pai */
+}
+
+/* 2. Estilos para cada CARD individual de atributo */
+/* Este é o div com className="card mb-3 bg-transparent border-secondary text-white" dentro do map */
+.card.mb-3 { /* Seletor mais específico se houver outros .card */
+    min-width: 120px;  /* Largura MÍNIMA para cada card */
+    max-width: 140px; /* Largura MÁXIMA para cada card (para uniformidade) */
+    height: auto; /* Permite que a altura se ajuste, mas min-height do body vai forçar */
+    
+    /* Garante que o fundo seja transparente, borda e texto brancos */
+    background-color: transparent !important; 
+    border: 1px solid #6c757d !important; /* Borda visível */
+    color: #f8f9fa !important;
+}
+
+/* 3. Estilos para o CORPO de cada card de atributo */
+/* Este é o div com className="card-body text-center p-2 d-flex flex-column align-items-center" */
+.card-body.text-center.p-2 {
+    min-height: 85px; /* Altura MÍNIMA do corpo do card - AJUSTE ESTE VALOR */
+                      /* Aumentei um pouco para dar mais espaço */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Distribui o espaço entre os elementos verticalmente */
+    align-items: center; /* Centraliza o conteúdo horizontalmente */
+    padding: 0.5rem !important; /* Ajusta o padding do corpo do card */
+}
+
+/* 4. Estilos para o TÍTULO do atributo (h6) */
+/* Este é o h6 com className="card-title mb-0 text-white" */
+.card-title.mb-0 {
+    font-size: 0.9rem; /* Tamanho da fonte do título */
+    white-space: nowrap; /* IMPEDE QUE O TEXTO QUEBRE LINHA */
+    overflow: hidden; /* OCULTA O TEXTO QUE EXCEDE */
+    text-overflow: ellipsis; /* ADICIONA RETICÊNCIAS (...) */
+    width: 100%; /* Garante que o texto ocupe a largura total para o ellipsis funcionar */
+    text-align: center; /* Centraliza o texto */
+    margin-bottom: 0 !important; /* Garante que a margem seja 0 como no JSX */
+}
+
+/* 5. Estilos para o VALOR e MODIFICADOR (div.font-weight-bold) */
+/* Este é o div com className="font-weight-bold" */
+.font-weight-bold {
+    font-size: 1rem; /* Tamanho da fonte do valor */
+    white-space: nowrap; /* IMPEDE QUE O TEXTO QUEBRE LINHA */
+    overflow: hidden; /* OCULTA O TEXTO QUE EXCEDE */
+    text-overflow: ellipsis; /* ADICIONA RETICÊNCIAS (...) */
+    width: 100%; /* Garante que o texto ocupe a largura total para o ellipsis funcionar */
+    text-align: center; /* Centraliza o texto */
+}
+
+/* 6. Estilos para a tag <small> do modificador */
+.text-warning {
+    color: #ffc107 !important; /* Cor amarela do modificador */
+}
+
+/* 7. Estilos para o botão "Roll" */
+.btn.btn-sm.btn-outline-secondary.mt-2 {
+    font-size: 0.75rem; /* Tamanho da fonte do botão */
+    padding: 0.2rem 0.5rem; /* Padding do botão */
+    margin-top: 0.5rem !important; /* Margem superior do botão */
+    border-color: #6c757d !important; /* Cor da borda */
+    color: #f8f9fa !important; /* Cor do texto */
+}
+.btn.btn-sm.btn-outline-secondary.mt-2:hover {
+    background-color: #6c757d !important;
+    color: #fff !important;
+}
+
+/* Utilitários Bootstrap necessários que podem não estar em um import básico */
+.d-flex { display: flex !important; }
+.flex-wrap { flex-wrap: wrap !important; }
+.justify-content-center { justify-content: center !important; }
+.align-items-center { align-items: center !important; }
+.flex-column { flex-direction: column !important; } /* Adicionado para clareza */
+.mb-3 { margin-bottom: 1rem !important; } /* Padrão do Bootstrap */
+.mt-2 { margin-top: .5rem !important; } /* Padrão do Bootstrap */
+.gap-2 { gap: .5rem !important; } /* Padrão do Bootstrap */

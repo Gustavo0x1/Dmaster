@@ -1,11 +1,11 @@
 import React from 'react';
 import {SheetForm} from '../components/Forms/SheetForm'
 import ActionManager from '../components/Actions/ActionManager';
-export const Inventory: React.FC = () => {
+export const Actions: React.FC = () => {
 
 
     return <div>
-inv
+        <ActionManager ></ActionManager>
         </div>
       
 };

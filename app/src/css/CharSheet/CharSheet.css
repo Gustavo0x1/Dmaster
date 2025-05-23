@@ -1,0 +1,153 @@
+/* src/CharacterSheet/CharacterSheet.css */
+
+body {
+  color: white; /* Garante que o texto padrão do body seja branco */
+  background-color: #222; /* Fundo escuro para a aplicação */
+}
+
+.character-sheet-wrapper {
+  color: white; /* Garante que o texto dentro da ficha seja branco */
+  padding: 20px;
+  margin: 20px auto;
+  max-width: 1200px; /* Ajuste conforme necessário */
+}
+
+.atributos-essenciais {
+  display: flex;
+  flex-wrap: wrap; /* Permite que os itens quebrem a linha */
+  gap: 1px; /* Espaçamento de 1px entre os itens */
+  justify-content: flex-start; /* Alinha os itens ao início */
+}
+
+.atributos-essenciais > div {
+  background-color: #333;
+  border-radius: 25px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  box-sizing: border-box; /* Garante que padding não aumente o tamanho total */
+}
+
+.atributos-basicos > div {
+  background-color: #333;
+  border-radius: 15px;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+/* Estilos para os botões e inputs na HealthSection */
+.health-section-container .health-controls {
+  margin-top: 10px;
+}
+
+.health-section-container .form-control-sm {
+  background-color: #555;
+  color: white;
+  border: 1px solid #777;
+}
+
+.health-section-container .form-control-sm::placeholder {
+  color: #ccc;
+}
+
+.health-section-container .edit-health-popover {
+  margin-top: 15px;
+  background-color: #333;
+  border: 1px solid #555;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Estilos de botões gerais para a ficha */
+.btn-outline-secondary {
+    color: #f8f9fa; /* cor do texto */
+    border-color: #6c757d; /* cor da borda */
+}
+.btn-outline-secondary:hover {
+    color: #212529; /* cor do texto ao passar o mouse */
+    background-color: #6c757d; /* cor de fundo ao passar o mouse */
+    border-color: #6c757d;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+
+.btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+}
+.btn-success:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+.btn-warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+}
+.btn-warning:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+.btn-primary:hover {
+    background-color: #0069d9;
+    border-color: #0062cc;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+}
+.btn-secondary:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+}
+
+/* Estilos para badges de perícias */
+.badge-info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+/* Garante a cor dos textos de card-subtitle e card-title */
+.card-subtitle.text-white, .card-title.text-white {
+    color: white !important;
+}
+
+/* Efeito para progress bar */
+.progress {
+    background-color: #555; /* Um cinza um pouco mais escuro para o fundo da barra de progresso */
+}
+.progress-bar {
+    transition: width 0.5s ease-in-out; /* Transição suave para a barra de progresso */
+}
+
+/* Estilos para a lista de perícias */
+.list-group-item.bg-transparent {
+    background-color: transparent !important;
+}
+.list-group-item.border-secondary {
+    border-color: #6c757d !important;
+}
+.list-group-item.text-white {
+    color: white !important;
+}

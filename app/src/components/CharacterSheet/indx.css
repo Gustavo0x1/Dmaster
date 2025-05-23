@@ -1,0 +1,120 @@
+/* src/components/CharacterSheet/indx.css (ou seu arquivo CSS principal) */
+
+.character-sheet-wrapper {
+  background-color: #343a40; /* Cor de fundo da ficha */
+  color: #f8f9fa; /* Cor do texto principal */
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+  min-height: 100vh; /* Para garantir que o fundo preencha a tela */
+}
+
+/* Estilos para o Card de Atributos (AttributesSection) */
+.attributes-card { /* Adicione esta classe ao div.card em AttributesSection se ainda não tiver */
+  background-color: #495057;
+  padding: 15px;
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Estilos para a imagem do personagem e HealthController (CharacterPortraitAndHealth) */
+.character-portrait-container {
+  box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+  transition: transform 0.2s ease-in-out;
+}
+.character-portrait-container:hover {
+  transform: scale(1.05);
+}
+.health-controller-card {
+  max-width: 200px; /* Garante que o controlador não fique muito largo */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Estilos para a seção de perícias (SkillsSection) */
+.pericias h5 {
+  color: #ffc107;
+  margin-bottom: 10px;
+}
+.pericias .list-group-item {
+  background-color: transparent !important;
+  border-color: #6c757d !important;
+  color: #f8f9fa !important;
+  padding-left: 0;
+  padding-right: 0;
+}
+.pericias .badge { /* Para garantir que o badge de perícia tenha a cor certa */
+  background-color: #0dcaf0 !important;
+  color: #212529 !important;
+}
+
+/* Estilos para os atributos essenciais (se você os reintroduzir) */
+.atributos-essenciais .card {
+    min-width: 120px;
+}
+.atributos-essenciais h6 {
+  color: #adb5bd;
+}
+.atributos-essenciais .font-weight-bold {
+  color: #ffc107;
+  font-size: 1.2rem;
+}
+
+/* Estilos da barra de vida */
+.progress {
+  height: 1.2rem; /* Altura da barra */
+  position: relative; /* Para posicionar o texto de PV */
+}
+.progress .form-control-sm { /* Estilo do input sobre a barra de vida */
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: white !important;
+    font-weight: bold;
+    padding: 0;
+    text-align: center; /* Centraliza o texto dentro do input */
+    line-height: 1.2rem;
+}
+.progress small { /* Estilo do "/ Max" */
+    color: white !important;
+    font-weight: bold;
+    line-height: 1.2rem;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+/* Estilos para os botões de controle de vida */
+.health-controls .form-control-sm {
+  background-color: #6c757d;
+  border-color: #495057;
+  color: #fff;
+}
+.health-controls .form-control-sm::placeholder {
+  color: #ced4da;
+}
+
+/* Estilos para o painel de edição de vida */
+.edit-health-panel label {
+  color: #adb5bd;
+}
+
+/* Media Queries para Responsividade */
+@media (max-width: 767.98px) { /* Para telas pequenas (celulares) */
+  .character-sheet-wrapper .row {
+    flex-direction: column; /* Empilha as colunas verticalmente */
+  }
+  /* Ajusta as colunas para ocupar 100% da largura em telas pequenas */
+  .col-md-3,
+  .col-md-9 {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-bottom: 15px; /* Espaçamento entre as seções empilhadas */
+  }
+  /* Remove o offset em telas pequenas */
+  .offset-md-6 {
+      margin-left: 0 !important;
+  }
+  /* Centraliza a imagem e vida em telas pequenas */
+  .col-md-6.offset-md-6.d-flex.justify-content-end {
+      justify-content: center !important;
+  }
+}

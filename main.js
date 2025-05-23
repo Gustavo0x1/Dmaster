@@ -58,6 +58,7 @@ function createMainWindow(){
         width:1280,
         height:720,
         backgroundColor:"#202020",
+        resizable:false,
         webPreferences:{
             contextIsolation:true,
             nodeIntegration:true,
