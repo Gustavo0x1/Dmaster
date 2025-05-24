@@ -42,6 +42,7 @@ export interface CharacterAction {
   properties?: string[]; // Ex: ['Versátil (1d10)', 'Acuidade'] (para ataques)
 
   // --- Propriedades de Magia (Opcionais) ---
+  range?:string;
   level?: number; // Nível da magia (0 para truques)
   castingTime?: string;
   duration?: string;

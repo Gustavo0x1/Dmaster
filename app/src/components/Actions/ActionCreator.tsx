@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CharacterAction, RawSpellData } from '../../types'; // Importado CharacterAction
-import { v4 as uuidv4 } from 'uuid';
+import {v4 as uuidv4} from  'uuid'
 // ** IMPORTAÇÃO DIRETA DO JSON **
 import magicData from './MAGIAS.json'; // Ajuste o caminho se necessário!
 
