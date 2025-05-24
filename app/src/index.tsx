@@ -3,8 +3,8 @@
   import 'bootstrap/dist/css/bootstrap.min.css';
   import 'bootstrap/dist/js/bootstrap.min.js';
   import 'bootstrap-icons/font/bootstrap-icons.css';
+  import './css/CharSheet/CharSheet.css'
   import './index.css';
-  
   import reportWebVitals from './reportWebVitals';
   import {Route ,Routes, HashRouter,} from 'react-router-dom';
   import { Layout } from './components/Layout';

@@ -1,9 +1,10 @@
 // src/components/ActionManager/ActionManager.tsx
 import React, { useState, useEffect } from 'react';
-import ActionCreator from './ActionCreator';
+import ActionCreator from './ActionCreator'; // Note: este é o ActionCreator REAL, não a cópia enviada anteriormente
 import CombatActions from './CombatActions';
 import SelectedTokenDisplay from './TokenSelection'; // Ajuste o caminho se necessário
-import { CombatAction, Token } from '../../types'; // Importe o tipo Token padronizado
+// Importe a nova interface CharacterAction
+import { CharacterAction, Token } from '../../types';
 import { useLayout } from '../Layout'; // Importe o hook useLayout
 
 const ActionManager: React.FC = () => {
@@ -11,9 +12,11 @@ const ActionManager: React.FC = () => {
   // `setSelectedTokensInLayout` é a função para atualizar essa lista no Layout (se o ActionManager precisar fazer isso)
   const { addContentToRight, clearContentFromRight, selectedTokens: selectedTokensFromLayout, setSelectedTokens: setSelectedTokensInLayout } = useLayout();
 
-  const [savedActions, setSavedActions] = useState<CombatAction[]>([]);
+  // Estados agora usam CharacterAction[]
+  const [savedActions, setSavedActions] = useState<CharacterAction[]>([]);
   const [activeTab, setActiveTab] = useState<'acoes' | 'criar' | 'grupo'>('acoes');
-  const [actionToEdit, setActionToEdit] = useState<CombatAction | null>(null);
+  // Estado para a ação sendo editada, também CharacterAction | null
+  const [actionToEdit, setActionToEdit] = useState<CharacterAction | null>(null);
   const [selectedTokenFromCombatActions, setSelectedTokenFromCombatActions] = useState<Token | null>(null); // Token selecionado via CombatActions
 
   // Efeito para injetar SelectedTokenDisplay na coluna direita do Layout
@@ -24,12 +27,14 @@ const ActionManager: React.FC = () => {
     return () => {
       // Limpa apenas o conteúdo da coluna direita, ou todo o layout se preferir.
       // Cuidado ao usar clearAllLayoutContent aqui se outros componentes também injetam conteúdo.
-      clearContentFromRight(); 
+      clearContentFromRight();
     };
   }, [selectedTokenFromCombatActions, addContentToRight, clearContentFromRight]);
 
 
-  const handleSaveAction = (newAction: CombatAction) => {
+  // Função para salvar ou atualizar uma ação
+  // Recebe 'CharacterAction' agora
+  const handleSaveAction = (newAction: CharacterAction) => {
     if (actionToEdit) {
       setSavedActions(prevActions => prevActions.map(action =>
         action.id === actionToEdit.id ? newAction : action
@@ -37,11 +42,14 @@ const ActionManager: React.FC = () => {
       alert(`Ação "${newAction.name}" atualizada com sucesso!`);
       setActionToEdit(null);
     } else {
-      setSavedActions(prevActions => [...prevActions, { ...newAction, isFavorite: false }]);
+      // Quando salva uma nova ação, certifica-se de que o ID é gerado em ActionCreator
+      // e que isFavorite é inicializado (se não vier do ActionCreator)
+      setSavedActions(prevActions => [...prevActions, { ...newAction, isFavorite: newAction.isFavorite ?? false }]);
       alert(`Ação "${newAction.name}" salva com sucesso!`);
     }
     setActiveTab('acoes');
-    console.log("Lista de ações salvas/atualizadas:", [...savedActions.filter(a => a.id !== (actionToEdit?.id || '')), newAction]);
+    // Nota: O console.log com filtro pode não refletir o estado mais recente imediatamente devido ao setter assíncrono.
+    // console.log("Lista de ações salvas/atualizadas:", [...savedActions.filter(a => a.id !== (actionToEdit?.id || '')), newAction]);
   };
 
   const handleDeleteAction = (actionId: string) => {
@@ -54,7 +62,9 @@ const ActionManager: React.FC = () => {
     }
   };
 
-  const handleEditRequest = (action: CombatAction) => {
+  // Função para editar uma ação
+  // Recebe 'CharacterAction' agora
+  const handleEditRequest = (action: CharacterAction) => {
     setActionToEdit(action);
     setActiveTab('criar');
   };
@@ -119,9 +129,9 @@ const ActionManager: React.FC = () => {
         {activeTab === 'acoes' && (
           <div className="tab-pane fade show active h-100" id="acoes-tab-pane" role="tabpanel" aria-labelledby="acoes-tab">
             <CombatActions
-              actions={savedActions}
+              actions={savedActions} // Passa CharacterAction[]
               onDeleteAction={handleDeleteAction}
-              onEditAction={handleEditRequest}
+              onEditAction={handleEditRequest} // Passa CharacterAction
               onToggleFavorite={handleToggleFavorite}
               availableTokens={selectedTokensFromLayout} // PASSA OS TOKENS SELECIONADOS DO GRID
               onTokenSelected={handleTokenSelectedFromCombatActions}
@@ -131,8 +141,8 @@ const ActionManager: React.FC = () => {
         {activeTab === 'criar' && (
           <div className="tab-pane fade show active h-100" id="criar-tab-pane" role="tabpanel" aria-labelledby="criar-tab">
             <ActionCreator
-              onSaveAction={handleSaveAction}
-              actionToEdit={actionToEdit}
+              onSaveAction={handleSaveAction} // Espera CharacterAction
+              actionToEdit={actionToEdit} // Pode ser CharacterAction | null
               onCancelEdit={() => setActionToEdit(null)}
             />
           </div>

@@ -1,153 +1,478 @@
-/* src/CharacterSheet/CharacterSheet.css */
+/* src/index.css - NOMES DE CLASSES MAIS PALPÁVEIS */
 
-body {
-  color: white; /* Garante que o texto padrão do body seja branco */
-  background-color: #222; /* Fundo escuro para a aplicação */
-}
+/* ... (Manter todas as outras regras globais, de layout, de cards genéricos, etc., como estavam) ... */
 
-.character-sheet-wrapper {
-  color: white; /* Garante que o texto dentro da ficha seja branco */
-  padding: 20px;
-  margin: 20px auto;
-  max-width: 1200px; /* Ajuste conforme necessário */
-}
+/* --- SEÇÕES ESPECÍFICAS DA FICHA DE PERSONAGEM --- */
 
-.atributos-essenciais {
-  display: flex;
-  flex-wrap: wrap; /* Permite que os itens quebrem a linha */
-  gap: 1px; /* Espaçamento de 1px entre os itens */
-  justify-content: flex-start; /* Alinha os itens ao início */
-}
-
-.atributos-essenciais > div {
-  background-color: #333;
-  border-radius: 25px;
+/* 1. CONTAINER PRINCIPAL DA FICHA DE PERSONAGEM */
+/* A classe 'character-sheet-container' deve ser adicionada ao div principal do FullCharSheet.tsx */
+.character-sheet-container {
+  background-color: #343a40; /* Fundo da ficha */
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 10px;
-  box-sizing: border-box; /* Garante que padding não aumente o tamanho total */
+  flex-grow: 1;
+  height: 100%;
+  overflow: hidden;
 }
 
-.atributos-basicos > div {
-  background-color: #333;
-  border-radius: 15px;
-  padding: 10px;
-  box-sizing: border-box;
+/* 2. CONTEÚDO DAS ABAS (PERSONAGEM, BIO, MAGIAS) */
+/* As classes Bootstrap .tab-content e .tab-pane são estendidas aqui */
+.tab-content-display { /* Adicionado ao div .tab-content no FullCharSheet.tsx */
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.tab-content-display .tab-page-active { /* Adicionado ao div .tab-pane.show.active */
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
 }
 
-/* Estilos para os botões e inputs na HealthSection */
-.health-section-container .health-controls {
-  margin-top: 10px;
+/* 3. CORES PERSONALIZADAS DO TEMA (Mantidas, pois dão a identidade visual) */
+.text-highlight-warning { color: #ffc107 !important; } /* Ex: títulos, valores importantes */
+.text-highlight-info { color: #0dcaf0 !important; } /* Ex: informações secundárias */
+.text-highlight-success { color: #198754 !important; } /* Ex: cura, sucesso */
+.text-highlight-danger { color: #dc3545 !important; } /* Ex: dano, exclusão */
+.text-secondary-muted { color: #adb5bd !important; } /* Ex: texto muted */
+.text-light-base { color: #f8f9fa !important; } /* Ex: texto em fundo escuro */
+
+/* 4. ESTILOS DE CARDS PERSONALIZADOS (Ajustes sobre o padrão Bootstrap para todos os cards principais) */
+.custom-card-base { /* Adicionado aos cards principais como ActionCreator, CombatActions, etc. */
+    background-color: #2c2c2c !important;
+    border: 1px solid #495057 !important;
+    color: #f8f9fa !important;
+    border-radius: 0.375rem;
+    box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.2);
+}
+.custom-card-base .card-footer {
+    border-top: 1px solid #495057;
+}
+/* Regra para aplicar scroll interno ao body de cards que precisam */
+.custom-card-scrollable-body,
+.modal-body.custom-scroll { /* Mantido para o modal-body */
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 15px;
+    padding-left: 15px;
 }
 
-.health-section-container .form-control-sm {
-  background-color: #555;
-  color: white;
-  border: 1px solid #777;
+
+/* 5. SEÇÃO DE ATRIBUTOS BÁSICOS (AttributesSection) */
+/* A classe 'character-attributes-section' deve ser adicionada ao container pai dos cards de atributos */
+.character-attributes-section .row-layout { /* O .row que contém os cards de atributo dentro */
+    justify-content: center;
+    gap: 10px;
+    align-items: stretch;
+    margin-left: 0;
+    margin-right: 0;
+}
+/* A classe 'attribute-value-card' deve ser adicionada a CADA card individual de atributo */
+.attribute-value-card {
+    min-width: 120px;
+    max-width: 140px;
+    flex-basis: 120px;
+    flex-grow: 1;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    background-color: #343a40 !important;
+    border: 1px solid #ffc107 !important;
+}
+.attribute-value-card .card-body {
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1;
+    padding: 0.75rem !important;
+}
+.attribute-value-card .attribute-name-label { /* O título de cada atributo (Força, Destreza) */
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 0.25rem !important;
+    color: #ffc107;
+}
+.attribute-value-card .attribute-modifier-value { /* O valor numérico do atributo */
+    font-size: 1.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    text-align: center;
+    color: #f8f9fa;
 }
 
-.health-section-container .form-control-sm::placeholder {
-  color: #ccc;
-}
 
-.health-section-container .edit-health-popover {
-  margin-top: 15px;
-  background-color: #333;
-  border: 1px solid #555;
-  border-radius: 8px;
-  padding: 15px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+/* 6. SEÇÃO DE PERÍCIAS (SkillsSection) */
+/* A classe 'character-skills-section' deve ser adicionada ao card pai das perícias */
+.character-skills-section .card {
+    background-color: #343a40 !important;
+    border: 1px solid #0dcaf0 !important;
 }
-
-/* Estilos de botões gerais para a ficha */
-.btn-outline-secondary {
-    color: #f8f9fa; /* cor do texto */
-    border-color: #6c757d; /* cor da borda */
+.character-skills-section .section-title { /* Título da seção de perícias */
+    color: #ffc107;
+    margin-bottom: 15px;
+    text-align: center;
 }
-.btn-outline-secondary:hover {
-    color: #212529; /* cor do texto ao passar o mouse */
-    background-color: #6c757d; /* cor de fundo ao passar o mouse */
-    border-color: #6c757d;
-}
-
-.btn-danger {
-    background-color: #dc3545;
-    border-color: #dc3545;
-    color: white;
-}
-.btn-danger:hover {
-    background-color: #c82333;
-    border-color: #bd2130;
-}
-
-.btn-success {
-    background-color: #28a745;
-    border-color: #28a745;
-    color: white;
-}
-.btn-success:hover {
-    background-color: #218838;
-    border-color: #1e7e34;
-}
-
-.btn-warning {
-    background-color: #ffc107;
-    border-color: #ffc107;
-    color: #212529;
-}
-.btn-warning:hover {
-    background-color: #e0a800;
-    border-color: #d39e00;
-}
-
-.btn-primary {
-    background-color: #007bff;
-    border-color: #007bff;
-    color: white;
-}
-.btn-primary:hover {
-    background-color: #0069d9;
-    border-color: #0062cc;
-}
-
-.btn-secondary {
-    background-color: #6c757d;
-    border-color: #6c757d;
-    color: white;
-}
-.btn-secondary:hover {
-    background-color: #5a6268;
-    border-color: #545b62;
-}
-
-/* Estilos para badges de perícias */
-.badge-info {
-    background-color: #17a2b8;
-    color: white;
-}
-
-/* Garante a cor dos textos de card-subtitle e card-title */
-.card-subtitle.text-white, .card-title.text-white {
-    color: white !important;
-}
-
-/* Efeito para progress bar */
-.progress {
-    background-color: #555; /* Um cinza um pouco mais escuro para o fundo da barra de progresso */
-}
-.progress-bar {
-    transition: width 0.5s ease-in-out; /* Transição suave para a barra de progresso */
-}
-
-/* Estilos para a lista de perícias */
-.list-group-item.bg-transparent {
+.character-skills-section .skill-item-list { /* A lista de grupo de perícias */
     background-color: transparent !important;
+    border-color: #495057 !important;
+    color: #f8f9fa !important;
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
-.list-group-item.border-secondary {
+.character-skills-section .skill-modifier-badge { /* Para o modificador da perícia */
+    background-color: #0dcaf0 !important;
+    color: #212529 !important;
+    min-width: 40px;
+    text-align: center;
+    font-weight: bold;
+}
+
+/* 7. ATRIBUTOS ESSENCIAIS (Do CharacterPortraitAndHealth, coluna direita) */
+/* A classe 'character-essential-attributes' deve ser adicionada ao div que contém os cards */
+.character-essential-attributes .section-title { /* Título "Dados Essenciais" */
+    color: #ffc107;
+}
+.character-essential-attributes .attribute-summary-card { /* Cards individuais de armadura, iniciativa, etc. */
+    background-color: rgba(73, 80, 87, 0.3) !important;
     border-color: #6c757d !important;
 }
-.list-group-item.text-white {
-    color: white !important;
+.character-essential-attributes .attribute-summary-label { /* Título "Armadura", "Iniciativa" */
+    color: #adb5bd;
 }
+.character-essential-attributes .attribute-summary-value { /* Valor numérico */
+    color: #ffc107;
+    font-size: 1.2rem;
+}
+
+/* 8. SEÇÃO BIO (Novos campos de texto da Bio) */
+/* A classe 'character-bio-tab' deve ser o 'tab-pane' quando activeSide === 'bio' */
+.character-bio-tab .content-card { /* Estilos dos cards individuais dentro da aba Bio */
+    background-color: #343a40 !important;
+    border: 1px solid #6c757d !important;
+    color: #f8f9fa !important;
+}
+.character-bio-tab .field-label { /* Rótulos dos campos de texto da Bio */
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    display: block;
+    color: #ffc107; /* Cor de destaque para os rótulos */
+}
+
+/* 9. ESTILOS DE TABELAS DE AÇÕES (NOVO NO CombatActions.tsx) */
+/* A classe 'combat-actions-table-card' deve ser adicionada ao card pai da tabela em CombatActions.tsx */
+.combat-actions-table-card .action-list-table { /* A tabela em si */
+    margin-bottom: 0;
+}
+.combat-actions-table-card .action-list-table thead th {
+    border-bottom: 2px solid #ffc107;
+    vertical-align: middle;
+}
+.combat-actions-table-card .action-list-table tbody td {
+    vertical-align: middle;
+    border-top: 1px solid #495057;
+}
+.combat-actions-table-card .action-list-table.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+.combat-actions-table-card .action-list-table.table-hover tbody tr:hover {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+}
+.combat-actions-table-card .action-selected-row { /* Para a linha selecionada */
+    background-color: #0d6efd !important;
+    color: #fff !important;
+}
+.combat-actions-table-card .action-selected-row:hover {
+    background-color: #0b5ed7 !important;
+}
+.combat-actions-table-card .action-selected-row .text-dark { color: #212529 !important; }
+.combat-actions-table-card .action-selected-row .text-white { color: #fff !important; }
+
+/* 10. ESTILOS DO MODAL DE CRIAÇÃO/EDIÇÃO (ActionCreator) */
+/* A classe 'action-creator-modal-dialog' pode ser adicionada ao .modal-content */
+.action-creator-modal-dialog {
+    border: 1px solid #ffc107 !important;
+    box-shadow: 0 0 25px rgba(255, 193, 7, 0.5) !important;
+}
+.action-creator-modal-dialog .modal-header {
+    background-color: #2c2c2c !important;
+    border-bottom: 1px solid #ffc107 !important;
+}
+.action-creator-modal-dialog .modal-header .btn-close-white {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+
+/* 11. AJUSTES FINOS DE RESPONSIVIDADE (PARA TELAS PEQUENAS) */
+/* Adaptação de padding para o container principal da ficha em telas menores */
+@media (max-width: 767.98px) {
+  .character-sheet-container {
+      padding: 0;
+  }
+  .character-sheet-container > .row {
+      margin-left: 0;
+      margin-right: 0;
+  }
+  /* Ajusta padding para colunas internas */
+  .character-sheet-container .col-md-3,
+  .character-sheet-container .col-md-4,
+  .character-sheet-container .col-md-5,
+  .character-sheet-container .col-lg-8,
+  .character-sheet-container .col-md-10,
+  .character-sheet-container .col-sm-12 {
+      padding-left: 0.75rem !important;
+      padding-right: 0.75rem !important;
+  }
+  /* Ajusta padding para colunas da Bio */
+  .character-bio-tab .col-md-6 {
+      padding-left: 0.75rem !important;
+      padding-right: 0.75rem !important;
+  }
+
+  /* Garante que o row interno das abas não tenha margem negativa */
+  .tab-content-display .tab-page-active > .row {
+      margin-left: 0;
+      margin-right: 0;
+  }
+}
+
+
+
+
+
+/* ... (Manter todas as outras regras do index.css como estão) ... */
+
+/* --- Estilos de Inputs (Ajustes para transparência e largura) --- */
+/* Certifique-se de que o .form-control-sm já tem as cores de texto e borda corretas */
+.form-control.bg-transparent {
+    background-color: transparent !important; /* Força transparência */
+}
+
+/* Nova classe para inputs pequenos e editáveis que são transparentes */
+.inline-editable-input {
+    background-color: transparent !important;
+    border: 1px solid #6c757d !important; /* Borda visível no input */
+    color: inherit !important; /* Hereda a cor do texto do pai */
+    text-align: center;
+    padding: 0.2rem 0.3rem; /* Padding compacto */
+    border-radius: 0.25rem;
+    line-height: 1.2; /* Altura de linha consistente */
+    /* Para controlar a largura e evitar overflow */
+    min-width: 40px; /* Largura mínima para ser clicável/visível */
+    max-width: 100%; /* Permite que ocupe a largura disponível, mas não mais */
+    box-sizing: border-box; /* Inclui padding e border na largura */
+}
+.inline-editable-input:focus {
+    border-color: #ffc107 !important; /* Borda de foco amarela */
+    box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25) !important;
+}
+
+/* Específicos para os inputs de atributo e perícia se você quiser classes separadas */
+.attribute-value-input { /* Adicione ao input do Atributo */
+    width: 60px; /* Largura fixa ou max-width */
+    /* Outros estilos de .inline-editable-input */
+}
+
+.skill-modifier-input { /* Adicione ao input da Perícia */
+    width: 50px; /* Largura fixa ou max-width */
+    /* Outros estilos de .inline-editable-input */
+}
+
+/* src/index.css - REFINAMENTOS PARA ATRIBUTOS, PERÍCIAS E DADOS ESSENCIAIS */
+
+/* ... (Manter todas as outras regras globais, de layout, de cards genéricos, etc., como estavam) ... */
+
+/* 5. SEÇÃO DE ATRIBUTOS BÁSICOS (AttributesSection) */
+/* A classe 'character-attributes-section' deve ser adicionada ao container pai dos cards de atributos */
+.character-attributes-section .row-layout {
+    justify-content: center;
+    gap: 10px;
+    align-items: stretch;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* A classe 'attribute-value-card' deve ser adicionada a CADA card individual de atributo */
+.attribute-value-card {
+    min-width: 120px;
+    max-width: 140px;
+    flex-basis: 120px;
+    flex-grow: 1;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    background-color: #343a40 !important;
+    border: 1px solid #ffc107 !important;
+}
+.attribute-value-card .card-body {
+    min-height: 85px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Centraliza verticalmente o conteúdo */
+    align-items: center; /* Centraliza o conteúdo horizontalmente */
+    padding: 0.75rem !important;
+    flex-grow: 1;
+}
+.attribute-value-card .attribute-name-label {
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 0.25rem !important;
+    color: #ffc107;
+    line-height: 1.2;
+}
+.attribute-value-card .attribute-main-value { /* Nova classe para o valor principal do atributo */
+    font-size: 1.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    text-align: center;
+    color: #f8f9fa;
+    line-height: 1.2;
+    cursor: pointer; /* Torna o valor principal clicável */
+}
+.attribute-value-card .attribute-modifier-display { /* Nova classe para exibir o modificador */
+    font-size: 0.85rem; /* Um pouco maior e mais visível */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    text-align: center;
+    color: #0dcaf0; /* Cor azul clara para o modificador */
+    line-height: 1.2;
+    margin-top: 0.2rem; /* Pequena margem acima para separação */
+}
+
+/* Inputs para edição de atributo */
+.attribute-value-card .attribute-input-container { /* Contêiner do input para controle de largura */
+    display: flex;
+    justify-content: center;
+    width: 100%; /* Ocupa a largura total para centralizar o input */
+}
+.attribute-value-card .attribute-input-container input {
+    background-color: transparent !important;
+    border: 1px solid #6c757d !important;
+    color: #f8f9fa !important;
+    text-align: center;
+    padding: 0.2rem 0.3rem;
+    border-radius: 0.25rem;
+    line-height: 1.2;
+    max-width: 60px; /* Largura máxima para o input numérico */
+    box-sizing: border-box; /* Inclui padding e border na largura */
+}
+
+
+/* 6. SEÇÃO DE PERÍCIAS (SkillsSection) */
+.character-skills-section .card {
+    background-color: #343a40 !important;
+    border: 1px solid #0dcaf0 !important;
+}
+.character-skills-section .section-title {
+    color: #ffc107;
+    margin-bottom: 15px;
+    text-align: center;
+}
+.character-skills-section .skill-item-list {
+    background-color: transparent !important;
+    border-color: #495057 !important;
+    color: #f8f9fa !important;
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.character-skills-section .skill-name-label { /* Nome da perícia */
+    flex-grow: 1; /* Permite que ocupe o espaço restante */
+}
+.character-skills-section .skill-modifier-badge { /* Para o modificador da perícia */
+    background-color: #0dcaf0 !important;
+    color: #212529 !important;
+    min-width: 40px;
+    text-align: center;
+    font-weight: bold;
+    cursor: pointer; /* Torna clicável para edição */
+}
+.character-skills-section .skill-modifier-input { /* Input para edição do modificador da perícia */
+    background-color: transparent !important;
+    border: 1px solid #6c757d !important;
+    color: #0dcaf0 !important; /* Cor do texto no input */
+    text-align: center;
+    padding: 0.2rem 0.3rem;
+    border-radius: 0.25rem;
+    line-height: 1.2;
+    width: 50px; /* Largura fixa para o input da perícia */
+    box-sizing: border-box; /* Inclui padding e border na largura */
+}
+
+/* 7. ATRIBUTOS ESSENCIAIS (CharacterPortraitAndHealth, coluna direita) */
+/* A classe 'character-essential-attributes' deve ser adicionada ao div que contém os cards */
+.character-essential-attributes .section-title {
+    color: #ffc107;
+}
+.character-essential-attributes .essential-attributes-grid { /* Novo: Contêiner para o grid de quadrados */
+    display: flex;
+    flex-wrap: wrap; /* Permite que os itens quebrem para a próxima linha */
+    justify-content: center; /* Centraliza os itens no grid */
+    gap: 10px; /* Espaçamento entre os quadrados */
+    margin-top: 15px; /* Espaço do título */
+}
+
+.character-essential-attributes .essential-attribute-square { /* Novo: Estilo para cada quadrado */
+    width: 100px; /* Largura fixa para o quadrado */
+    height: 100px; /* Altura fixa para o quadrado */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: #343a40 !important;
+    border: 1px solid #ffc107 !important; /* Borda de destaque */
+    border-radius: 8px; /* Cantos arredondados */
+    padding: 5px; /* Padding interno */
+    text-align: center;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+}
+.character-essential-attributes .essential-attribute-square .attribute-summary-label {
+    font-size: 0.8rem;
+    color: #adb5bd;
+    margin-bottom: 5px;
+}
+.character-essential-attributes .essential-attribute-square .attribute-summary-value {
+    font-size: 1.2rem;
+    color: #ffc107;
+    font-weight: bold;
+}
+.character-essential-attributes .essential-attribute-square input { /* Input dentro dos quadrados */
+    background-color: transparent !important;
+    border: 1px solid #6c757d !important;
+    color: #ffc107 !important; /* Cor do texto no input */
+    text-align: center;
+    padding: 0.2rem 0.3rem;
+    border-radius: 0.25rem;
+    width: 80px; /* Largura do input dentro do quadrado */
+    box-sizing: border-box;
+    font-size: 1.1rem;
+}
+
+.tab-page-active.fade.show.active.flex-grow-1 {
+    overflow-x:hidden;
+}
+/* BARRA DE ROLAGEM HORIZONTAL - SOLUÇÃO GERAL */
+/* Esta regra é um último recurso para esconder barras horizontais indesejadas.
+   Sempre que possível, resolva o layout interno para não exceder a largura. */
+
+
+/* ... (Manter todas as outras regras do index.css como estavam) ... */

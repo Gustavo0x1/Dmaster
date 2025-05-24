@@ -20,42 +20,44 @@ export interface Skill {
   name: string;
   modifier: string; // Ou number
 }
-export interface AttackAction {
-  id: string;
-  name: string;
-  type: 'attack';
-  damage: string;
-  range: string;
-  properties: string[];
-  effectType: 'damage' | 'utility';
-  utilityTitle?: string;
-  utilityValue?: string;
-  isFavorite?: boolean; // NOVO
-}
-export interface SpellAction {
-  id: string;
-  name: string;
-  type: 'spell';
-  level: number;
-  castingTime: string;
-  range: string;
-  duration: string;
-  description: string;
-  damage?: string; // Ex: '8d6 Fogo'
+
+export interface CharacterAction {
+  id: string; // Identificador único
+  name: string; // Nome da ação (ex: "Bola de Fogo", "Ataque de Espada")
+  description?: string; // Descrição geral da ação
+
+  // Tipo principal da ação (para diferenciar ataques, magias, etc.)
+  mainType: 'attack' | 'spell' | 'utility' | 'ability'; // Renomeado para 'mainType' para clareza
+
+  // Tipo de efeito da ação (para diferenciar dano, cura, buff, debuff, etc.)
+  // Essa é a propriedade que você pediu para 'Damage', 'Utility', 'Healing'
+  effectCategory: 'damage' | 'utility' | 'healing';
+
+  isFavorite?: boolean; // Para marcar se é favorita
+
+  // --- Propriedades de Ataque (Opcionais) ---
+  damageDice?: string; // Ex: "1d8", "2d6" (para ataques e magias de dano)
+  damageType?: string; // Ex: "Slashing", "Fire", "Radiant"
+  attackRange?: string; // Ex: "30ft", "Melee", "Touch" (para ataques e magias)
+  properties?: string[]; // Ex: ['Versátil (1d10)', 'Acuidade'] (para ataques)
+
+  // --- Propriedades de Magia (Opcionais) ---
+  level?: number; // Nível da magia (0 para truques)
+  castingTime?: string;
+  duration?: string;
   saveDC?: string; // Ex: 'CD de Destreza (Metade do dano)'
-  school?: string;
-  effectType: 'damage' | 'utility';
-  utilityTitle?: string;
-  utilityValue?: string;
-    isFavorite?: boolean; // NOVO
+  school?: string; // Ex: 'Evocação'
+  spellComponents?: { v?: boolean, s?: boolean, m?: string | MaterialComponent }; // Componentes da magia
+
+  // --- Propriedades de Utilidade/Cura (Opcionais) ---
+  utilityTitle?: string; // Título para ações de utilidade/cura (ex: "Cura", "Buff", "Debuff")
+  utilityValue?: string; // Valor/detalhes para ações de utilidade/cura (ex: "1d6", "+2 CA", "Cegueira")
+  healingDice?: string; // Ex: "1d4+2" (específico para cura)
+  target?: string; // Quem a ação afeta (ex: "Um aliado", "Área de 15ft")
 }
 
-export type CombatAction = AttackAction | SpellAction;
-
-export type TargetType = 'single' | 'multiple';
 
 
-// Para a ação de ajuste de vida (adicionar/subtrair)
 export type HealthAction = 'add' | 'subtract';
 interface MaterialComponent {
   text: string;
@@ -65,6 +67,7 @@ interface MaterialComponent {
 export interface RawSpellData {
     name: string;
     source: string;
+    healingDice?: string;
     page: number;
     level: number | string; // Can be 0 (number) or string like "1º" or "Cantrip"
     school: string; // Abbreviation like "I" for Illusion

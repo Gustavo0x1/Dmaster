@@ -5,7 +5,7 @@ export const Actions: React.FC = () => {
 
 
     return <div>
-        <ActionManager ></ActionManager>
+43
         </div>
       
 };

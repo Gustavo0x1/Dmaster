@@ -1,7 +1,6 @@
-// src/components/ActionCreator/ActionCreator.tsx
 import React, { useState, useEffect } from 'react';
-import { CombatAction, AttackAction, SpellAction, RawSpellData } from '../../types';
-
+import { CharacterAction, RawSpellData } from '../../types'; // Importado CharacterAction
+import { v4 as uuidv4 } from 'uuid';
 // ** IMPORTAÇÃO DIRETA DO JSON **
 import magicData from './MAGIAS.json'; // Ajuste o caminho se necessário!
 
@@ -13,7 +12,7 @@ const normalizeString = (str: string): string => {
 
 const processEntries = (entriesArray: Array<string | any> | undefined): string => {
   if (!entriesArray || !Array.isArray(entriesArray)) return '';
-  
+
   return entriesArray.map(entry => {
     if (typeof entry === 'string') return entry;
     if (typeof entry === 'object' && entry !== null) {
@@ -57,9 +56,9 @@ const OUTCOME_MAP: { [key: string]: string } = {
 
 // --- Props do Componente ---
 interface ActionCreatorProps {
-  onSaveAction: (action: CombatAction) => void;
-  actionToEdit: CombatAction | null; // Ação a ser editada
-  onCancelEdit: () => void; // Função para cancelar o modo de edição
+  onSaveAction: (action: CharacterAction) => void; // Tipo alterado
+  actionToEdit: CharacterAction | null; // Tipo alterado
+  onCancelEdit: () => void;
 }
 
 const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdit, onCancelEdit }) => {
@@ -68,10 +67,11 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
   const [loadingSpells, setLoadingSpells] = useState<boolean>(true);
   const [spellLoadError, setSpellLoadError] = useState<string | null>(null);
 
-  // Estados do formulário
-  const [actionType, setActionType] = useState<'attack' | 'spell'>('attack');
-  const [effectType, setEffectType] = useState<'damage' | 'utility'>('damage');
+  // Estados do formulário, renomeado 'actionType' para 'mainType'
+  const [mainType, setMainType] = useState<'attack' | 'spell' | 'utility' | 'ability'>('attack'); // Adicionado 'utility' e 'ability'
+  const [effectCategory, setEffectCategory] = useState<'damage' | 'utility' | 'healing'>('damage'); // Adicionado 'healing'
   const [actionName, setActionName] = useState<string>('');
+  const [description, setDescription] = useState<string>(''); // Movido para campo comum
 
   // Campos de Dano
   const [damageDice, setDamageDice] = useState<string>('');
@@ -82,14 +82,20 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
   const [utilityTitle, setUtilityTitle] = useState<string>('');
   const [utilityValue, setUtilityValue] = useState<string>('');
 
-  const [range, setRange] = useState<string>('');
+  // Campos de Cura
+  const [healingDice, setHealingDice] = useState<string>(''); // Novo campo para dados de cura
+
+  // Campos comuns de alcance
+  const [range, setRange] = useState<string>(''); // Renomeado para 'attackRange' no tipo, mas mantido aqui para compatibilidade
+  const [target, setTarget] = useState<string>(''); // Novo campo para alvo
+
+  // Campos específicos para Ataques
   const [properties, setProperties] = useState<string>('');
 
   // Campos específicos para Magias
   const [spellLevel, setSpellLevel] = useState<string>('0');
   const [castingTime, setCastingTime] = useState<string>('');
   const [duration, setDuration] = useState<string>('');
-  const [description, setDescription] = useState<string>('');
   const [saveDC, setSaveDC] = useState<string>('');
   const [spellSchool, setSpellSchool] = useState<string>('');
 
@@ -115,36 +121,38 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
   // Efeito para carregar a ação a ser editada no formulário
   useEffect(() => {
     if (actionToEdit) {
-      setActionType(actionToEdit.type);
-      setEffectType(actionToEdit.effectType);
+      // Carrega os campos comuns
+      setMainType(actionToEdit.mainType);
+      setEffectCategory(actionToEdit.effectCategory);
       setActionName(actionToEdit.name);
-      setRange(actionToEdit.range);
+      setDescription(actionToEdit.description || ''); // Pode ser opcional
 
-      if (actionToEdit.effectType === 'damage') {
-        const damageParts = (actionToEdit.damage || '').match(/(\d+d\d+)\s*([+-]?\d+)?\s*(.*)/);
-        setDamageDice(damageParts?.[1] || '');
-        setDamageModifier(damageParts?.[2] || '');
-        setDamageType(damageParts?.[3] || '');
-        setUtilityTitle('');
-        setUtilityValue('');
-      } else { // utility
-        setDamageDice('');
-        setDamageModifier('');
-        setDamageType('');
-        setUtilityTitle(actionToEdit.utilityTitle || '');
-        setUtilityValue(actionToEdit.utilityValue || '');
-      }
+      // Carrega campos de dano
+      setDamageDice(actionToEdit.damageDice || '');
+      setDamageModifier(''); // Precisaria de uma regex mais robusta para splitar dado+modificador
+      setDamageType(actionToEdit.damageType || '');
 
-      if (actionToEdit.type === 'attack') {
-        setProperties(actionToEdit.properties ? actionToEdit.properties.join(', ') : '');
-      } else { // spell
-        setSpellLevel(actionToEdit.level.toString());
-        setCastingTime(actionToEdit.castingTime);
-        setDuration(actionToEdit.duration);
-        setDescription(actionToEdit.description);
-        setSaveDC(actionToEdit.saveDC || '');
-        setSpellSchool(actionToEdit.school || '');
-      }
+      // Carrega campos de utilidade
+      setUtilityTitle(actionToEdit.utilityTitle || '');
+      setUtilityValue(actionToEdit.utilityValue || '');
+
+      // Carrega campos de cura
+      setHealingDice(actionToEdit.healingDice || '');
+
+      // Carrega campos de alcance e alvo
+      setRange(actionToEdit.attackRange || ''); // 'attackRange' na interface, 'range' aqui
+      setTarget(actionToEdit.target || '');
+
+      // Carrega campos de ataque
+      setProperties(actionToEdit.properties ? actionToEdit.properties.join(', ') : '');
+
+      // Carrega campos de magia
+      setSpellLevel(actionToEdit.level?.toString() || '0');
+      setCastingTime(actionToEdit.castingTime || '');
+      setDuration(actionToEdit.duration || '');
+      setSaveDC(actionToEdit.saveDC || '');
+      setSpellSchool(actionToEdit.school || '');
+
       setSelectedPredefinedSpellName(actionToEdit.name);
     } else {
       clearFormFields(true);
@@ -154,41 +162,59 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
   // --- Funções de Manipulação ---
   const clearFormFields = (resetTypes: boolean = true) => {
     setActionName('');
+    setDescription('');
     setDamageDice('');
     setDamageModifier('');
     setDamageType('');
     setUtilityTitle('');
     setUtilityValue('');
+    setHealingDice(''); // Limpa o campo de cura
     setRange('');
+    setTarget(''); // Limpa o campo de alvo
     setProperties('');
     setSpellLevel('0');
     setCastingTime('');
     setDuration('');
-    setDescription('');
     setSaveDC('');
     setSpellSchool('');
     setSelectedPredefinedSpellName('');
     if (resetTypes) {
-        setActionType('attack');
-        setEffectType('damage');
+        setMainType('attack'); // Reinicia para 'attack'
+        setEffectCategory('damage'); // Reinicia para 'damage'
     }
   };
 
-  const handleActionTypeChange = (type: 'attack' | 'spell') => {
-    setActionType(type);
-    clearFormFields(false);
-    setEffectType('damage');
+  const handleMainTypeChange = (type: 'attack' | 'spell' | 'utility' | 'ability') => {
+    setMainType(type);
+    clearFormFields(false); // Não reseta o tipo principal, mas limpa os outros campos
+    // Define um effectCategory padrão com base no mainType, se desejar
+    if (type === 'attack' || type === 'spell') {
+        setEffectCategory('damage');
+    } else if (type === 'utility') {
+        setEffectCategory('utility');
+    } else { // 'ability'
+        setEffectCategory('utility'); // Ou outro padrão para 'ability'
+    }
   };
 
-  const handleEffectTypeChange = (type: 'damage' | 'utility') => {
-    setEffectType(type);
+  const handleEffectCategoryChange = (type: 'damage' | 'utility' | 'healing') => {
+    setEffectCategory(type);
+    // Limpar campos irrelevantes com base no novo effectCategory
     if (type === 'damage') {
         setUtilityTitle('');
         setUtilityValue('');
-    } else { // type === 'utility'
+        setHealingDice('');
+    } else if (type === 'utility') {
         setDamageDice('');
         setDamageModifier('');
         setDamageType('');
+        setHealingDice('');
+    } else { // 'healing'
+        setDamageDice('');
+        setDamageModifier('');
+        setDamageType('');
+        setUtilityTitle('');
+        setUtilityValue('');
     }
   };
 
@@ -203,23 +229,33 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
 
     const spell = predefinedSpells.find(s => s.name === spellName);
     if (spell) {
-      setActionType('spell');
+      setMainType('spell'); // Define o tipo principal como 'spell'
       setActionName(spell.name);
-      
+      setDescription(processEntries(spell.entries)); // Descrição da magia
+
+      // Determinar effectCategory
       if (spell.damage || spell.damageType) {
-          setEffectType('damage');
+          setEffectCategory('damage');
           setDamageDice(spell.damage || '');
-          setDamageModifier('');
           setDamageType(spell.damageType || '');
+          setHealingDice(''); // Certifica que o campo de cura está vazio
           setUtilityTitle('');
           setUtilityValue('');
-      } else {
-          setEffectType('utility');
-          setUtilityTitle(spell.name);
+      } else if (spell.healingDice) { // Se o JSON de magias tiver um campo de cura
+          setEffectCategory('healing');
+          setHealingDice(spell.healingDice);
+          setDamageDice('');
+          setDamageType('');
+          setUtilityTitle('');
+          setUtilityValue('');
+      }
+      else {
+          setEffectCategory('utility');
+          setUtilityTitle(spell.name); // Pode ser o nome da magia como título da utilidade
           setUtilityValue('');
           setDamageDice('');
-          setDamageModifier('');
           setDamageType('');
+          setHealingDice('');
       }
 
       let formattedRange = '';
@@ -240,7 +276,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
           }
       }
       setRange(formattedRange);
-      setProperties('');
+      setProperties(''); // Magias geralmente não têm 'properties' de ataque
 
       let level = '0';
       if (spell.level !== undefined) {
@@ -256,7 +292,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       setSpellLevel(level);
 
       setCastingTime(spell.time && spell.time.length > 0 ? `${spell.time[0].number} ${UNIT_MAP[spell.time[0].unit] || spell.time[0].unit}${spell.time[0].number > 1 && (spell.time[0].unit === 'minute' || spell.time[0].unit === 'hour') ? 's' : ''}` : '');
-      
+
       let formattedDuration = '';
       if (spell.duration && spell.duration.length > 0) {
           const dur = spell.duration[0];
@@ -292,11 +328,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       }
       setSaveDC(saveDCString);
 
-      let descriptionText = processEntries(spell.entries);
-      if (spell.entriesHigherLevel && spell.entriesHigherLevel.length > 0) {
-          descriptionText += `\n\nEm Níveis Maiores: ${processEntries(spell.entriesHigherLevel)}`;
-      }
-      setDescription(descriptionText);
+      // A descrição já foi preenchida no início
     }
   };
 
@@ -306,53 +338,60 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       return;
     }
 
-    let newAction: CombatAction;
-    const commonFields = {
-      id: actionToEdit ? actionToEdit.id : Date.now().toString(),
+    const newAction: CharacterAction = {
+      id: actionToEdit ? actionToEdit.id : uuidv4(), // Usar uuidv4 para novos IDs
       name: actionName.trim(),
-      range: range.trim(),
-      effectType: effectType,
-      utilityTitle: effectType === 'utility' ? utilityTitle.trim() : undefined,
-      utilityValue: effectType === 'utility' ? utilityValue.trim() : undefined,
+      description: description.trim() || undefined,
+      mainType: mainType,
+      effectCategory: effectCategory,
+      isFavorite: actionToEdit?.isFavorite || false, // Mantém o favorito se estiver editando, senão false
+
+      // Propriedades opcionais, serão undefined se não preenchidas
+      damageDice: (effectCategory === 'damage' && damageDice.trim()) ? damageDice.trim() : undefined,
+      damageType: (effectCategory === 'damage' && damageType.trim()) ? damageType.trim() : undefined,
+      healingDice: (effectCategory === 'healing' && healingDice.trim()) ? healingDice.trim() : undefined,
+      utilityTitle: (effectCategory === 'utility' && utilityTitle.trim()) ? utilityTitle.trim() : undefined,
+      utilityValue: (effectCategory === 'utility' && utilityValue.trim()) ? utilityValue.trim() : undefined,
+      attackRange: range.trim() || undefined, // Renomeado para attackRange
+      target: target.trim() || undefined, // Novo campo para alvo
+      properties: (mainType === 'attack' && properties.trim()) ? properties.split(',').map(p => p.trim()).filter(p => p) : undefined,
+
+      // Propriedades de Magia (sempre opcional se mainType não for 'spell')
+      level: (mainType === 'spell' && spellLevel.trim() !== '' && !isNaN(parseInt(spellLevel, 10))) ? parseInt(spellLevel, 10) : undefined,
+      castingTime: (mainType === 'spell' && castingTime.trim()) ? castingTime.trim() : undefined,
+      duration: (mainType === 'spell' && duration.trim()) ? duration.trim() : undefined,
+      saveDC: (mainType === 'spell' && saveDC.trim()) ? saveDC.trim() : undefined,
+      school: (mainType === 'spell' && spellSchool.trim()) ? spellSchool.trim() : undefined,
+      // spellComponents não está sendo coletado pelo formulário, mas pode ser adicionado aqui se houver um campo
     };
 
-    if (actionType === 'attack') {
-      const attackFields: Omit<AttackAction, 'id' | 'name' | 'range' | 'type' | 'effectType' | 'utilityTitle' | 'utilityValue'> = {
-        damage: effectType === 'damage' ? `${damageDice.trim()}${damageModifier.trim()} ${damageType.trim()}`.trim() : '',
-        properties: properties.split(',').map(p => p.trim()).filter(p => p),
-      };
-
-      if (effectType === 'damage') {
-        if (!damageDice.trim() && !damageModifier.trim()) {
-          alert('Dados de dano ou modificador são obrigatórios para ataques de dano!');
-          return;
-        }
-        if (!damageType.trim()) {
-          alert('Tipo de dano é obrigatório para ataques de dano!');
-          return;
-        }
-      }
-
-      newAction = { ...commonFields, ...attackFields, type: 'attack' } as AttackAction;
-
-    } else { // spell
-      const spellFields: Omit<SpellAction, 'id' | 'name' | 'range' | 'type' | 'effectType' | 'utilityTitle' | 'utilityValue'> = {
-        level: parseInt(spellLevel, 10),
-        castingTime: castingTime.trim(),
-        duration: duration.trim(),
-        description: description.trim(),
-        school: spellSchool.trim(),
-        damage: effectType === 'damage' ? `${damageDice.trim()}${damageModifier.trim()} ${damageType.trim()}`.trim() : undefined,
-        saveDC: saveDC.trim(),
-      };
-
-      if (!description.trim()) {
-        alert('Descrição da magia é obrigatória!');
+    // Validações adicionais baseadas nos tipos de efeito
+    if (effectCategory === 'damage') {
+      if (!damageDice.trim() && !damageModifier.trim()) {
+        alert('Dados de dano ou modificador são obrigatórios para ações de dano!');
         return;
       }
-
-      newAction = { ...commonFields, ...spellFields, type: 'spell' } as SpellAction;
+      if (!damageType.trim()) {
+        alert('Tipo de dano é obrigatório para ações de dano!');
+        return;
+      }
+    } else if (effectCategory === 'healing') {
+        if (!healingDice.trim()) {
+            alert('Dados de cura são obrigatórios para ações de cura!');
+            return;
+        }
+    } else if (effectCategory === 'utility') {
+        if (!utilityTitle.trim()) {
+            alert('Título da utilidade é obrigatório para ações de utilidade!');
+            return;
+        }
     }
+
+    if (mainType === 'spell' && !description.trim()) {
+        alert('Descrição da magia é obrigatória para magias!');
+        return;
+    }
+
 
     onSaveAction(newAction);
     clearFormFields();
@@ -366,7 +405,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       <div className="card-body p-0 custom-scroll overflow-auto">
         {/* Área de Pesquisa de Magia Predefinida */}
         <div className="mb-3">
-          <label htmlFor="spellSearchInput" className="form-label small text-light">Buscar Magia Predefinida:</label> {/* text-light */}
+          <label htmlFor="spellSearchInput" className="form-label small text-light">Buscar Magia Predefinida:</label>
           <input
             type="text"
             id="spellSearchInput"
@@ -394,69 +433,100 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
 
         <hr className="border-secondary my-3"/>
 
-        {/* Tipo de Ação (Ataque ou Magia) - para criação manual */}
+        {/* Tipo Principal de Ação (Ataque, Magia, Utilidade, Habilidade) */}
         <div className="mb-3">
-          <label className="form-label small text-light">Ou Crie Manualmente:</label> {/* text-light */}
+          <label className="form-label small text-light">Ou Crie Manualmente - Tipo Principal:</label>
           <div className="btn-group w-100" role="group">
             <button
               type="button"
-              className={`btn ${actionType === 'attack' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => handleActionTypeChange('attack')}
+              className={`btn ${mainType === 'attack' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => handleMainTypeChange('attack')}
               disabled={!!actionToEdit}
             >
-              <i className="bi bi-sword me-2"></i>Ataque Físico
+              <i className="bi bi-sword me-2"></i>Ataque
             </button>
             <button
               type="button"
-              className={`btn ${actionType === 'spell' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => handleActionTypeChange('spell')}
+              className={`btn ${mainType === 'spell' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => handleMainTypeChange('spell')}
               disabled={!!actionToEdit}
             >
               <i className="bi bi-stars me-2"></i>Magia
+            </button>
+            {/* Adicione botões para 'utility' e 'ability' se desejar um formulário para criá-los diretamente */}
+            {/* Exemplo: */}
+            <button
+                type="button"
+                className={`btn ${mainType === 'ability' ? 'btn-primary' : 'btn-outline-primary'}`}
+                onClick={() => handleMainTypeChange('ability')}
+                disabled={!!actionToEdit}
+            >
+                <i className="bi bi-person-badge me-2"></i>Habilidade
             </button>
           </div>
         </div>
 
         {/* Nome da Ação */}
         <div className="mb-3">
-          <label htmlFor="actionName" className="form-label small text-light">Nome da Ação:</label> {/* text-light */}
+          <label htmlFor="actionName" className="form-label small text-light">Nome da Ação:</label>
           <input
             type="text"
             id="actionName"
             className="form-control form-control-sm bg-dark text-white border-secondary"
             value={actionName}
             onChange={(e) => setActionName(e.target.value)}
-            placeholder="Ex: Espada Longa, Bola de Fogo"
+            placeholder="Ex: Espada Longa, Bola de Fogo, Inspiração Bárdica"
           />
         </div>
 
-        {/* Seleção de Dano/Utilidade (para Magias e Ataques) */}
+        {/* Descrição - comum para todos os tipos */}
         <div className="mb-3">
-          <label className="form-label small text-light">Tipo de Efeito:</label> {/* text-light */}
+            <label htmlFor="description" className="form-label small text-light">Descrição / Efeito:</label>
+            <textarea
+                id="description"
+                className="form-control form-control-sm bg-dark text-white border-secondary"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                placeholder="Breve descrição da ação e seus efeitos..."
+            ></textarea>
+        </div>
+
+
+        {/* Seleção de Categoria de Efeito (Dano, Utilidade, Cura) */}
+        <div className="mb-3">
+          <label className="form-label small text-light">Categoria de Efeito:</label>
           <div className="btn-group w-100" role="group">
             <button
               type="button"
-              className={`btn ${effectType === 'damage' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => handleEffectTypeChange('damage')}
+              className={`btn ${effectCategory === 'damage' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => handleEffectCategoryChange('damage')}
             >
               <i className="bi bi-fire me-2"></i>Dano
             </button>
             <button
               type="button"
-              className={`btn ${effectType === 'utility' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => handleEffectTypeChange('utility')}
+              className={`btn ${effectCategory === 'utility' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => handleEffectCategoryChange('utility')}
             >
               <i className="bi bi-lightbulb me-2"></i>Utilidade
+            </button>
+            <button
+              type="button"
+              className={`btn ${effectCategory === 'healing' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => handleEffectCategoryChange('healing')}
+            >
+              <i className="bi bi-heart-pulse me-2"></i>Cura
             </button>
           </div>
         </div>
 
         {/* Campos relacionados a Dano */}
-        {effectType === 'damage' && (
+        {effectCategory === 'damage' && (
           <div>
             <div className="row g-2 mb-3">
               <div className="col-md-6">
-                <label htmlFor="damageDice" className="form-label small text-light">Dados de Dano (ex: 1d8):</label> {/* text-light */}
+                <label htmlFor="damageDice" className="form-label small text-light">Dados de Dano (ex: 1d8):</label>
                 <input
                   type="text"
                   id="damageDice"
@@ -467,7 +537,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
                 />
               </div>
               <div className="col-md-6">
-                <label htmlFor="damageModifier" className="form-label small text-light">Modificador de Dano (ex: +3):</label> {/* text-light */}
+                <label htmlFor="damageModifier" className="form-label small text-light">Modificador de Dano (ex: +3):</label>
                 <input
                   type="text"
                   id="damageModifier"
@@ -479,7 +549,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
               </div>
             </div>
             <div className="mb-3">
-              <label htmlFor="damageType" className="form-label small text-light">Tipo de Dano (ex: Cortante, Fogo):</label> {/* text-light */}
+              <label htmlFor="damageType" className="form-label small text-light">Tipo de Dano (ex: Cortante, Fogo):</label>
               <input
                 type="text"
                 id="damageType"
@@ -492,11 +562,26 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
           </div>
         )}
 
+        {/* Campos relacionados a Cura */}
+        {effectCategory === 'healing' && (
+          <div className="mb-3">
+            <label htmlFor="healingDice" className="form-label small text-light">Dados de Cura (ex: 1d4+2):</label>
+            <input
+              type="text"
+              id="healingDice"
+              className="form-control form-control-sm bg-dark text-white border-secondary"
+              value={healingDice}
+              onChange={(e) => setHealingDice(e.target.value)}
+              placeholder="Ex: 1d4+2"
+            />
+          </div>
+        )}
+
         {/* Campos relacionados a Utilidade */}
-        {effectType === 'utility' && (
+        {effectCategory === 'utility' && (
           <div>
             <div className="mb-3">
-              <label htmlFor="utilityTitle" className="form-label small text-light">Título da Utilidade (ex: Cura):</label> {/* text-light */}
+              <label htmlFor="utilityTitle" className="form-label small text-light">Título da Utilidade (ex: Cura, Buff):</label>
               <input
                 type="text"
                 id="utilityTitle"
@@ -507,7 +592,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
               />
             </div>
             <div className="mb-3">
-              <label htmlFor="utilityValue" className="form-label small text-light">Valor/Dados de Utilidade (ex: 1d6):</label> {/* text-light */}
+              <label htmlFor="utilityValue" className="form-label small text-light">Valor/Detalhes de Utilidade (ex: 1d6, +2 CA):</label>
               <input
                 type="text"
                 id="utilityValue"
@@ -521,7 +606,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
         )}
 
         <div className="mb-3">
-          <label htmlFor="range" className="form-label small text-light">Alcance (ex: 1.5m, 18m):</label> {/* text-light */}
+          <label htmlFor="range" className="form-label small text-light">Alcance (ex: 1.5m, 18m):</label>
           <input
             type="text"
             id="range"
@@ -532,11 +617,24 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
           />
         </div>
 
+        <div className="mb-3">
+            <label htmlFor="target" className="form-label small text-light">Alvo (ex: Um Criatura, Área, Pessoal):</label>
+            <input
+                type="text"
+                id="target"
+                className="form-control form-control-sm bg-dark text-white border-secondary"
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                placeholder="Ex: Uma criatura, Área de 15ft, Pessoal"
+            />
+        </div>
+
+
         {/* Campos específicos para Ataques Físicos */}
-        {actionType === 'attack' && (
+        {mainType === 'attack' && (
           <div>
             <div className="mb-3">
-              <label htmlFor="properties" className="form-label small text-light">Propriedades (separadas por vírgula):</label> {/* text-light */}
+              <label htmlFor="properties" className="form-label small text-light">Propriedades (separadas por vírgula):</label>
               <input
                 type="text"
                 id="properties"
@@ -550,11 +648,11 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
         )}
 
         {/* Campos específicos para Magias */}
-        {actionType === 'spell' && (
+        {mainType === 'spell' && (
           <div>
             <div className="row g-2 mb-3">
               <div className="col-md-6">
-                <label htmlFor="spellLevel" className="form-label small text-light">Nível da Magia (0 para Truque):</label> {/* text-light */}
+                <label htmlFor="spellLevel" className="form-label small text-light">Nível da Magia (0 para Truque):</label>
                 <input
                   type="number"
                   id="spellLevel"
@@ -566,7 +664,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
                 />
               </div>
               <div className="col-md-6">
-                <label htmlFor="castingTime" className="form-label small text-light">Tempo de Conjuração:</label> {/* text-light */}
+                <label htmlFor="castingTime" className="form-label small text-light">Tempo de Conjuração:</label>
                 <input
                   type="text"
                   id="castingTime"
@@ -580,7 +678,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
 
             <div className="row g-2 mb-3">
               <div className="col-md-6">
-                <label htmlFor="duration" className="form-label small text-light">Duração:</label> {/* text-light */}
+                <label htmlFor="duration" className="form-label small text-light">Duração:</label>
                 <input
                   type="text"
                   id="duration"
@@ -591,7 +689,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
                 />
               </div>
               <div className="col-md-6">
-                <label htmlFor="spellSchool" className="form-label small text-light">Escola da Magia:</label> {/* text-light */}
+                <label htmlFor="spellSchool" className="form-label small text-light">Escola da Magia:</label>
                 <input
                   type="text"
                   id="spellSchool"
@@ -604,7 +702,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
             </div>
 
             <div className="mb-3">
-              <label htmlFor="saveDC" className="form-label small text-light">Teste de Resistência / Efeito (ex: Sabedoria, Metade do Dano):</label> {/* text-light */}
+              <label htmlFor="saveDC" className="form-label small text-light">Teste de Resistência / Efeito (ex: Sabedoria, Metade do Dano):</label>
               <input
                 type="text"
                 id="saveDC"
@@ -613,18 +711,6 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
                 onChange={(e) => setSaveDC(e.target.value)}
                 placeholder="Ex: Força (sem efeito)"
               />
-            </div>
-
-            <div className="mb-3">
-              <label htmlFor="description" className="form-label small text-light">Descrição / Efeito:</label> {/* text-light */}
-              <textarea
-                id="description"
-                className="form-control form-control-sm bg-dark text-white border-secondary"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={5}
-                placeholder="Breve descrição da magia e seus efeitos..."
-              ></textarea>
             </div>
           </div>
         )}
