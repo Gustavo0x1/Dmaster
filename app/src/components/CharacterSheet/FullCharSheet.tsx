@@ -44,7 +44,7 @@ const FullCharSheet: React.FC = () => {
   };
 
   return (
-    <div style={{ paddingTop: 5 }} className="container-fluid character-sheet-wrapper vh-100">
+    <div style={{ paddingTop: 5 }} className="container-fluid character-sheet-wrapper h-100"> {/* REMOVIDO vh-100, ADICIONADO h-100 */}
       <div className="row h-100 d-flex flex-column"> {/* Adicionado flex-column para organizar o header e o conteúdo */}
 
         {/* Abas de Frente e Verso da Ficha */}

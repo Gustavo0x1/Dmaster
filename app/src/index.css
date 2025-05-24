@@ -417,3 +417,36 @@ input[type="number"] {
       padding: 1rem !important;
   }
 }
+
+/* src/components/CharacterSheet/indx.css (ou seu arquivo CSS principal) */
+
+.character-sheet-wrapper {
+  background-color: #343a40; /* Cor de fundo da ficha */
+  color: #f8f9fa; /* Cor do texto principal */
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+  /* min-height: 100vh;  <-- REMOVER ESTA LINHA */
+}
+
+/* Restante do seu CSS permanece o mesmo */
+/* Estilos para o Card de Atributos (AttributesSection) */
+.attributes-card { /* Adicione esta classe ao div.card em AttributesSection se ainda não tiver */
+  background-color: #495057;
+  padding: 15px;
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Estilos para a imagem do personagem e HealthController (CharacterPortraitAndHealth) */
+.character-portrait-container {
+  box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+  transition: transform 0.2s ease-in-out;
+}
+.character-portrait-container:hover {
+  transform: scale(1.05);
+}
+.health-controller-card {
+  max-width: 200px;
+  /* ... outros estilos ... */
+}
