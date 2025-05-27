@@ -1,0 +1,10 @@
+/* Item.css */
+.context-menu-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  white-space: nowrap; /* Previne que o texto quebre para a próxima linha */
+}
+
+.context-menu-item:hover {
+  background-color: #f0f0f0;
+}

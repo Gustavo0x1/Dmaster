@@ -1,10 +1,12 @@
 // src/components/CombatInterface/CombatInterface.tsx
 import React, { useState, useEffect } from 'react';
 import CombatActions from './CombatActions';
-import SelectedTokenDisplay from './TokenSelection';
+import CombatTokensDisplay from '../CombatTokenDisplay';
 import { CharacterAction, Token } from '../../types';
-import { useLayout } from '../Layout'; // Assumindo que você tem um LayoutContext
-import {v4 as uuidv4} from 'uuid'
+import { useLayout } from '../Layout';
+import { v4 as uuidv4 } from 'uuid';
+import SampleToken from '../../img/0.png'
+import SampleToken2 from '../../img/1.png'
 interface CombatInterfaceProps {
   // Se as ações fossem gerenciadas por um pai mais acima, elas viriam aqui
   // Por agora, vamos simular que este componente "recebe" ações e também as cria.
@@ -13,17 +15,27 @@ interface CombatInterfaceProps {
 const CombatInterface: React.FC<CombatInterfaceProps> = () => {
   // NOVO: Ações de combate gerenciadas aqui.
   const [combatActions, setCombatActions] = useState<CharacterAction[]>([]);
-  const [selectedTokenToDisplay, setSelectedTokenToDisplay] = useState<Token | null>(null);
+  // Mudar a forma como os tokens são gerenciados
+  const [enemies, setEnemies] = useState<Token[]>([]);
+  const [allies, setAllies] = useState<Token[]>([]);
+  const [selectedTokens, setSelectedTokens] = useState<Token[]>([]); // NOVO: Estado para tokens selecionados
 
   // Mocks de tokens disponíveis para o combate
-  const availableCombatTokens: Token[] = [
-    { id: 101, name: 'Goblin 1', portraitUrl: 'https://via.placeholder.com/30/00FF00/000000?text=G1', currentHp: 5, maxHp: 7, ac: 13, x: 1, y: 1, image: '', width: 1, height: 1 },
-    { id: 102, name: 'Orc Líder', portraitUrl: 'https://via.placeholder.com/30/FF4500/FFFFFF?text=OL', currentHp: 20, maxHp: 25, ac: 15, x: 2, y: 3, image: '', width: 1, height: 1 },
-    { id: 103, name: 'Esqueleto', portraitUrl: 'https://via.placeholder.com/30/C0C0C0/000000?text=SK', currentHp: 8, maxHp: 10, ac: 12, x: 4, y: 2, image: '', width: 1, height: 1 },
-  ];
-
-  // Adiciona 2 inserções aleatórias na inicialização (apenas para demonstração)
   useEffect(() => {
+    // Definindo inimigos e aliados na inicialização
+    const initialEnemies: Token[] = [
+      { id: 101, name: 'Goblin 1', portraitUrl: SampleToken, currentHp: 5, maxHp: 7, ac: 13, x: 1, y: 1, image: '', width: 1, height: 1 },
+      { id: 102, name: 'Orc Líder', portraitUrl: SampleToken, currentHp: 20, maxHp: 25, ac: 15, x: 2, y: 3, image: '', width: 1, height: 1 },
+      { id: 103, name: 'Esqueleto', portraitUrl: SampleToken, currentHp: 8, maxHp: 10, ac: 12, x: 4, y: 2, image: '', width: 1, height: 1 },
+    ];
+    const initialAllies: Token[] = [
+      { id: 201, name: 'Herói A', portraitUrl: SampleToken2, currentHp: 30, maxHp: 30, ac: 18, x: 5, y: 5, image: '', width: 1, height: 1 },
+      { id: 202, name: 'Curandeiro B', portraitUrl: SampleToken2, currentHp: 25, maxHp: 25, ac: 14, x: 6, y: 6, image: '', width: 1, height: 1 },
+    ];
+    setEnemies(initialEnemies);
+    setAllies(initialAllies);
+
+    // Ações iniciais (mantidas do seu código)
     const defaultActions: CharacterAction[] = [
       {
         id: uuidv4(),
@@ -88,21 +100,28 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
       }
     ];
     setCombatActions(defaultActions);
-  }, []); // O array vazio garante que rode apenas uma vez na montagem
+  }, []);
 
-  // Se você usa useLayout para injetar o display do token na coluna direita
-  const { addContentToRight, clearContentFromRight } = useLayout();
+  // useLayout para injetar o CombatTokensDisplay na coluna esquerda
+  const { addContentToLeft, clearContentFromLeft } = useLayout();
 
   useEffect(() => {
-    addContentToRight(<SelectedTokenDisplay token={selectedTokenToDisplay} />);
-    return () => { clearContentFromRight(); };
-  }, [selectedTokenToDisplay, addContentToRight, clearContentFromRight]);
+    // Renderiza o CombatTokensDisplay na coluna esquerda
+    addContentToLeft(
+      <CombatTokensDisplay
+        enemies={enemies}
+        allies={allies}
+        selectedTokens={selectedTokens}
+        onTokenSelectionChange={setSelectedTokens} // Passa a função para atualizar os selecionados
+      />
+    );
+    // Limpa o conteúdo da coluna esquerda quando o componente é desmontado
+    return () => { clearContentFromLeft(); };
+  }, [enemies, allies, selectedTokens, addContentToLeft, clearContentFromLeft]);
+
 
   // Funções que o CombatActions usará para gerenciar as ações de combate
   const handleEditCombatAction = (action: CharacterAction) => {
-    // No contexto de combate, "editar" pode significar apenas atualizar o estado local
-    // ou, se houver um modal de edição de ação aqui, abri-lo.
-    // Para este exemplo, apenas atualiza o estado se a ação já existir.
     setCombatActions(prev => prev.map(a => a.id === action.id ? action : a));
     console.log("Ação atualizada no CombatInterface:", action);
     // IMPORTANTE: No cenário real, isso PRECISA notificar o CharacterSheet ou o gerenciador de estado global
@@ -131,8 +150,9 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
           onDeleteAction={handleDeleteCombatAction}
           onEditAction={handleEditCombatAction}
           onToggleFavorite={handleToggleCombatFavorite}
-          availableTokens={availableCombatTokens}
-          onTokenSelected={setSelectedTokenToDisplay}
+          selectedTokens={selectedTokens} // Passa os tokens selecionados
+          // REMOVIDO: availableTokens={availableCombatTokens}
+          // REMOVIDO: onTokenSelected={setSelectedTokenToDisplay}
         />
       </div>
     </div>

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CharacterAction, RawSpellData } from '../../types'; // Importado CharacterAction
-import {v4 as uuidv4} from  'uuid'
-// ** IMPORTAÇÃO DIRETA DO JSON **
+import { v4 as uuidv4 } from 'uuid';
+import SimpleAlertModal from '../modals/SimpleAlert';
+import ConfirmationModal from '../modals/ConfirmationModal'; // Certifique-se que o caminho está correto
 import magicData from './MAGIAS.json'; // Ajuste o caminho se necessário!
 
 // --- Funções Auxiliares (fora do componente para evitar recriação desnecessária) ---
@@ -62,6 +63,7 @@ interface ActionCreatorProps {
 }
 
 const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdit, onCancelEdit }) => {
+   
   // --- Estados ---
   const [predefinedSpells, setPredefinedSpells] = useState<RawSpellData[]>([]);
   const [loadingSpells, setLoadingSpells] = useState<boolean>(true);
@@ -82,6 +84,18 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
   const [utilityTitle, setUtilityTitle] = useState<string>('');
   const [utilityValue, setUtilityValue] = useState<string>('');
 
+   // Estados para o modal de ALERTA SIMPLES (para sucesso, exibir no chat)
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [alertModalTitle, setAlertModalTitle] = useState('');
+  const [alertModalMessage, setAlertModalMessage] = useState<string | React.ReactNode>('');
+
+  // Estados para o ConfirmationModal
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalTitle, setConfirmModalTitle] = useState('');
+  const [confirmModalMessage, setConfirmModalMessage] = useState<string | React.ReactNode>('');
+  const [confirmModalOnConfirm, setConfirmModalOnConfirm] = useState<(() => void) | undefined>(undefined);
+
+
   // Campos de Cura
   const [healingDice, setHealingDice] = useState<string>(''); // Novo campo para dados de cura
 
@@ -101,6 +115,39 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
 
   // Estado para o input de busca de magia predefinida
   const [selectedPredefinedSpellName, setSelectedPredefinedSpellName] = useState<string>('');
+
+  // Funções para o SimpleAlertModal
+  const openAlertModal = (title: string, message: string | React.ReactNode) => {
+    setAlertModalTitle(title);
+    setAlertModalMessage(message);
+    setShowAlertModal(true);
+  };
+
+  const closeAlertModal = () => {
+    setShowAlertModal(false);
+    setAlertModalTitle('');
+    setAlertModalMessage('');
+  };
+
+  // Funções para o ConfirmationModal
+  const openConfirmModal = (
+    title: string,
+    message: string | React.ReactNode,
+    onConfirm: (() => void) | undefined
+  ) => {
+    setConfirmModalTitle(title);
+    setConfirmModalMessage(message);
+    setConfirmModalOnConfirm(() => onConfirm); // Passa a função diretamente
+    setShowConfirmModal(true);
+  };
+
+  const closeConfirmModal = () => {
+    setShowConfirmModal(false);
+    setConfirmModalTitle('');
+    setConfirmModalMessage('');
+    setConfirmModalOnConfirm(undefined);
+  };
+
 
   // --- Efeitos ---
   useEffect(() => {
@@ -331,20 +378,49 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       // A descrição já foi preenchida no início
     }
   };
-
+  
   const handleSave = () => {
+    // Validação do Nome da Ação
     if (!actionName.trim()) {
-      alert('O nome da ação é obrigatório!');
-      return;
+        openAlertModal("Nome da Ação Obrigatório", "Por favor, preencha o nome da ação.");
+        return; // É crucial retornar aqui para parar a execução da função
     }
 
+    // Validações adicionais baseadas nos tipos de efeito (usando openAlertModal)
+    if (effectCategory === 'damage') {
+      if (!damageDice.trim() && !damageModifier.trim()) {
+        openAlertModal('Dados de Dano Obrigatórios', 'Dados de dano ou modificador são obrigatórios para ações de dano!');
+        return;
+      }
+      if (!damageType.trim()) {
+        openAlertModal('Tipo de Dano Obrigatório', 'Tipo de dano é obrigatório para ações de dano!');
+        return;
+      }
+    } else if (effectCategory === 'healing') {
+        if (!healingDice.trim()) {
+            openAlertModal('Dados de Cura Obrigatórios', 'Dados de cura são obrigatórios para ações de cura!');
+            return;
+        }
+    } else if (effectCategory === 'utility') {
+        if (!utilityTitle.trim()) {
+            openAlertModal('Título da Utilidade Obrigatório', 'Título da utilidade é obrigatório para ações de utilidade!');
+            return;
+        }
+    }
+
+    if (mainType === 'spell' && !description.trim()) {
+        openAlertModal('Descrição da Magia Obrigatória', 'Descrição da magia é obrigatória para magias!');
+        return;
+    }
+
+    // Se todas as validações passarem, proceda com a criação/atualização da ação
     const newAction: CharacterAction = {
-      id: actionToEdit ? actionToEdit.id : uuidv4(), // Usar uuidv4 para novos IDs
+      id: actionToEdit ? actionToEdit.id : uuidv4(),
       name: actionName.trim(),
       description: description.trim() || undefined,
       mainType: mainType,
       effectCategory: effectCategory,
-      isFavorite: actionToEdit?.isFavorite || false, // Mantém o favorito se estiver editando, senão false
+      isFavorite: actionToEdit?.isFavorite || false,
 
       // Propriedades opcionais, serão undefined se não preenchidas
       damageDice: (effectCategory === 'damage' && damageDice.trim()) ? damageDice.trim() : undefined,
@@ -352,8 +428,8 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       healingDice: (effectCategory === 'healing' && healingDice.trim()) ? healingDice.trim() : undefined,
       utilityTitle: (effectCategory === 'utility' && utilityTitle.trim()) ? utilityTitle.trim() : undefined,
       utilityValue: (effectCategory === 'utility' && utilityValue.trim()) ? utilityValue.trim() : undefined,
-      attackRange: range.trim() || undefined, // Renomeado para attackRange
-      target: target.trim() || undefined, // Novo campo para alvo
+      attackRange: range.trim() || undefined,
+      target: target.trim() || undefined,
       properties: (mainType === 'attack' && properties.trim()) ? properties.split(',').map(p => p.trim()).filter(p => p) : undefined,
 
       // Propriedades de Magia (sempre opcional se mainType não for 'spell')
@@ -362,37 +438,24 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       duration: (mainType === 'spell' && duration.trim()) ? duration.trim() : undefined,
       saveDC: (mainType === 'spell' && saveDC.trim()) ? saveDC.trim() : undefined,
       school: (mainType === 'spell' && spellSchool.trim()) ? spellSchool.trim() : undefined,
-      // spellComponents não está sendo coletado pelo formulário, mas pode ser adicionado aqui se houver um campo
     };
 
-    // Validações adicionais baseadas nos tipos de efeito
-    if (effectCategory === 'damage') {
-      if (!damageDice.trim() && !damageModifier.trim()) {
-        alert('Dados de dano ou modificador são obrigatórios para ações de dano!');
-        return;
+    // Exemplo de como usar ConfirmationModal antes de salvar (opcional)
+    // Se você quiser uma confirmação antes de salvar, descomente este bloco
+    // e comente as 3 linhas abaixo (onSaveAction, clearFormFields, onCancelEdit)
+    /*
+    openConfirmModal(
+      "Confirmar Salvamento",
+      "Tem certeza que deseja salvar esta ação?",
+      () => {
+        onSaveAction(newAction);
+        clearFormFields();
+        onCancelEdit();
       }
-      if (!damageType.trim()) {
-        alert('Tipo de dano é obrigatório para ações de dano!');
-        return;
-      }
-    } else if (effectCategory === 'healing') {
-        if (!healingDice.trim()) {
-            alert('Dados de cura são obrigatórios para ações de cura!');
-            return;
-        }
-    } else if (effectCategory === 'utility') {
-        if (!utilityTitle.trim()) {
-            alert('Título da utilidade é obrigatório para ações de utilidade!');
-            return;
-        }
-    }
+    );
+    */
 
-    if (mainType === 'spell' && !description.trim()) {
-        alert('Descrição da magia é obrigatória para magias!');
-        return;
-    }
-
-
+    // Se não usar ConfirmationModal para o salvamento final, execute as ações diretamente:
     onSaveAction(newAction);
     clearFormFields();
     onCancelEdit();
@@ -403,6 +466,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       <h5 className="card-title text-warning mb-3">{actionToEdit ? 'Editar Ação' : 'Criar Nova Ação'}</h5>
 
       <div className="card-body p-0 custom-scroll overflow-auto">
+        {/* ... (restante do seu formulário) ... */}
         {/* Área de Pesquisa de Magia Predefinida */}
         <div className="mb-3">
           <label htmlFor="spellSearchInput" className="form-label small text-light">Buscar Magia Predefinida:</label>
@@ -734,6 +798,24 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
           <i className="bi bi-save me-2"></i>{actionToEdit ? 'Atualizar Ação' : 'Salvar Ação'}
         </button>
       </div>
+
+      {/* Renderização dos Modais de Alerta e Confirmação no return principal */}
+      <SimpleAlertModal
+        show={showAlertModal}
+        title={alertModalTitle}
+        message={alertModalMessage}
+        onClose={closeAlertModal}
+      />
+
+      <ConfirmationModal
+        show={showConfirmModal}
+        title={confirmModalTitle}
+        message={confirmModalMessage}
+        onConfirm={confirmModalOnConfirm}
+        onClose={closeConfirmModal}
+        showCancelButton={true}
+        confirmButtonText="Confirmar"
+      />
     </div>
   );
 };

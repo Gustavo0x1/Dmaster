@@ -11,6 +11,9 @@ const ActionManager: React.FC = () => {
   // `selectedTokensFromLayout` é a lista de tokens selecionados no grid, vindo do Layout
   // `setSelectedTokensInLayout` é a função para atualizar essa lista no Layout (se o ActionManager precisar fazer isso)
   const { addContentToRight, clearContentFromRight, selectedTokens: selectedTokensFromLayout, setSelectedTokens: setSelectedTokensInLayout } = useLayout();
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [alertModalTitle, setAlertModalTitle] = useState('');
+  const [alertModalMessage, setAlertModalMessage] = useState<string | React.ReactNode>('');
 
   // Estados agora usam CharacterAction[]
   const [savedActions, setSavedActions] = useState<CharacterAction[]>([]);
@@ -30,7 +33,11 @@ const ActionManager: React.FC = () => {
       clearContentFromRight();
     };
   }, [selectedTokenFromCombatActions, addContentToRight, clearContentFromRight]);
-
+  const openAlertModal = (title: string, message: string | React.ReactNode) => {
+    setAlertModalTitle(title);
+    setAlertModalMessage(message);
+    setShowAlertModal(true);
+  };
 
   // Função para salvar ou atualizar uma ação
   // Recebe 'CharacterAction' agora
@@ -39,6 +46,9 @@ const ActionManager: React.FC = () => {
       setSavedActions(prevActions => prevActions.map(action =>
         action.id === actionToEdit.id ? newAction : action
       ));
+
+
+      openAlertModal("Nome da Ação Obrigatório", "Por favor, preencha o nome da ação.");
       alert(`Ação "${newAction.name}" atualizada com sucesso!`);
       setActionToEdit(null);
     } else {

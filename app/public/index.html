@@ -28,7 +28,43 @@
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
+    <style>
+      #dice-container {
+  width: 100%;
+  height: 100vh;
+  /* Adicione um fundo para ver se a área está invisível */
+
+  position: fixed; 
+     top: 0;           /* Posiciona no topo da janela (fixed) ou do pai posicionado (absolute) */
+        left: 0;   
+                    /* Posiciona à esquerda da janela/pai */
+        z-index: 9999;  
+        
+        pointer-events: none;
+  overflow: hidden; /* Garante que nada vaze */
+}
+
+/* Regra para esconder o contêiner e seus filhos */
+#dice-container.dice-hidden {
+  visibility: hidden !important; /* !important pode ser necessário para sobrepor estilos inline ou outras regras */
+  /* Ou display: none !important; */
+}
+
+/* Tente esconder também os elementos internos do DiceBox, se eles não estiverem sumindo */
+#dice-container.dice-hidden canvas,
+#dice-container.dice-hidden div {
+    visibility: hidden !important; /* Força invisibilidade para canvas e divs internas */
+    /* Ou display: none !important; */
+}
+    </style>
     <div id="root"></div>
+    <div id="modal-root"></div> 
+     <div
+      id="dice-container"
+
+    ></div>
+    
+
     <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.

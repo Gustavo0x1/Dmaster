@@ -5,7 +5,7 @@ import token1 from '../img/0.png';
 import token2 from '../img/15.png';
 import { useLayout } from "./Layout";
 import TokenInfo from './TokenInfo';
-import Chat from './ChatBox';
+
 import { Token as AppToken } from '../types'; // Importa o tipo Token do types.ts como AppToken
 
 interface Position {
@@ -25,7 +25,9 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
 
 const RPGGrid: React.FC = () => {
-  // Refs
+  // Refs]
+
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapImageRef = useRef<HTMLImageElement | null>(null);
@@ -54,6 +56,7 @@ const RPGGrid: React.FC = () => {
   const [isSelectionMode, setIsSelectionMode] = useState<boolean>(false);
   const [selectedGridTokenIds, setSelectedGridTokenIds] = useState<number[]>([]); // Usar IDs numéricos para seleção interna do grid
 
+    
   // Converter GridToken para AppToken para o Contexto
   const convertGridTokenToAppToken = useCallback((gridToken: GridToken): AppToken => {
     return {
@@ -171,7 +174,7 @@ const RPGGrid: React.FC = () => {
 
   // Carrega a imagem do mapa e as imagens dos tokens (apenas uma vez na montagem inicial)
   useEffect(() => {
-    addContentToRight(<Chat />); // Chat na coluna direita
+     
     
     // Carrega imagem do mapa
     const mapImgElement = new Image();

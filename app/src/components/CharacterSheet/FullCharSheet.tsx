@@ -1,34 +1,37 @@
 // src/components/CharacterSheet/CharacterSheet.tsx
-import React, { useState } from 'react';
-import AttributesSection from './Atributos'; // Ajuste o caminho se necessário
-import CharacterPortraitAndHealth from './CharPortrait'; // Ajuste o caminho se necessário
-import SkillsSection from './Skills'; // Ajuste o caminho se necessário
-import token from '../../img/0.png'; // Verifique se o caminho da imagem está correto
+import React, { useState, useRef } from 'react';
+import AttributesSection from './Atributos';
+import CharacterPortraitAndHealth from './CharPortrait';
+import SkillsSection from './Skills';
+import token from '../../img/0.png';
 import { BasicAttribute, EssentialAttributes, Skill, CharacterAction, Token } from '../../types';
-import ActionCreator from '../Actions/ActionCreator'; // ActionCreator ainda é para criação/edição de CharacterAction
+import ActionCreator from '../Actions/ActionCreator';
+import ConfirmationModal from '../modals/ConfirmationModal';
+import SimpleAlertModal from '../modals/SimpleAlert'; // <--- AQUI ESTÁ A MUDANÇA: 'type' antes de SimpleAlertModalRef
 import { v4 as uuidv4 } from 'uuid';
+import { sign } from 'crypto';
 
-// Exemplo de como a função de salvar ações pode ser externa ou vir de um contexto
 interface CharacterSheetProps {
-  // Se o CharacterSheet não for o dono das ações, ele pode receber um prop
-  // para adicioná-las/atualizá-las em um componente pai que gerencia todas as ações.
   onSaveActionForCombat?: (action: CharacterAction) => void;
-  // Ações para o modal de edição (se for o CharacterSheet quem exibe o modal)
-  // Normalmente, as ações salvas seriam gerenciadas pelo CombatInterface
-  // ou por um gerenciador de dados global.
-  // Por simplicidade, CharacterSheet ainda gerenciará 'actions' por enquanto,
-  // mas as ações salvas "seriam" passadas para o CombatInterface.
 }
 
 const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat }) => {
-  const [activeSide, setActiveSide] = useState<'character' | 'bio' | 'actions'>('character'); // 'actions' é a aba para gerenciar ações AQUI
-
-  // Ações AGORA serão gerenciadas pelo CombatInterface, mas para o ActionCreator funcionar,
-  // o CharacterSheet ainda precisa ter um estado temporário ou repassar a lógica de persistência.
-  // POR ENQUANTO, manteremos a gestão de 'actions' AQUI para que o ActionCreator funcione.
+  const [activeSide, setActiveSide] = useState<'character' | 'bio' | 'actions'>('character');
   const [actions, setActions] = useState<CharacterAction[]>([]);
   const [actionToEdit, setActionToEdit] = useState<CharacterAction | null>(null);
-  const [showActionCreatorModal, setShowActionCreatorModal] = useState<boolean>(false); // Renomeado para mais clareza
+  const [showActionCreatorModal, setShowActionCreatorModal] = useState<boolean>(false);
+  const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
+  // Estados para o modal de ALERTA SIMPLES (para sucesso, exibir no chat)
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [alertModalTitle, setAlertModalTitle] = useState('');
+  const [alertModalMessage, setAlertModalMessage] = useState<string | React.ReactNode>('');
+
+
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalTitle, setConfirmModalTitle] = useState('');
+  const [confirmModalMessage, setConfirmModalMessage] = useState<string | React.ReactNode>('');
+  const [confirmModalOnConfirm, setConfirmModalOnConfirm] = useState<(() => void) | undefined>(undefined);
+
 
   const [bioFields, setBioFields] = useState({
     history: "A história de Aella é marcada por batalhas em florestas sombrias e uma busca implacável por vingança contra os goblins que destruíram sua vila.",
@@ -64,19 +67,56 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
 
   const [editingEssentialAttribute, setEditingEssentialAttribute] = useState<keyof EssentialAttributes | null>(null);
 
+
+  const openAlertModal = (title: string, message: string | React.ReactNode) => {
+    setAlertModalTitle(title);
+    setAlertModalMessage(message);
+    setShowAlertModal(true);
+  };
+
+  const closeAlertModal = () => {
+    setShowAlertModal(false);
+    setAlertModalTitle('');
+    setAlertModalMessage('');
+  };
+  const openConfirmModal = (
+    title: string,
+    message: string | React.ReactNode,
+    onConfirm: (() => void) | undefined
+  ) => {
+    setConfirmModalTitle(title);
+    setConfirmModalMessage(message);
+    setConfirmModalOnConfirm(() => onConfirm);
+    setShowConfirmModal(true);
+  };
+
+  const closeConfirmModal = () => {
+    setShowConfirmModal(false);
+    setConfirmModalTitle('');
+    setConfirmModalMessage('');
+    setConfirmModalOnConfirm(undefined);
+  };
+
   const handleSaveAction = (newAction: CharacterAction) => {
     if (newAction.id && actions.some(a => a.id === newAction.id)) {
       setActions(prevActions => prevActions.map(action => action.id === newAction.id ? newAction : action));
     } else {
-      setActions(prevActions => [...prevActions, { ...newAction, id: uuidv4() }]);
+      setActions(prevActions => [...prevActions, { ...newAction, id: uuidv4(), isFavorite: false }]);
     }
     setActionToEdit(null);
     setShowActionCreatorModal(false);
 
-    // IDEAL: Chamar um callback para o componente pai que gerencia as ações globais (CombatInterface ou um Context)
     if (onSaveActionForCombat) {
       onSaveActionForCombat(newAction);
     }
+          setAlertModalTitle("Sucesso?");
+        setAlertModalMessage("a??");
+           <SimpleAlertModal
+        show={showAlertModal}
+        title={alertModalTitle}
+        message={alertModalMessage}
+        onClose={closeAlertModal}
+      />
   };
 
   const handleEditAction = (action: CharacterAction) => {
@@ -85,22 +125,50 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
   };
 
   const handleDeleteAction = (id: string) => {
-    if (window.confirm("Tem certeza que deseja excluir esta ação?")) {
+    openConfirmModal(
+      'Confirmar Exclusão',
+      'Tem certeza que deseja excluir esta ação?',
+      () => {
         setActions(prevActions => prevActions.filter(action => action.id !== id));
         if (actionToEdit && actionToEdit.id === id) {
             setActionToEdit(null);
             setShowActionCreatorModal(false);
         }
-        alert("Ação excluída!");
-    }
+        setAlertModalTitle("Sucesso?");
+        setAlertModalMessage("a??");
+           <SimpleAlertModal
+        show={showAlertModal}
+        title={alertModalTitle}
+        message={alertModalMessage}
+        onClose={closeAlertModal}
+      />
+      }
+    );
   };
 
-  const handleOpenActionCreatorModal = () => { // Renomeado
+  const handleToggleFavorite = (actionId: string, isFavorite: boolean) => {
+    setActions(prevActions =>
+      prevActions.map(action =>
+        action.id === actionId ? { ...action, isFavorite: isFavorite } : action
+      )
+    );
+  };
+
+  const handleShowInChat = (action: CharacterAction) => {
+    
+    console.log("Ação para exibir no chat:", action);
+  };
+
+  const handleToggleExpandAction = (actionId: string) => {
+    setExpandedActionId(prevId => (prevId === actionId ? null : actionId));
+  };
+
+  const handleOpenActionCreatorModal = () => {
     setActionToEdit(null);
     setShowActionCreatorModal(true);
   };
 
-  const handleCloseActionCreatorModal = () => { // Renomeado
+  const handleCloseActionCreatorModal = () => {
     setActionToEdit(null);
     setShowActionCreatorModal(false);
   };
@@ -146,11 +214,8 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
     }
   };
 
-  // Mocks para CombatActions ( CharacterSheet NÃO gerencia tokens, então remove ou passa de props)
-  // Estas props seriam passadas para CombatInterface, que por sua vez as passaria para CombatActions.
-  const availableTokensMock: Token[] = []; // Vazio aqui, pois não é a responsabilidade da ficha
+  const availableTokensMock: Token[] = [];
   const handleTokenSelectedMock = (token: Token | null) => { /* console.log('Token selecionado:', token); */ };
-
 
   return (
     <div style={{ paddingTop: 5 }} className="container-fluid character-sheet-container h-100">
@@ -187,13 +252,14 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
               <button
                 className={`nav-link ${activeSide === 'actions' ? 'active' : ''} text-light-base`}
                 onClick={() => {
-                  setActiveSide('actions'); // MUDOU DE 'spells' para 'actions'
+                  setActiveSide('actions');
                   setShowActionCreatorModal(false);
                   setActionToEdit(null);
+                  setExpandedActionId(null);
                 }}
                 type="button"
                 role="tab"
-                aria-controls="actions-tab-page" // MUDOU O ID DE CONTROLE
+                aria-controls="actions-tab-page"
                 aria-selected={activeSide === 'actions'}
               >
                 Gerenciar Ações (Magias/Habilidades)
@@ -207,30 +273,24 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
           {activeSide === 'character' && (
             <div className="tab-page-active fade show active flex-grow-1" id="character-tab-page" role="tabpanel" aria-labelledby="character-tab">
               <div className="row flex-grow-1">
-                {/* COLUNA ESQUERDA: Atributos Básicos */}
                 <div className="col-md-3 d-flex flex-column align-items-center justify-content-start py-3 overflow-y-auto">
                   <AttributesSection
                     attributes={myCharacterAttributes}
                     onUpdateAttribute={handleUpdateBasicAttribute}
                   />
                 </div>
-
-                {/* COLUNA DO MEIO: Perícias */}
                 <div className="col-md-5 d-flex flex-column py-3 overflow-y-auto">
                   <SkillsSection
                     skills={mySkills}
                     onUpdateSkill={handleUpdateSkill}
                   />
                 </div>
-
-                {/* COLUNA DA DIREITA: Imagem do Personagem e Vida */}
                 <div className="col-md-4 d-flex flex-column align-items-center justify-content-start py-3 overflow-y-auto">
                   <CharacterPortraitAndHealth
                     imageUrl={token}
                     currentHealth={20}
                     maxHealth={100}
                   />
-                  {/* Dados Essenciais */}
                   <div className="mt-4 text-center character-essential-attributes">
                     <h5 className="text-highlight-warning section-title">Dados Essenciais</h5>
                     <div className="essential-attributes-grid">
@@ -297,7 +357,6 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
             </div>
           )}
 
-          {/* NOVA ABA: Gerenciar Ações (Magias/Habilidades) */}
           {activeSide === 'actions' && (
             <div className="tab-page-active fade show active flex-grow-1" id="actions-tab-page" role="tabpanel" aria-labelledby="actions-tab">
               <div className="text-center mb-3 flex-shrink-0">
@@ -309,33 +368,91 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
               <div className="row flex-grow-1 justify-content-center">
                 <div className="col-lg-8 col-md-10 col-sm-12 py-3 d-flex flex-column">
                   <h3 className="text-highlight-warning mb-4 text-center">Minhas Magias/Habilidades Salvas</h3>
-                  {/*
-                    Aqui você pode listar as ações salvas, mas o ideal seria que esta lista
-                    viesse do mesmo lugar que o CombatInterface usa, ou que o ActionCreator
-                    salvasse diretamente em um contexto/serviço compartilhado entre os dois.
-                    Por enquanto, manteremos a lista de 'actions' aqui, mas no cenário real
-                    você a obteria do gerenciador de estado global de ações.
-                  */}
-                  <div className="card custom-card-base p-3 flex-grow-1 overflow-y-auto">
+                  <div className="card custom-card-base p-0 flex-grow-1 overflow-y-auto">
                     {actions.length === 0 ? (
-                      <p className="text-secondary-muted text-center">Nenhuma magia ou habilidade cadastrada ainda.</p>
+                      <p className="text-secondary-muted text-center py-3">Nenhuma magia ou habilidade cadastrada ainda.</p>
                     ) : (
-                      <ul className="list-group list-group-flush">
-                        {actions.map(action => (
-                          <li key={action.id} className="list-group-item bg-transparent border-secondary text-light-base d-flex justify-content-between align-items-center">
-                            <div>
-                              <h6 className="mb-0 text-light-base">{action.name} ({action.mainType})</h6>
-                              {action.description && <small className="text-secondary-muted">{action.description}</small>}
-                              {action.effectCategory === 'damage' && action.damageDice && <small className="text-highlight-warning ms-2">Dano: {action.damageDice} {action.damageType || ''}</small>}
-                              {action.effectCategory === 'healing' && action.healingDice && <small className="text-highlight-success ms-2">Cura: {action.healingDice}</small>}
-                            </div>
-                            <div className="action-buttons">
-                              <button className="btn btn-sm btn-outline-info me-2" onClick={() => handleEditAction(action)}>Editar</button>
-                              <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteAction(action.id)}>Excluir</button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
+                      <table className="table table-dark table-striped table-hover table-sm action-list-table">
+                        <thead>
+                          <tr>
+                            <th scope="col" className="text-highlight-warning text-center">Nome</th>
+                            <th scope="col" className="text-highlight-warning text-center">Ações</th>
+                            <th scope="col" className="text-highlight-warning text-center"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {actions.map(action => (
+                            <React.Fragment key={action.id}>
+                              <tr
+                                className="align-middle"
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => handleToggleExpandAction(action.id)}
+                              >
+                                <td className="text-light-base text-start">
+                                  {action.name}
+                                  {action.isFavorite ? (
+                                      <i
+                                        className="bi bi-star-fill text-highlight-warning ms-2"
+                                        title="Desfavoritar"
+                                        onClick={(e) => { e.stopPropagation(); handleToggleFavorite(action.id, false); }}
+                                        style={{ cursor: 'pointer' }}
+                                      ></i>
+                                  ) : (
+                                      <i
+                                        className="bi bi-star text-secondary-muted ms-2"
+                                        title="Favoritar"
+                                        onClick={(e) => { e.stopPropagation(); handleToggleFavorite(action.id, true); }}
+                                        style={{ cursor: 'pointer' }}
+                                      ></i>
+                                  )}
+                                </td>
+                                <td className="text-center">
+                                    <button className="btn btn-sm btn-outline-info me-1" onClick={(e) => { e.stopPropagation(); handleEditAction(action); }}>
+                                        <i className="bi bi-pencil"></i>
+                                    </button>
+                                    <button className="btn btn-sm btn-outline-secondary me-1" onClick={(e) => { e.stopPropagation(); handleShowInChat(action); }}>
+                                        <i className="bi bi-chat-text"></i>
+                                    </button>
+                                    <button className="btn btn-sm btn-outline-danger" onClick={(e) => { e.stopPropagation(); handleDeleteAction(action.id); }}>
+                                        <i className="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                                <td className="text-center">
+                                  <i className={`bi ${expandedActionId === action.id ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                                </td>
+                              </tr>
+                              {expandedActionId === action.id && (
+                                <tr>
+                                  <td colSpan={3} className="expanded-action-details p-3">
+                                    <div className="card custom-card-base p-3 text-light-base">
+                                      <p className="mb-1 small">Tipo Principal: <strong>{action.mainType}</strong></p>
+                                      <p className="mb-1 small">Categoria de Efeito: <strong>{action.effectCategory}</strong></p>
+                                      {action.attackRange && <p className="mb-1 small">Alcance: {action.attackRange}</p>}
+                                      {action.target && <p className="mb-1 small">Alvo: {action.target}</p>}
+                                      {action.effectCategory === 'damage' && action.damageDice && <p className="mb-1 small">Dano: <strong className="text-highlight-warning">{action.damageDice} {action.damageType || ''}</strong></p>}
+                                      {action.effectCategory === 'healing' && action.healingDice && <p className="mb-1 small">Cura: <strong className="text-highlight-success">{action.healingDice}</strong></p>}
+                                      {action.effectCategory === 'utility' && action.utilityTitle && <p className="mb-1 small">Efeito: <strong className="text-highlight-info">{action.utilityTitle}</strong> {action.utilityValue && `(${action.utilityValue})`}</p>}
+                                      {action.mainType === 'attack' && action.properties && action.properties.length > 0 && (
+                                          <p className="mb-1 small">Propriedades: {action.properties.join(', ')}</p>
+                                      )}
+                                      {action.mainType === 'spell' && (
+                                        <>
+                                          {action.level !== undefined && <p className="mb-1 small">Nível: {action.level}</p>}
+                                          {action.castingTime && <p className="mb-1 small">Tempo de Conjuração: {action.castingTime}</p>}
+                                          {action.duration && <p className="mb-1 small">Duração: {action.duration}</p>}
+                                          {action.school && <p className="mb-1 small">Escola: {action.school}</p>}
+                                          {action.saveDC && <p className="mb-1 small">Teste de Resistência: {action.saveDC}</p>}
+                                        </>
+                                      )}
+                                      {action.description && <p className="mb-0 small">Descrição: {action.description}</p>}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </tbody>
+                      </table>
                     )}
                   </div>
                 </div>
@@ -365,6 +482,20 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmação Genérico (para exclusão) */}
+      <ConfirmationModal
+        show={showConfirmModal}
+        title={confirmModalTitle}
+        message={confirmModalMessage}
+        onConfirm={confirmModalOnConfirm}
+        onClose={closeConfirmModal}
+        showCancelButton={true}
+        confirmButtonText="Confirmar"
+      />
+
+      {/* Modal de Alerta Simples (agora via ref) */}
+      
     </div>
   );
 };
