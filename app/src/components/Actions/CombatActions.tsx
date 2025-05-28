@@ -6,9 +6,9 @@ import ConfirmationModal from '../modals/ConfirmationModal';
 
 interface CombatActionsProps {
   actions: CharacterAction[];
-  onDeleteAction: (actionId: string) => void;
+  onDeleteAction: (actionId: number) => void;
   onEditAction: (action: CharacterAction) => void;
-  onToggleFavorite: (actionId: string, isFavorite: boolean) => void;
+  onToggleFavorite: (actionId: number, isFavorite: boolean) => void;
   selectedTokens?: Token[];
   availableTokens?: Token[];
   onTokenSelected?: (token: Token | null) => void;
@@ -32,7 +32,7 @@ const CombatActions: React.FC<CombatActionsProps> = ({
   const [confirmModalMessage, setConfirmModalMessage] = useState<string | React.ReactNode>('');
   const [confirmModalOnConfirm, setConfirmModalOnConfirm] = useState<(() => void) | undefined>(undefined);
 
-  const [expandedActionId, setExpandedActionId] = useState<string | null>(null); // State for expanded action
+  const [expandedActionId, setExpandedActionId] = useState<number | null>(null); // State for expanded action
 
   const openAlertModal = (title: string, message: string | React.ReactNode) => {
     setAlertModalTitle(title);
@@ -87,7 +87,7 @@ const CombatActions: React.FC<CombatActionsProps> = ({
     openAlertModal("Ação Aplicada!", effectMessage);
   };
 
-  const handleConfirmDelete = (actionId: string) => {
+  const handleConfirmDelete = (actionId: number) => {
     openConfirmModal(
       "Confirmar Exclusão",
       "Tem certeza que deseja excluir esta ação? Esta ação não pode ser desfeita.",
@@ -95,7 +95,7 @@ const CombatActions: React.FC<CombatActionsProps> = ({
     );
   };
 
-  const handleToggleExpandAction = (actionId: string) => {
+  const handleToggleExpandAction = (actionId: number) => {
     setExpandedActionId(prevId => (prevId === actionId ? null : actionId));
   };
 

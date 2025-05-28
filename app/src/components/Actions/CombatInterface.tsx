@@ -38,7 +38,7 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
     // Ações iniciais (mantidas do seu código)
     const defaultActions: CharacterAction[] = [
       {
-        id: uuidv4(),
+        id: 2,
         name: 'Bola de Fogo',
         description: 'Uma explosão de fogo que incinera inimigos em uma área.',
         mainType: 'spell',
@@ -55,7 +55,7 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
         target: 'Área de 6m de raio'
       },
       {
-        id: uuidv4(),
+        id: 1,
         name: 'Ataque com Espada Longa',
         description: 'Um golpe certeiro com sua espada de combate.',
         mainType: 'attack',
@@ -68,7 +68,7 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
         target: 'Um criatura'
       },
        {
-        id: uuidv4(),
+        id:3,
         name: 'Palavra Curativa',
         description: 'Cura um alvo com uma palavra divina.',
         mainType: 'spell',
@@ -83,7 +83,7 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
         target: 'Um criatura'
       },
       {
-        id: uuidv4(),
+        id: 4,
         name: 'Invisibilidade',
         description: 'Torna uma criatura invisível ao toque.',
         mainType: 'spell',
@@ -128,13 +128,13 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
     // para que a edição seja persistente e consistente entre as duas telas.
   };
 
-  const handleDeleteCombatAction = (actionId: string) => {
+  const handleDeleteCombatAction = (actionId: number) => {
     setCombatActions(prev => prev.filter(a => a.id !== actionId));
     console.log("Ação deletada no CombatInterface:", actionId);
     // IMPORTANTE: Notificar o CharacterSheet ou o gerenciador de estado global
   };
 
-  const handleToggleCombatFavorite = (actionId: string, isFavorite: boolean) => {
+  const handleToggleCombatFavorite = (actionId: number, isFavorite: boolean) => {
     setCombatActions(prev => prev.map(a => a.id === actionId ? { ...a, isFavorite: isFavorite } : a));
     console.log(`Ação ${actionId} favoritada: ${isFavorite} no CombatInterface.`);
     // IMPORTANTE: Notificar o CharacterSheet ou o gerenciador de estado global

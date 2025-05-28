@@ -1,43 +1,31 @@
 // ChatBox.tsx
 import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import img from '../img/1.png'; // Avatar padrão para 'other' ou o bot
+import img from '../img/1.png';
 import DiceApp from './Dice';
-
+import { useLayout, Message } from './Layout';
+import SystemIMG from '../img/bot.png'
 declare global {
   interface Window {
     DiceBoxInstance: any;
   }
 }
 
-type Message = {
-  id: number;
-  text: string;
-  sender: {
-    id: string; // Um ID único para o remetente (ex: 'user', 'bot', 'john_doe', '-1' para sistema)
-    name: string; // Nome do remetente
-    avatar: string; // URL da imagem do avatar do remetente
-  };
-};
-
 interface ChatProps {
   setSendChatMessage: (func: (message: string, senderId?: string, senderName?: string, senderAvatar?: string) => void) => void;
 }
 
-// Constantes para o remetente padrão do sistema (Consistentes com Dice.tsx)
 const DEFAULT_SYSTEM_SENDER_ID = '-1';
 const DEFAULT_SYSTEM_SENDER_NAME = 'Sistema';
-const DEFAULT_SYSTEM_SENDER_AVATAR = 'https://via.placeholder.com/50/808080/FFFFFF?text=SYS'; // Avatar cinza para o sistema
+const DEFAULT_SYSTEM_SENDER_AVATAR = SystemIMG;
 
 const Chat: React.FC<ChatProps> = ({ setSendChatMessage }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 1, text: 'Bem-vindo ao chat!', sender: { id: DEFAULT_SYSTEM_SENDER_ID, name: DEFAULT_SYSTEM_SENDER_NAME, avatar: DEFAULT_SYSTEM_SENDER_AVATAR } },
-    { id: 2, text: 'Gostaria de saber mais sobre o projeto.', sender: { id: 'john_doe', name: 'João Silva', avatar: 'https://via.placeholder.com/50/FF5733/FFFFFF?text=JS' } },
-    { id: 3, text: 'Olá! Em que posso ajudar?', sender: { id: 'user', name: 'Você', avatar: 'https://via.placeholder.com/50/3366FF/FFFFFF?text=VC' } },
-  ]);
-  const [showDiceApp, setShowDiceApp] = useState<boolean>(true); // Controla se o componente DiceApp é montado/desmontado
+  const { chatMessages, addChatMessage } = useLayout();
+
+  const messages = chatMessages;
+
+  const [showDiceApp, setShowDiceApp] = useState<boolean>(true);
   const [newMessage, setNewMessage] = useState<string>('');
-  // REMOVIDO: isDiceContainerVisible não é mais gerenciado aqui
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -45,19 +33,9 @@ const Chat: React.FC<ChatProps> = ({ setSendChatMessage }) => {
 
   const rollDiceInAppRef = useRef<((diceNotation: string, forcedValue?: number | 'random') => void) | null>(null);
 
-
   const sendMessage = useCallback((message: string, senderId?: string, senderName?: string, senderAvatar?: string): void => {
-    const finalSenderId = senderId !== undefined ? senderId : DEFAULT_SYSTEM_SENDER_ID;
-    const finalSenderName = senderName !== undefined ? senderName : DEFAULT_SYSTEM_SENDER_NAME;
-    const finalSenderAvatar = senderAvatar !== undefined ? senderAvatar : DEFAULT_SYSTEM_SENDER_AVATAR;
-
-    setMessages((prevMessages) => {
-        return [
-            ...prevMessages,
-            { id: prevMessages.length + 1, text: message, sender: { id: finalSenderId, name: finalSenderName, avatar: finalSenderAvatar } },
-        ];
-    });
-  }, []);
+    addChatMessage(message, senderId, senderName, senderAvatar);
+  }, [addChatMessage]);
 
   useEffect(() => {
     sendMessageRef.current = sendMessage;
@@ -89,9 +67,7 @@ const Chat: React.FC<ChatProps> = ({ setSendChatMessage }) => {
         }
 
         if (rollDiceInAppRef.current) {
-            // REMOVIDO: setIsDiceContainerVisible(true); e o setTimeout para esconder
-
-            rollDiceInAppRef.current(diceNotation, forcedValue); // O DiceApp agora gerencia sua própria visibilidade
+            rollDiceInAppRef.current(diceNotation, forcedValue);
 
             let forceMessage = '';
             if (forcedValue !== undefined) {
@@ -139,12 +115,10 @@ const Chat: React.FC<ChatProps> = ({ setSendChatMessage }) => {
 
   return (
     <div className="d-flex flex-column" style={{ height: 'calc(90vh)', overflow: 'hidden' }}>
-      {/* O DiceApp agora renderiza sua própria div #dice-container */}
       {showDiceApp && (
         <DiceApp
           onRollRequest={(rollFn) => { rollDiceInAppRef.current = rollFn; }}
-          onSendChatMessage={sendMessage}
-          // REMOVIDO: isVisible prop
+          // REMOVER: onSendChatMessage={sendMessage}
         />
       )}
 

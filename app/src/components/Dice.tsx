@@ -2,7 +2,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import DiceBox from './dice-box-threejs.es';
 import RollNotification from './RollNotification'; // Importar o componente de notificação
-
+import { useLayout } from './Layout'; // Importar useLayout
+import SystemIMG from '../img/bot.png'
 declare global {
   interface Window {
     DiceBoxInstance: any;
@@ -24,18 +25,17 @@ interface DiceProps {
   // containerId agora é apenas um ID PADRÃO, não uma prop que se refere a um elemento externo
   containerId?: string;
   onRollRequest?: (rollFn: (diceNotation: string, forcedValue?: number | 'random') => void) => void;
-  onSendChatMessage?: (message: string, senderId?: string, senderName?: string, senderAvatar?: string) => void;
-  // REMOVIDO: isVisible prop
+  // REMOVIDO: onSendChatMessage?: (message: string, senderId?: string, senderName?: string, senderAvatar?: string) => void;
 }
 
 const DEFAULT_SYSTEM_SENDER_ID = '-1';
 const DEFAULT_SYSTEM_SENDER_NAME = 'Sistema';
-const DEFAULT_SYSTEM_SENDER_AVATAR = 'https://via.placeholder.com/50/808080/FFFFFF?text=SYS';
+const DEFAULT_SYSTEM_SENDER_AVATAR = SystemIMG;
 
 const Dice: React.FC<DiceProps> = ({
   containerId = "dice-container", // ID padrão para a div que o Dice.tsx renderizará
   onRollRequest,
-  onSendChatMessage,
+  // REMOVER: onSendChatMessage,
 }) => {
   const diceBoxRef = useRef<any>(null);
   const [rollNotification, setRollNotification] = useState<{
@@ -57,7 +57,10 @@ const Dice: React.FC<DiceProps> = ({
   const initialRollCompletedRef = useRef(false);
   const initialRollAttemptedRef = useRef(false);
 
-  // clearDiceBox não é mais usado para a visibilidade, mas é mantido como placeholder
+  // NOVO: Pegar addChatMessage do contexto
+  const { addChatMessage } = useLayout();
+
+
   const clearDiceBox = useCallback(() => {
     // Implementação antiga de clearDiceBox() removida para evitar problemas
   }, []);
@@ -79,13 +82,25 @@ const Dice: React.FC<DiceProps> = ({
       console.log(`Triggering roll for: ${diceNotationParam}, forcedValue: ${forcedValueParam}`);
       console.log("DiceBox instance is ready and available.");
 
+      // --- Início das modificações para bônus ---
+      let diceNotation = diceNotationParam;
+      let bonus = 0;
+
+      const bonusMatch = diceNotationParam.match(/([+-]\d+)$/);
+      if (bonusMatch) {
+          bonus = parseInt(bonusMatch[1]);
+          diceNotation = diceNotationParam.replace(bonusMatch[1], ''); // Remove o bônus da notação para o DiceBox
+      }
+      // --- Fim das modificações para bônus ---
+
+
       setCurrentRollNotation(diceNotationParam);
       setCurrentForcedValue(forcedValueParam);
 
-      let finalNotation = diceNotationParam;
+      let finalNotation = diceNotation; // Usar a notação sem o bônus para o DiceBox
 
-      const matchQuantity = diceNotationParam.match(/^(\d+)[dD]/);
-      const matchSides = diceNotationParam.match(/[dD](\d+)$/);
+      const matchQuantity = diceNotation.match(/^(\d+)[dD]/); // Usar diceNotation (sem bônus)
+      const matchSides = diceNotation.match(/[dD](\d+)$/); // Usar diceNotation (sem bônus)
 
       const numberOfDice = matchQuantity ? parseInt(matchQuantity[1]) : 1;
       const diceSides = matchSides ? parseInt(matchSides[1]) : 6;
@@ -99,17 +114,21 @@ const Dice: React.FC<DiceProps> = ({
               generatedIndividualResults.push(forcedValueNum);
               generatedTotalResult += forcedValueNum;
           }
-          finalNotation = `${diceNotationParam}@${generatedIndividualResults.join(',')}`;
+          finalNotation = `${diceNotation}@${generatedIndividualResults.join(',')}`;
       } else {
           for (let i = 0; i < numberOfDice; i++) {
               const randomValue = Math.floor(Math.random() * diceSides) + 1;
               generatedIndividualResults.push(randomValue);
               generatedTotalResult += randomValue;
           }
-          finalNotation = `${diceNotationParam}@${generatedIndividualResults.join(',')}`;
+          finalNotation = `${diceNotation}@${generatedIndividualResults.join(',')}`;
           console.log('VALORES ALEATÓRIOS GERADOS (MANUALMENTE):', generatedIndividualResults);
           console.log('NOTATION COM VALORES ALEATÓRIOS:', finalNotation);
       }
+
+      // --- Adicionar bônus ao resultado total ---
+      const totalWithBonus = generatedTotalResult + bonus;
+      // --- Fim da adição do bônus ---
 
       const colors = [
         "#00ffcb", "#ff6600", "#1d66af", "#7028ed", "#c4c427", "#d81128"
@@ -137,21 +156,22 @@ const Dice: React.FC<DiceProps> = ({
             console.log("Timer de 3 segundos disparado (no Dice.tsx)!");
             let notificationType: 'success' | 'danger' | 'info' = 'info';
             if (diceNotationParam.toLowerCase().includes('d20')) {
-                if (generatedTotalResult === 20) {
+                if (totalWithBonus === 20) { // Comparar com totalWithBonus
                     notificationType = 'success';
-                } else if (generatedTotalResult === 1) {
+                } else if (totalWithBonus === 1) { // Comparar com totalWithBonus
                     notificationType = 'danger';
                 }
             }
-            const messageToDisplay = `Rolagem ${diceNotationParam}: ${generatedIndividualResults.join(' + ')} = ${generatedTotalResult}!`;
+            // Mudar a mensagem para incluir o bônus
+            const bonusDisplay = bonus !== 0 ? (bonus > 0 ? ` +${bonus}` : ` ${bonus}`) : '';
+            const messageToDisplay = `Rolagem ${diceNotationParam}: (${generatedIndividualResults.join(' + ')})${bonusDisplay} = ${totalWithBonus}!`;
             setRollNotification({
                 message: messageToDisplay,
                 type: notificationType,
                 id: Date.now(),
             });
-            if (onSendChatMessage) {
-                onSendChatMessage(messageToDisplay, DEFAULT_SYSTEM_SENDER_ID, DEFAULT_SYSTEM_SENDER_NAME, DEFAULT_SYSTEM_SENDER_AVATAR);
-            }
+            // AQUI É A MUDANÇA: Chamar addChatMessage do contexto
+            addChatMessage(messageToDisplay, DEFAULT_SYSTEM_SENDER_ID, DEFAULT_SYSTEM_SENDER_NAME, DEFAULT_SYSTEM_SENDER_AVATAR);
             
         }, 3000);
        mainTimerRef.current = setTimeout(() => {
@@ -165,7 +185,8 @@ setIsDiceContainerVisible(false);
         return false;
       }
     },
-    [isDiceBoxReady, handleDiceBoxRollCompleteInternal, onSendChatMessage]
+    // NOVO: Adicionar addChatMessage às dependências do useCallback
+    [isDiceBoxReady, handleDiceBoxRollCompleteInternal, addChatMessage]
   );
 
   const handleNotificationDismiss = useCallback(() => {
@@ -178,8 +199,8 @@ setIsDiceContainerVisible(false);
     const attemptInitializeDiceBox = async () => {
       // NOVO: Apenas tenta inicializar se o contêiner interno está visível
       if (!isDiceContainerVisible) {
-          // Se não estiver visível, podemos adiar a inicialização, mas como ele já é renderizado aqui,
-          // o foco é mais em evitar rolagens desnecessárias.
+          // Se não estiver visível, podemos adiar a inicialização, mas ele já é renderizado aqui.
+          // O foco é mais em evitar rolagens desnecessárias.
           // Para independência total, talvez seja melhor que o DiceApp não seja montado pelo ChatBox se não for usado.
           return;
       }

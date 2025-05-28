@@ -1,16 +1,18 @@
-// src/components/SkillsSection/SkillsSection.tsx
-import React, { useState } from 'react';
-import { Skill } from '../../types';
+// src/components/CharacterSheet/Skills.tsx
+import React,{useState} from 'react';
+import { Skill } from '../../types'; // Ajuste o caminho conforme necessário
 
 interface SkillsSectionProps {
   skills: Skill[];
   onUpdateSkill: (name: string, newModifier: string) => void;
-  // onClickSkillItemBody?: (skill: Skill) => void; // Callback para clique no corpo do item
 }
 
-const SkillsSection: React.FC<SkillsSectionProps> = ({ skills, onUpdateSkill /*, onClickSkillItemBody */ }) => {
-  const [editingSkillName, setEditingSkillName] = useState<string | null>(null);
+const SkillsSection: React.FC<SkillsSectionProps> = ({ skills, onUpdateSkill }) => {
+    const [editingSkillName, setEditingSkillName] = useState<string | null>(null);
   const [currentModifier, setCurrentModifier] = useState<string>('');
+  const handleSkillChange = (name: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    onUpdateSkill(name, e.target.value);
+  };
 
   const handleEditClick = (skill: Skill, event: React.MouseEvent) => {
     event.stopPropagation(); // Impede que o clique no badge/input propague para o item da lista
@@ -38,9 +40,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ skills, onUpdateSkill /*,
       handleCancelEdit();
     }
   };
-
-  // Função para lidar com o clique no corpo da perícia
-  const handleSkillItemBodyClick = (skill: Skill) => {
+    const handleSkillItemBodyClick = (skill: Skill) => {
     if (editingSkillName !== skill.name) { // Só dispara se não estiver no modo de edição
       alert(`Clicou no corpo da perícia: ${skill.name} (Lógica para outra coisa)`);
       // if (onClickSkillItemBody) {

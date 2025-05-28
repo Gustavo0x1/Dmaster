@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CharacterAction, RawSpellData } from '../../types'; // Importado CharacterAction
-import { v4 as uuidv4 } from 'uuid';
+import { CharacterAction, RawSpellData } from '../../types';
 import SimpleAlertModal from '../modals/SimpleAlert';
-import ConfirmationModal from '../modals/ConfirmationModal'; // Certifique-se que o caminho está correto
-import magicData from './MAGIAS.json'; // Ajuste o caminho se necessário!
+import ConfirmationModal from '../modals/ConfirmationModal';
+import magicData from './MAGIAS.json';
+
+// Declare a interface para o objeto electronAPI na janela
 
 // --- Funções Auxiliares (fora do componente para evitar recriação desnecessária) ---
 const normalizeString = (str: string): string => {
@@ -57,23 +58,28 @@ const OUTCOME_MAP: { [key: string]: string } = {
 
 // --- Props do Componente ---
 interface ActionCreatorProps {
-  onSaveAction: (action: CharacterAction) => void; // Tipo alterado
-  actionToEdit: CharacterAction | null; // Tipo alterado
+  onSaveAction: (action: CharacterAction) => void;
+  actionToEdit: CharacterAction | null;
   onCancelEdit: () => void;
+  // A prop existingActions pode não ser mais necessária aqui para geração de ID,
+  // mas pode ser útil para outras lógicas de UI ou validação.
+  existingActions: CharacterAction[]; 
 }
 
-const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdit, onCancelEdit }) => {
+const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdit, onCancelEdit, existingActions }) => {
    
+const electron = (window as any).electron;
+console.log(electron);
   // --- Estados ---
   const [predefinedSpells, setPredefinedSpells] = useState<RawSpellData[]>([]);
   const [loadingSpells, setLoadingSpells] = useState<boolean>(true);
   const [spellLoadError, setSpellLoadError] = useState<string | null>(null);
 
   // Estados do formulário, renomeado 'actionType' para 'mainType'
-  const [mainType, setMainType] = useState<'attack' | 'spell' | 'utility' | 'ability'>('attack'); // Adicionado 'utility' e 'ability'
-  const [effectCategory, setEffectCategory] = useState<'damage' | 'utility' | 'healing'>('damage'); // Adicionado 'healing'
+  const [mainType, setMainType] = useState<'attack' | 'spell' | 'utility' | 'ability'>('attack');
+  const [effectCategory, setEffectCategory] = useState<'damage' | 'utility' | 'healing'>('damage');
   const [actionName, setActionName] = useState<string>('');
-  const [description, setDescription] = useState<string>(''); // Movido para campo comum
+  const [description, setDescription] = useState<string>('');
 
   // Campos de Dano
   const [damageDice, setDamageDice] = useState<string>('');
@@ -95,13 +101,12 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
   const [confirmModalMessage, setConfirmModalMessage] = useState<string | React.ReactNode>('');
   const [confirmModalOnConfirm, setConfirmModalOnConfirm] = useState<(() => void) | undefined>(undefined);
 
-
   // Campos de Cura
-  const [healingDice, setHealingDice] = useState<string>(''); // Novo campo para dados de cura
+  const [healingDice, setHealingDice] = useState<string>('');
 
   // Campos comuns de alcance
-  const [range, setRange] = useState<string>(''); // Renomeado para 'attackRange' no tipo, mas mantido aqui para compatibilidade
-  const [target, setTarget] = useState<string>(''); // Novo campo para alvo
+  const [range, setRange] = useState<string>('');
+  const [target, setTarget] = useState<string>('');
 
   // Campos específicos para Ataques
   const [properties, setProperties] = useState<string>('');
@@ -137,7 +142,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
   ) => {
     setConfirmModalTitle(title);
     setConfirmModalMessage(message);
-    setConfirmModalOnConfirm(() => onConfirm); // Passa a função diretamente
+    setConfirmModalOnConfirm(() => onConfirm);
     setShowConfirmModal(true);
   };
 
@@ -172,11 +177,12 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       setMainType(actionToEdit.mainType);
       setEffectCategory(actionToEdit.effectCategory);
       setActionName(actionToEdit.name);
-      setDescription(actionToEdit.description || ''); // Pode ser opcional
+      setDescription(actionToEdit.description || '');
 
       // Carrega campos de dano
       setDamageDice(actionToEdit.damageDice || '');
-      setDamageModifier(''); // Precisaria de uma regex mais robusta para splitar dado+modificador
+      // Assumindo que damageModifier não é diretamente parte de CharacterAction de forma explícita na sua type
+      // setDamageModifier(''); // Se o modificador vier do DB, ajuste aqui
       setDamageType(actionToEdit.damageType || '');
 
       // Carrega campos de utilidade
@@ -187,11 +193,12 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       setHealingDice(actionToEdit.healingDice || '');
 
       // Carrega campos de alcance e alvo
-      setRange(actionToEdit.attackRange || ''); // 'attackRange' na interface, 'range' aqui
+      setRange(actionToEdit.attackRange || '');
       setTarget(actionToEdit.target || '');
 
       // Carrega campos de ataque
-      setProperties(actionToEdit.properties ? actionToEdit.properties.join(', ') : '');
+      // Se 'properties' for string no DB e array no FE, converta:
+      setProperties(Array.isArray(actionToEdit.properties) ? actionToEdit.properties.join(', ') : '');
 
       // Carrega campos de magia
       setSpellLevel(actionToEdit.level?.toString() || '0');
@@ -215,9 +222,9 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
     setDamageType('');
     setUtilityTitle('');
     setUtilityValue('');
-    setHealingDice(''); // Limpa o campo de cura
+    setHealingDice('');
     setRange('');
-    setTarget(''); // Limpa o campo de alvo
+    setTarget('');
     setProperties('');
     setSpellLevel('0');
     setCastingTime('');
@@ -226,27 +233,25 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
     setSpellSchool('');
     setSelectedPredefinedSpellName('');
     if (resetTypes) {
-        setMainType('attack'); // Reinicia para 'attack'
-        setEffectCategory('damage'); // Reinicia para 'damage'
+        setMainType('attack');
+        setEffectCategory('damage');
     }
   };
 
   const handleMainTypeChange = (type: 'attack' | 'spell' | 'utility' | 'ability') => {
     setMainType(type);
-    clearFormFields(false); // Não reseta o tipo principal, mas limpa os outros campos
-    // Define um effectCategory padrão com base no mainType, se desejar
+    clearFormFields(false);
     if (type === 'attack' || type === 'spell') {
         setEffectCategory('damage');
     } else if (type === 'utility') {
         setEffectCategory('utility');
-    } else { // 'ability'
-        setEffectCategory('utility'); // Ou outro padrão para 'ability'
+    } else {
+        setEffectCategory('utility');
     }
   };
 
   const handleEffectCategoryChange = (type: 'damage' | 'utility' | 'healing') => {
     setEffectCategory(type);
-    // Limpar campos irrelevantes com base no novo effectCategory
     if (type === 'damage') {
         setUtilityTitle('');
         setUtilityValue('');
@@ -256,7 +261,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
         setDamageModifier('');
         setDamageType('');
         setHealingDice('');
-    } else { // 'healing'
+    } else {
         setDamageDice('');
         setDamageModifier('');
         setDamageType('');
@@ -276,19 +281,18 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
 
     const spell = predefinedSpells.find(s => s.name === spellName);
     if (spell) {
-      setMainType('spell'); // Define o tipo principal como 'spell'
+      setMainType('spell');
       setActionName(spell.name);
-      setDescription(processEntries(spell.entries)); // Descrição da magia
+      setDescription(processEntries(spell.entries));
 
-      // Determinar effectCategory
       if (spell.damage || spell.damageType) {
           setEffectCategory('damage');
           setDamageDice(spell.damage || '');
           setDamageType(spell.damageType || '');
-          setHealingDice(''); // Certifica que o campo de cura está vazio
+          setHealingDice('');
           setUtilityTitle('');
           setUtilityValue('');
-      } else if (spell.healingDice) { // Se o JSON de magias tiver um campo de cura
+      } else if (spell.healingDice) {
           setEffectCategory('healing');
           setHealingDice(spell.healingDice);
           setDamageDice('');
@@ -298,7 +302,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       }
       else {
           setEffectCategory('utility');
-          setUtilityTitle(spell.name); // Pode ser o nome da magia como título da utilidade
+          setUtilityTitle(spell.name);
           setUtilityValue('');
           setDamageDice('');
           setDamageType('');
@@ -323,7 +327,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
           }
       }
       setRange(formattedRange);
-      setProperties(''); // Magias geralmente não têm 'properties' de ataque
+      setProperties('');
 
       let level = '0';
       if (spell.level !== undefined) {
@@ -374,19 +378,17 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
           saveDCString = `${translatedCheckType} (Teste Oposto)`;
       }
       setSaveDC(saveDCString);
-
-      // A descrição já foi preenchida no início
     }
   };
   
-  const handleSave = () => {
+  const handleSave = async () => {
     // Validação do Nome da Ação
     if (!actionName.trim()) {
         openAlertModal("Nome da Ação Obrigatório", "Por favor, preencha o nome da ação.");
-        return; // É crucial retornar aqui para parar a execução da função
+        return;
     }
 
-    // Validações adicionais baseadas nos tipos de efeito (usando openAlertModal)
+    // Validações adicionais baseadas nos tipos de efeito
     if (effectCategory === 'damage') {
       if (!damageDice.trim() && !damageModifier.trim()) {
         openAlertModal('Dados de Dano Obrigatórios', 'Dados de dano ou modificador são obrigatórios para ações de dano!');
@@ -413,16 +415,14 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
         return;
     }
 
-    // Se todas as validações passarem, proceda com a criação/atualização da ação
-    const newAction: CharacterAction = {
-      id: actionToEdit ? actionToEdit.id : uuidv4(),
+    const actionDataToSend: Omit<CharacterAction, 'id'> = { // Use Omit para não incluir 'id' aqui
       name: actionName.trim(),
       description: description.trim() || undefined,
       mainType: mainType,
       effectCategory: effectCategory,
-      isFavorite: actionToEdit?.isFavorite || false,
+      isFavorite: actionToEdit?.isFavorite || false, // Mantém o status favorito se estiver editando
 
-      // Propriedades opcionais, serão undefined se não preenchidas
+      // Propriedades opcionais
       damageDice: (effectCategory === 'damage' && damageDice.trim()) ? damageDice.trim() : undefined,
       damageType: (effectCategory === 'damage' && damageType.trim()) ? damageType.trim() : undefined,
       healingDice: (effectCategory === 'healing' && healingDice.trim()) ? healingDice.trim() : undefined,
@@ -430,9 +430,10 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       utilityValue: (effectCategory === 'utility' && utilityValue.trim()) ? utilityValue.trim() : undefined,
       attackRange: range.trim() || undefined,
       target: target.trim() || undefined,
+      // Passa o array de strings para o backend
       properties: (mainType === 'attack' && properties.trim()) ? properties.split(',').map(p => p.trim()).filter(p => p) : undefined,
 
-      // Propriedades de Magia (sempre opcional se mainType não for 'spell')
+      // Propriedades de Magia
       level: (mainType === 'spell' && spellLevel.trim() !== '' && !isNaN(parseInt(spellLevel, 10))) ? parseInt(spellLevel, 10) : undefined,
       castingTime: (mainType === 'spell' && castingTime.trim()) ? castingTime.trim() : undefined,
       duration: (mainType === 'spell' && duration.trim()) ? duration.trim() : undefined,
@@ -440,25 +441,30 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       school: (mainType === 'spell' && spellSchool.trim()) ? spellSchool.trim() : undefined,
     };
 
-    // Exemplo de como usar ConfirmationModal antes de salvar (opcional)
-    // Se você quiser uma confirmação antes de salvar, descomente este bloco
-    // e comente as 3 linhas abaixo (onSaveAction, clearFormFields, onCancelEdit)
-    /*
-    openConfirmModal(
-      "Confirmar Salvamento",
-      "Tem certeza que deseja salvar esta ação?",
-      () => {
-        onSaveAction(newAction);
-        clearFormFields();
-        onCancelEdit();
-      }
-    );
-    */
+    try {
+      let savedAction: CharacterAction;
+console.log(electron);
 
-    // Se não usar ConfirmationModal para o salvamento final, execute as ações diretamente:
-    onSaveAction(newAction);
-    clearFormFields();
-    onCancelEdit();
+      if (actionToEdit) {
+        // Se estamos editando, usamos o ID existente e chamamos a API de atualização
+        savedAction = await electron.updateAction(actionToEdit.id, actionDataToSend);
+        // O backend deve retornar a ação atualizada com o ID
+        savedAction = { ...actionDataToSend, id: actionToEdit.id, isFavorite: actionToEdit.isFavorite }; // Adicione o isFavorite novamente, pois Partial pode perdê-lo
+      } else {
+        // Se estamos criando uma nova ação, chamamos a API de adição
+        savedAction = await electron.addAction(actionDataToSend);
+        // O backend retornará a ação completa, incluindo o novo ID gerado
+      }
+      
+      onSaveAction(savedAction); // Passa a ação com o ID gerado pelo DB para o pai
+      clearFormFields();
+      onCancelEdit();
+      openAlertModal("Sucesso", `Ação '${savedAction.name}' salva com sucesso!`);
+
+    } catch (error: any) {
+      console.error("Erro ao salvar ação:", error);
+      openAlertModal("Erro ao Salvar", `Houve um erro ao salvar a ação: ${error.message}`);
+    }
   };
 
   return (
@@ -517,8 +523,6 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
             >
               <i className="bi bi-stars me-2"></i>Magia
             </button>
-            {/* Adicione botões para 'utility' e 'ability' se desejar um formulário para criá-los diretamente */}
-            {/* Exemplo: */}
             <button
                 type="button"
                 className={`btn ${mainType === 'ability' ? 'btn-primary' : 'btn-outline-primary'}`}

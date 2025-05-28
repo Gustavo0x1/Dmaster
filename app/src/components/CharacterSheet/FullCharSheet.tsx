@@ -1,73 +1,53 @@
-// src/components/CharacterSheet/CharacterSheet.tsx
-import React, { useState, useRef } from 'react';
-import AttributesSection from './Atributos';
-import CharacterPortraitAndHealth from './CharPortrait';
-import SkillsSection from './Skills';
-import token from '../../img/0.png';
-import { BasicAttribute, EssentialAttributes, Skill, CharacterAction, Token } from '../../types';
-import ActionCreator from '../Actions/ActionCreator';
-import ConfirmationModal from '../modals/ConfirmationModal';
-import SimpleAlertModal from '../modals/SimpleAlert'; // <--- AQUI ESTÁ A MUDANÇA: 'type' antes de SimpleAlertModalRef
-import { v4 as uuidv4 } from 'uuid';
-import { sign } from 'crypto';
+// src/components/CharacterSheet/FullCharSheet.tsx
+import React, { useState, useRef, useEffect } from 'react'; // Adicionado useEffect
+import AttributesSection from './Atributos'; // Assumindo que este componente existe
+import SkillsSection from './Skills';     // Assumindo que este componente existe
+import CharacterPortraitAndHealth from './CharPortrait'; // Ajuste o caminho
+import token from '../../img/0.png'; // Caminho para seu token padrão
+import ActionCreator from '../Actions/ActionCreator'; // Assumindo que este componente existe
+import ConfirmationModal from '../modals/ConfirmationModal'; // Assumindo que este componente existe
+import SimpleAlertModal from '../modals/SimpleAlert'; // Assumindo que este componente existe
+import { v4 as uuidv4 } from 'uuid'; // Para gerar IDs únicos
+// Importamos todos os tipos do nosso arquivo centralizado
+import {
+  CharacterSheet,
+  CharacterHealth,
+  BasicAttribute,
+  EssentialAttributes,
+  Skill,
+  CharacterAction,
+  Token,
+  CharacterBioFields,
+} from '../../types';
 
-interface CharacterSheetProps {
+interface FullCharSheetProps {
+  characterData: CharacterSheet; // Recebe o objeto completo da ficha do personagem
+  updateCharacterData: (id: number, updates: Partial<CharacterSheet>) => void; // Função para atualizar no pai
   onSaveActionForCombat?: (action: CharacterAction) => void;
 }
 
-const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat }) => {
+const FullCharSheet: React.FC<FullCharSheetProps> = ({ characterData, updateCharacterData, onSaveActionForCombat }) => {
   const [activeSide, setActiveSide] = useState<'character' | 'bio' | 'actions'>('character');
-  const [actions, setActions] = useState<CharacterAction[]>([]);
   const [actionToEdit, setActionToEdit] = useState<CharacterAction | null>(null);
   const [showActionCreatorModal, setShowActionCreatorModal] = useState<boolean>(false);
-  const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
-  // Estados para o modal de ALERTA SIMPLES (para sucesso, exibir no chat)
+  const [expandedActionId, setExpandedActionId] = useState<number | null>(null);
+
+  // Estados para o modal de ALERTA SIMPLES
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertModalTitle, setAlertModalTitle] = useState('');
   const [alertModalMessage, setAlertModalMessage] = useState<string | React.ReactNode>('');
 
-
+  // Estados para o modal de CONFIRMAÇÃO
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmModalTitle, setConfirmModalTitle] = useState('');
   const [confirmModalMessage, setConfirmModalMessage] = useState<string | React.ReactNode>('');
   const [confirmModalOnConfirm, setConfirmModalOnConfirm] = useState<(() => void) | undefined>(undefined);
 
-
-  const [bioFields, setBioFields] = useState({
-    history: "A história de Aella é marcada por batalhas em florestas sombrias e uma busca implacável por vingança contra os goblins que destruíram sua vila.",
-    appearance: "Cabelos cor de ébano, olhos penetrantes que brilham no escuro. Uma cicatriz no braço esquerdo, lembrança de um encontro com um lobo atroz.",
-    personality: "Reservada e cautelosa, mas fiercely leal aos seus companheiros. Tem um humor seco e um senso de justiça inabalável.",
-    treasure: "Um punhal élfico de prata, um saco de moedas de ouro (150 gp) e um mapa rasgado de uma masmorra perdida."
-  });
-
-  const [myCharacterAttributes, setMyCharacterAttributes] = useState<BasicAttribute[]>([
-    { name: 'Força', value: 18, modifier: 4 },
-    { name: 'Destreza', value: 16, modifier: 3 },
-    { name: 'Constituição', value: 14, modifier: 2 },
-    { name: 'Inteligência', value: 10, modifier: 0 },
-    { name: 'Sabedoria', value: 12, modifier: 1 },
-    { name: 'Carisma', value: 8, modifier: -1 },
-  ]);
-
-  const [mySkills, setMySkills] = useState<Skill[]>([
-    { name: 'Atletismo', modifier: '+5' }, { name: 'Acrobacia', modifier: '+3' },
-    { name: 'Furtividade', modifier: '+2' }, { name: 'Prestidigitação', modifier: '+2' },
-    { name: 'Arcanismo', modifier: '+1' }, { name: 'História', modifier: '+0' },
-    { name: 'Investigação', modifier: '+1' }, { name: 'Natureza', modifier: '+1' },
-    { name: 'Religião', modifier: '+0' }, { name: 'Adestrar Animais', modifier: '+0' },
-    { name: 'Intuição', modifier: '+1' }, { name: 'Medicina', modifier: '+0' },
-    { name: 'Percepção', modifier: '+2' }, { name: 'Sobrevivência', modifier: '+0' },
-    { name: 'Atuação', modifier: '+4' }, { name: 'Enganação', modifier: '+4' },
-    { name: 'Intimidação', modifier: '+4' }, { name: 'Persuasão', modifier: '+4' },
-  ]);
-
-  const [essentialAttributes, setEssentialAttributes] = useState<EssentialAttributes>({
-    armor: 16, initiative: '+2', proficiency: '+2', speed: '9 m',
-  });
-
+  // Estado local para a edição de atributos essenciais (temporário)
   const [editingEssentialAttribute, setEditingEssentialAttribute] = useState<keyof EssentialAttributes | null>(null);
 
 
+  // Funções de controle dos modais
   const openAlertModal = (title: string, message: string | React.ReactNode) => {
     setAlertModalTitle(title);
     setAlertModalMessage(message);
@@ -79,6 +59,7 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
     setAlertModalTitle('');
     setAlertModalMessage('');
   };
+
   const openConfirmModal = (
     title: string,
     message: string | React.ReactNode,
@@ -97,26 +78,61 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
     setConfirmModalOnConfirm(undefined);
   };
 
-  const handleSaveAction = (newAction: CharacterAction) => {
-    if (newAction.id && actions.some(a => a.id === newAction.id)) {
-      setActions(prevActions => prevActions.map(action => action.id === newAction.id ? newAction : action));
-    } else {
-      setActions(prevActions => [...prevActions, { ...newAction, id: uuidv4(), isFavorite: false }]);
+  // Funções de manipulação de dados, agora chamando updateCharacterData
+  const handleBioFieldChange = (field: keyof CharacterBioFields, value: string) => {
+    updateCharacterData(characterData.id, { bioFields: { ...characterData.bioFields, [field]: value } });
+  };
+
+  const handleUpdateBasicAttribute = (name: string, newValue: number, newModifier: number) => {
+    const updatedAttributes = characterData.attributes.map(attr =>
+      attr.name === name ? { ...attr, value: newValue, modifier: newModifier } : attr
+    );
+    updateCharacterData(characterData.id, { attributes: updatedAttributes });
+  };
+
+  const handleUpdateSkill = (name: string, newModifier: string) => {
+    const updatedSkills = characterData.skills.map(skill =>
+      skill.name === name ? { ...skill, modifier: newModifier } : skill
+    );
+    updateCharacterData(characterData.id, { skills: updatedSkills });
+  };
+
+  const handleEditEssentialAttribute = (key: keyof EssentialAttributes) => {
+    setEditingEssentialAttribute(key);
+  };
+
+  const handleSaveEssentialAttribute = (key: keyof EssentialAttributes, newValue: string | number) => {
+    updateCharacterData(characterData.id, { essentialAttributes: { ...characterData.essentialAttributes, [key]: newValue } });
+    setEditingEssentialAttribute(null);
+  };
+
+  const handleCancelEssentialAttributeEdit = () => {
+    setEditingEssentialAttribute(null);
+  };
+
+  const handleKeyPressEssentialAttribute = (e: React.KeyboardEvent<HTMLInputElement>, key: keyof EssentialAttributes, value: string | number) => {
+    if (e.key === 'Enter') {
+      handleSaveEssentialAttribute(key, value);
+    } else if (e.key === 'Escape') {
+      handleCancelEssentialAttributeEdit();
     }
+  };
+
+  const handleSaveAction = (newAction: CharacterAction) => {
+    let updatedActions: CharacterAction[];
+    if (newAction.id && characterData.actions.some(a => a.id === newAction.id)) {
+      updatedActions = characterData.actions.map(action => action.id === newAction.id ? newAction : action);
+    } else {
+      updatedActions = [...characterData.actions, { ...newAction, id: 5, isFavorite: false }];
+    }
+    updateCharacterData(characterData.id, { actions: updatedActions });
     setActionToEdit(null);
     setShowActionCreatorModal(false);
 
     if (onSaveActionForCombat) {
       onSaveActionForCombat(newAction);
     }
-          setAlertModalTitle("Sucesso?");
-        setAlertModalMessage("a??");
-           <SimpleAlertModal
-        show={showAlertModal}
-        title={alertModalTitle}
-        message={alertModalMessage}
-        onClose={closeAlertModal}
-      />
+    openAlertModal("Ação Salva!", "Sua magia/habilidade foi salva com sucesso.");
   };
 
   const handleEditAction = (action: CharacterAction) => {
@@ -124,42 +140,40 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
     setShowActionCreatorModal(true);
   };
 
-  const handleDeleteAction = (id: string) => {
+  const handleDeleteAction = (id: number) => {
     openConfirmModal(
       'Confirmar Exclusão',
       'Tem certeza que deseja excluir esta ação?',
       () => {
-        setActions(prevActions => prevActions.filter(action => action.id !== id));
+        const updatedActions = characterData.actions.filter(action => action.id !== id);
+        updateCharacterData(characterData.id, { actions: updatedActions });
         if (actionToEdit && actionToEdit.id === id) {
-            setActionToEdit(null);
-            setShowActionCreatorModal(false);
+          setActionToEdit(null);
+          setShowActionCreatorModal(false);
         }
-        setAlertModalTitle("Sucesso?");
-        setAlertModalMessage("a??");
-           <SimpleAlertModal
-        show={showAlertModal}
-        title={alertModalTitle}
-        message={alertModalMessage}
-        onClose={closeAlertModal}
-      />
+        openAlertModal("Ação Excluída!", "A magia/habilidade foi removida com sucesso.");
       }
     );
   };
 
-  const handleToggleFavorite = (actionId: string, isFavorite: boolean) => {
-    setActions(prevActions =>
-      prevActions.map(action =>
-        action.id === actionId ? { ...action, isFavorite: isFavorite } : action
-      )
+  const handleToggleFavorite = (actionId: number, isFavorite: boolean) => {
+    const updatedActions = characterData.actions.map(action =>
+      action.id === actionId ? { ...action, isFavorite: isFavorite } : action
     );
+    updateCharacterData(characterData.id, { actions: updatedActions });
   };
 
   const handleShowInChat = (action: CharacterAction) => {
-    
     console.log("Ação para exibir no chat:", action);
+
+
+
+
+
+    openAlertModal("Ação enviada!", `"${action.name}" foi enviada para o chat. (Funcionalidade de chat a implementar)`);
   };
 
-  const handleToggleExpandAction = (actionId: string) => {
+  const handleToggleExpandAction = (actionId:number) => {
     setExpandedActionId(prevId => (prevId === actionId ? null : actionId));
   };
 
@@ -173,53 +187,14 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
     setShowActionCreatorModal(false);
   };
 
-  const handleBioFieldChange = (field: keyof typeof bioFields, value: string) => {
-    setBioFields(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleUpdateBasicAttribute = (name: string, newValue: number, newModifier: number) => {
-    setMyCharacterAttributes(prevAttributes =>
-      prevAttributes.map(attr =>
-        attr.name === name ? { ...attr, value: newValue, modifier: newModifier } : attr
-      )
-    );
-  };
-
-  const handleUpdateSkill = (name: string, newModifier: string) => {
-    setMySkills(prevSkills =>
-      prevSkills.map(skill =>
-        skill.name === name ? { ...skill, modifier: newModifier } : skill
-      )
-    );
-  };
-
-  const handleEditEssentialAttribute = (key: keyof EssentialAttributes) => {
-    setEditingEssentialAttribute(key);
-  };
-
-  const handleSaveEssentialAttribute = (key: keyof EssentialAttributes, newValue: string | number) => {
-    setEssentialAttributes(prevAttrs => ({ ...prevAttrs, [key]: newValue }));
-    setEditingEssentialAttribute(null);
-  };
-
-  const handleCancelEssentialAttributeEdit = () => {
-    setEditingEssentialAttribute(null);
-  };
-
-  const handleKeyPressEssentialAttribute = (e: React.KeyboardEvent<HTMLInputElement>, key: keyof EssentialAttributes, newValue: string | number) => {
-    if (e.key === 'Enter') {
-      handleSaveEssentialAttribute(key, newValue);
-    } else if (e.key === 'Escape') {
-      handleCancelEssentialAttributeEdit();
-    }
-  };
-
+  // Mocks (se usados em algum lugar no JSX, caso contrário, podem ser removidos)
   const availableTokensMock: Token[] = [];
   const handleTokenSelectedMock = (token: Token | null) => { /* console.log('Token selecionado:', token); */ };
 
+
   return (
     <div style={{ paddingTop: 5 }} className="container-fluid character-sheet-container h-100">
-      <div className="row h-100 d-flex flex-column">
+      <div className="h-100 d-flex flex-column">
 
         {/* Abas de Navegação */}
         <div className="col-12 mb-3 flex-shrink-0">
@@ -274,49 +249,111 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
             <div className="tab-page-active fade show active flex-grow-1" id="character-tab-page" role="tabpanel" aria-labelledby="character-tab">
               <div className="row flex-grow-1">
                 <div className="col-md-3 d-flex flex-column align-items-center justify-content-start py-3 overflow-y-auto">
-                  <AttributesSection
-                    attributes={myCharacterAttributes}
-                    onUpdateAttribute={handleUpdateBasicAttribute}
-                  />
+                  {/* Attributes Section */}
+                  <div className="attributes-section p-3 card bg-transparent border-secondary text-white text-center">
+                    <h6 className="card-subtitle mb-2 text-white small">Atributos</h6>
+              <AttributesSection
+          attributes={characterData.attributes}
+          onUpdateAttribute={handleUpdateBasicAttribute}
+        />
+                  </div>
                 </div>
                 <div className="col-md-5 d-flex flex-column py-3 overflow-y-auto">
-                  <SkillsSection
-                    skills={mySkills}
-                    onUpdateSkill={handleUpdateSkill}
-                  />
+                  {/* Skills Section */}
+                  <div className="skills-section p-3 card bg-transparent border-secondary text-white text-center">
+                    <h6 className="card-subtitle mb-2 text-white small">Perícias</h6>
+                    <ul className="list-unstyled">
+                      {characterData.skills.map((skill, index) => (
+                        <li key={skill.name || index} className="d-flex justify-content-between align-items-center mb-1">
+                          <span className="text-light">{skill.name}:</span>
+                          <input
+                            type="text"
+                            value={skill.modifier}
+                            onChange={(e) => handleUpdateSkill(skill.name, e.target.value)}
+                            className="form-control form-control-sm text-center ms-2"
+                            style={{ maxWidth: '60px' }}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
                 <div className="col-md-4 d-flex flex-column align-items-center justify-content-start py-3 overflow-y-auto">
                   <CharacterPortraitAndHealth
-                    imageUrl={token}
-                    currentHealth={20}
-                    maxHealth={100}
+                    imageUrl={characterData.imageUrl || token} // Usa characterData.imageUrl, fallback para token
+                    initialCurrentHealth={characterData.health.current}
+                    initialMaxHealth={characterData.health.max}
+                    characterName={characterData.name}
+                    updateCharacterSheet={(healthData: CharacterHealth) =>
+                      updateCharacterData(characterData.id, { health: healthData })
+                    }
                   />
                   <div className="mt-4 text-center character-essential-attributes">
                     <h5 className="text-highlight-warning section-title">Dados Essenciais</h5>
-                    <div className="essential-attributes-grid">
+                    <div className="essential-attributes-grid mt-3"> {/* Added mt-3 for spacing */}
                       <div className="essential-attribute-square" onClick={() => handleEditEssentialAttribute('armor')} onBlur={() => setEditingEssentialAttribute(null)} style={{ cursor: 'pointer' }}>
                         <h6 className="attribute-summary-label">Armadura</h6>
                         {editingEssentialAttribute === 'armor' ? (
-                          <input type="number" className="essential-attribute-input" value={essentialAttributes.armor} onChange={(e) => handleSaveEssentialAttribute('armor', parseInt(e.target.value))} onBlur={() => handleSaveEssentialAttribute('armor', essentialAttributes.armor)} onKeyDown={(e) => handleKeyPressEssentialAttribute(e, 'armor', essentialAttributes.armor)} autoFocus />
-                        ) : (<div className="attribute-summary-value">{essentialAttributes.armor}</div>)}
+                          <input
+                            type="number"
+                            className="essential-attribute-input form-control form-control-sm text-center"
+                            value={characterData.essentialAttributes.armor}
+                            onChange={(e) => handleSaveEssentialAttribute('armor', parseInt(e.target.value) || 0)}
+                            onBlur={() => handleSaveEssentialAttribute('armor', characterData.essentialAttributes.armor)}
+                            onKeyDown={(e) => handleKeyPressEssentialAttribute(e, 'armor', characterData.essentialAttributes.armor)}
+                            autoFocus
+                          />
+                        ) : (
+                          <div className="attribute-summary-value">{characterData.essentialAttributes.armor}</div>
+                        )}
                       </div>
                       <div className="essential-attribute-square" onClick={() => handleEditEssentialAttribute('initiative')} onBlur={() => setEditingEssentialAttribute(null)} style={{ cursor: 'pointer' }}>
                         <h6 className="attribute-summary-label">Iniciativa</h6>
                         {editingEssentialAttribute === 'initiative' ? (
-                          <input type="text" className="essential-attribute-input" value={essentialAttributes.initiative} onChange={(e) => handleSaveEssentialAttribute('initiative', e.target.value)} onBlur={() => handleSaveEssentialAttribute('initiative', essentialAttributes.initiative)} onKeyDown={(e) => handleKeyPressEssentialAttribute(e, 'initiative', essentialAttributes.initiative)} autoFocus />
-                        ) : (<div className="attribute-summary-value">{essentialAttributes.initiative}</div>)}
+                          <input
+                            type="text"
+                            className="essential-attribute-input form-control form-control-sm text-center"
+                            value={characterData.essentialAttributes.initiative}
+                            onChange={(e) => handleSaveEssentialAttribute('initiative', e.target.value)}
+                            onBlur={() => handleSaveEssentialAttribute('initiative', characterData.essentialAttributes.initiative)}
+                            onKeyDown={(e) => handleKeyPressEssentialAttribute(e, 'initiative', characterData.essentialAttributes.initiative)}
+                            autoFocus
+                          />
+                        ) : (
+                          <div className="attribute-summary-value">{characterData.essentialAttributes.initiative}</div>
+                        )}
                       </div>
                       <div className="essential-attribute-square" onClick={() => handleEditEssentialAttribute('proficiency')} onBlur={() => setEditingEssentialAttribute(null)} style={{ cursor: 'pointer' }}>
                         <h6 className="attribute-summary-label">Proeficiência</h6>
                         {editingEssentialAttribute === 'proficiency' ? (
-                          <input type="text" className="essential-attribute-input" value={essentialAttributes.proficiency} onChange={(e) => handleSaveEssentialAttribute('proficiency', e.target.value)} onBlur={() => handleSaveEssentialAttribute('proficiency', essentialAttributes.proficiency)} onKeyDown={(e) => handleKeyPressEssentialAttribute(e, 'proficiency', essentialAttributes.proficiency)} autoFocus />
-                        ) : (<div className="attribute-summary-value">{essentialAttributes.proficiency}</div>)}
+                          <input
+                            type="text"
+                            className="essential-attribute-input form-control form-control-sm text-center"
+                            value={characterData.essentialAttributes.proficiency}
+                            onChange={(e) => handleSaveEssentialAttribute('proficiency', e.target.value)}
+                            onBlur={() => handleSaveEssentialAttribute('proficiency', characterData.essentialAttributes.proficiency)}
+                            onKeyDown={(e) => handleKeyPressEssentialAttribute(e, 'proficiency', characterData.essentialAttributes.proficiency)}
+                            autoFocus
+                          />
+                        ) : (
+                          <div className="attribute-summary-value">{characterData.essentialAttributes.proficiency}</div>
+                        )}
                       </div>
                       <div className="essential-attribute-square" onClick={() => handleEditEssentialAttribute('speed')} onBlur={() => setEditingEssentialAttribute(null)} style={{ cursor: 'pointer' }}>
                         <h6 className="attribute-summary-label">Velocidade</h6>
                         {editingEssentialAttribute === 'speed' ? (
-                          <input type="text" className="essential-attribute-input" value={essentialAttributes.speed} onChange={(e) => handleSaveEssentialAttribute('speed', e.target.value)} onBlur={() => handleSaveEssentialAttribute('speed', essentialAttributes.speed)} onKeyDown={(e) => handleKeyPressEssentialAttribute(e, 'speed', essentialAttributes.speed)} autoFocus />
-                        ) : (<div className="attribute-summary-value">{essentialAttributes.speed}</div>)}
+                          <input
+                            type="text"
+                            className="essential-attribute-input form-control form-control-sm text-center"
+                            value={characterData.essentialAttributes.speed}
+                            onChange={(e) => handleSaveEssentialAttribute('speed', e.target.value)}
+                            onBlur={() => handleSaveEssentialAttribute('speed', characterData.essentialAttributes.speed)}
+                            onKeyDown={(e) => handleKeyPressEssentialAttribute(e, 'speed', characterData.essentialAttributes.speed)}
+                            autoFocus
+                          />
+                        ) : (
+                          <div className="attribute-summary-value">{characterData.essentialAttributes.speed}</div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -334,21 +371,21 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
                     <div className="col-md-6 d-flex flex-column gap-3">
                       <div className="card custom-card-base p-3 text-light-base content-card">
                         <label htmlFor="bioHistory" className="form-label field-label text-highlight-warning small">História</label>
-                        <textarea id="bioHistory" className="form-control bg-dark text-light-base border-secondary" rows={6} value={bioFields.history} onChange={(e) => handleBioFieldChange('history', e.target.value)} placeholder="A história do seu personagem..."></textarea>
+                        <textarea id="bioHistory" className="form-control bg-dark text-light-base border-secondary" rows={6} value={characterData.bioFields.history} onChange={(e) => handleBioFieldChange('history', e.target.value)} placeholder="A história do seu personagem..."></textarea>
                       </div>
                       <div className="card custom-card-base p-3 text-light-base content-card">
                         <label htmlFor="bioPersonality" className="form-label field-label text-highlight-warning small">Personalidade</label>
-                        <textarea id="bioPersonality" className="form-control bg-dark text-light-base border-secondary" rows={6} value={bioFields.personality} onChange={(e) => handleBioFieldChange('personality', e.target.value)} placeholder="Traços de personalidade, ideais, laços, falhas..."></textarea>
+                        <textarea id="bioPersonality" className="form-control bg-dark text-light-base border-secondary" rows={6} value={characterData.bioFields.personality} onChange={(e) => handleBioFieldChange('personality', e.target.value)} placeholder="Traços de personalidade, ideais, laços, falhas..."></textarea>
                       </div>
                     </div>
                     <div className="col-md-6 d-flex flex-column gap-3">
                       <div className="card custom-card-base p-3 text-light-base content-card">
                         <label htmlFor="bioAppearance" className="form-label field-label text-highlight-warning small">Aparência</label>
-                        <textarea id="bioAppearance" className="form-control bg-dark text-light-base border-secondary" rows={6} value={bioFields.appearance} onChange={(e) => handleBioFieldChange('appearance', e.target.value)} placeholder="Descrição física do seu personagem..."></textarea>
+                        <textarea id="bioAppearance" className="form-control bg-dark text-light-base border-secondary" rows={6} value={characterData.bioFields.appearance} onChange={(e) => handleBioFieldChange('appearance', e.target.value)} placeholder="Descrição física do seu personagem..."></textarea>
                       </div>
                       <div className="card custom-card-base p-3 text-light-base content-card">
                         <label htmlFor="bioTreasure" className="form-label field-label text-highlight-warning small">Tesouro & Equipamento</label>
-                        <textarea id="bioTreasure" className="form-control bg-dark text-light-base border-secondary" rows={6} value={bioFields.treasure} onChange={(e) => handleBioFieldChange('treasure', e.target.value)} placeholder="Itens importantes, ouro, equipamento..."></textarea>
+                        <textarea id="bioTreasure" className="form-control bg-dark text-light-base border-secondary" rows={6} value={characterData.bioFields.treasure} onChange={(e) => handleBioFieldChange('treasure', e.target.value)} placeholder="Itens importantes, ouro, equipamento..."></textarea>
                       </div>
                     </div>
                   </div>
@@ -369,7 +406,7 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
                 <div className="col-lg-8 col-md-10 col-sm-12 py-3 d-flex flex-column">
                   <h3 className="text-highlight-warning mb-4 text-center">Minhas Magias/Habilidades Salvas</h3>
                   <div className="card custom-card-base p-0 flex-grow-1 overflow-y-auto">
-                    {actions.length === 0 ? (
+                    {characterData.actions.length === 0 ? (
                       <p className="text-secondary-muted text-center py-3">Nenhuma magia ou habilidade cadastrada ainda.</p>
                     ) : (
                       <table className="table table-dark table-striped table-hover table-sm action-list-table">
@@ -381,7 +418,7 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
                           </tr>
                         </thead>
                         <tbody>
-                          {actions.map(action => (
+                          {characterData.actions.map(action => (
                             <React.Fragment key={action.id}>
                               <tr
                                 className="align-middle"
@@ -391,19 +428,19 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
                                 <td className="text-light-base text-start">
                                   {action.name}
                                   {action.isFavorite ? (
-                                      <i
-                                        className="bi bi-star-fill text-highlight-warning ms-2"
-                                        title="Desfavoritar"
-                                        onClick={(e) => { e.stopPropagation(); handleToggleFavorite(action.id, false); }}
-                                        style={{ cursor: 'pointer' }}
-                                      ></i>
+                                    <i
+                                      className="bi bi-star-fill text-highlight-warning ms-2"
+                                      title="Desfavoritar"
+                                      onClick={(e) => { e.stopPropagation(); handleToggleFavorite(action.id, false); }}
+                                      style={{ cursor: 'pointer' }}
+                                    ></i>
                                   ) : (
-                                      <i
-                                        className="bi bi-star text-secondary-muted ms-2"
-                                        title="Favoritar"
-                                        onClick={(e) => { e.stopPropagation(); handleToggleFavorite(action.id, true); }}
-                                        style={{ cursor: 'pointer' }}
-                                      ></i>
+                                    <i
+                                      className="bi bi-star text-secondary-muted ms-2"
+                                      title="Favoritar"
+                                      onClick={(e) => { e.stopPropagation(); handleToggleFavorite(action.id, true); }}
+                                      style={{ cursor: 'pointer' }}
+                                    ></i>
                                   )}
                                 </td>
                                 <td className="text-center">
@@ -473,6 +510,7 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
               </div>
               <div className="modal-body custom-card-scrollable-body" style={{ maxHeight: '70vh' }}>
                 <ActionCreator
+                existingActions={characterData.actions}
                   onSaveAction={handleSaveAction}
                   actionToEdit={actionToEdit}
                   onCancelEdit={handleCloseActionCreatorModal}
@@ -494,8 +532,13 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
         confirmButtonText="Confirmar"
       />
 
-      {/* Modal de Alerta Simples (agora via ref) */}
-      
+      {/* Modal de Alerta Simples */}
+      <SimpleAlertModal
+        show={showAlertModal}
+        title={alertModalTitle}
+        message={alertModalMessage}
+        onClose={closeAlertModal}
+      />
     </div>
   );
 };

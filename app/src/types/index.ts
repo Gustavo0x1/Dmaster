@@ -21,8 +21,41 @@ export interface Skill {
   modifier: string; // Ou number
 }
 
+// src/types/index.ts
+
+// Interface para a saúde do personagem
+export interface CharacterHealth {
+  current: number;
+  max: number;
+  deathSaves: {
+    successes: Array<boolean | null>;
+    failures: Array<boolean | null>;
+  };
+}
+export interface CharacterBioFields {
+  history: string;
+  appearance: string;
+  personality: string;
+  treasure: string;
+}
+// Interface principal da ficha do personagem
+export interface CharacterSheet {
+  id: number;
+  name: string;
+  imageUrl: string;
+  health: CharacterHealth;
+  attributes: BasicAttribute[];
+  skills: Skill[]; // Adicionado skills aqui
+  essentialAttributes: EssentialAttributes; // Adicionado essentialAttributes aqui
+  bioFields: CharacterBioFields; // Adicionado bioFields aqui
+  actions: CharacterAction[]; // Adicionado actions aqui
+  // Adicione quaisquer outros campos globais da ficha aqui
+}
+// Se você tiver um tipo HealthAction, defina-o aqui também:
+// export type HealthAction = 'add' | 'subtract';
+
 export interface CharacterAction {
-  id: string; // Identificador único
+  id: number; // Identificador único
   name: string; // Nome da ação (ex: "Bola de Fogo", "Ataque de Espada")
   description?: string; // Descrição geral da ação
 
@@ -95,14 +128,32 @@ export interface RawSpellData {
     races?: any; // Added as any, if you don't use it, you can remove it or type it specifically
     // Sometimes, the JSON might have fields you don't use but are present, so marking them optional or `any` helps.
 }
+export interface Combatant extends Token {
+  // Combatant estende Token e pode ter propriedades adicionais específicas para o combate
+  order: number; // A ordem na lista de iniciativa
+  isPlayer: boolean; // Indica se é um jogador ou um NPC/monstro
+}
+
+export interface DamageLogEntry {
+  id: number;
+  combatantId: number;
+  combatantName: string;
+  damageTaken: number;
+  damageDealt: number;
+  healingReceived: number;
+  timestamp: string; // Para registrar quando o evento ocorreu
+  description?: string; // Para detalhes sobre o dano (ex: "Ataque de goblin", "Cura de poção")
+}
 export interface Token {
   id: number; // PADRONIZADO: ID como number
   name: string;
   portraitUrl: string; // URL da imagem do token (avatar)
+  initiative?: number | string;
   currentHp: number; // HP atual do token
   maxHp: number;     // HP máximo do token
   ac: number;        // Classe de Armadura (AC) do token
   damageDealt?: string; // Algum indicador de dano causado por este token, se aplicável
+  damageTaken?: string; // Algum indicador de dano causado por este token, se aplicável
   // Propriedades adicionais para o Grid (MainGrid.tsx)
   x: number; // Coordenada X no grid
   y: number; // Coordenada Y no grid

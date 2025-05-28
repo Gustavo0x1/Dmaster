@@ -1,19 +1,31 @@
-import React from 'react';
-import HealthController from './HealthController'; // Ajuste o caminho se necessário
-
+// src/components/CharPortrait/CharPortrait.tsx
+import React, { useCallback } from 'react'; // Importe useCallback aqui
+import { CharacterSheet, CharacterHealth } from '../../types';
+import HealthController from './HealthController';
 interface CharacterPortraitAndHealthProps {
-  imageUrl: string; // URL da imagem do personagem
-  currentHealth?: number;
-  maxHealth?: number;
+  imageUrl: string;
+  characterName: string;
+  initialCurrentHealth: number;
+  initialMaxHealth: number;
+  updateCharacterSheet: (healthData: CharacterHealth) => void;
 }
 
 const CharacterPortraitAndHealth: React.FC<CharacterPortraitAndHealthProps> = ({
   imageUrl,
-  currentHealth,
-  maxHealth,
+  characterName,
+  initialCurrentHealth,
+  initialMaxHealth,
+  updateCharacterSheet
 }) => {
-  return (
+  // Memoize handleHealthControllerChange using useCallback
+  // A função só será recriada se 'updateCharacterSheet' mudar.
+  // Como 'updateCharacterSheet' vem do CharacterSheetManager e usa setCharacters,
+  // ela é estável.
+  const handleHealthControllerChange = useCallback((healthData: CharacterHealth) => {
+    updateCharacterSheet(healthData);
+  }, [updateCharacterSheet]); // Dependência: updateCharacterSheet
 
+  return (
     <div  className="d-flex flex-column align-items-center mb-3"> {/* Centraliza a imagem e a vida verticalmente */}
       {/* Imagem do Personagem */}
       <div className="character-portrait-container mb-2"> {/* mb-2 para espaçamento entre imagem e vida */}
@@ -24,12 +36,12 @@ const CharacterPortraitAndHealth: React.FC<CharacterPortraitAndHealthProps> = ({
           style={{ width: '120px', height: '120px', objectFit: 'cover' }} // Tamanho fixo para o avatar
         />
       </div>
+      <h4 className="text-warning mt-3">{characterName}</h4>
 
-      {/* Controlador de Pontos de Vida (HealthController) */}
-      {/* O HealthController já é autocontido, apenas repassamos as props iniciais se existirem */}
       <HealthController
-        initialCurrentHealth={currentHealth}
-        initialMaxHealth={maxHealth}
+        initialCurrentHealth={initialCurrentHealth}
+        initialMaxHealth={initialMaxHealth}
+        onHealthChange={handleHealthControllerChange} // Passe a função memoizada
       />
     </div>
   );

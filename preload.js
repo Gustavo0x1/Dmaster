@@ -43,6 +43,10 @@ on: (channel, callback) => {
       console.warn(`[preload.js] Attempted to remove listener on invalid channel or with invalid callback: ${channel}`);
     }
   },
+   getAllActions: () => ipcRenderer.invoke('get-all-actions'),
+    addAction: (actionData) => ipcRenderer.invoke('add-action', actionData),
+    updateAction: (id, actionData) => ipcRenderer.invoke('update-action', id, actionData),
+    deleteAction: (id) => ipcRenderer.invoke('delete-action', id),
   DoremoveListener: (listener,func) => ipcRenderer.removeListener(listener,func),
 
 });
