@@ -61,6 +61,9 @@
     ]
   },
   "devDependencies": {
-    "@3d-dice/dice-box": "^1.1.4"
+    "@3d-dice/dice-box": "^1.1.4",
+    "@typescript-eslint/eslint-plugin": "^x.x.x",
+    "@typescript-eslint/parser": "^x.x.x",
+    "eslint": "^8.57.1"
   }
 }

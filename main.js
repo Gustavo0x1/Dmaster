@@ -70,7 +70,7 @@ function createMainWindow(){
         pathname:path.join(__dirname,'./app/build/index.html'),
         protocol:'file'
     })
-    MainWindow.loadURL('http://localhost:3000')
+    MainWindow.loadURL(startUrl)
 }
 
 app.whenReady().then(()=>{

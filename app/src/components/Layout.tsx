@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-expressions */
 import React, { createContext, useContext, useState, ReactNode, useCallback } from "react";
 import Header from "./Header";
 import { Outlet } from 'react-router-dom';

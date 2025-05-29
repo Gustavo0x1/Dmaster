@@ -1,3 +1,6 @@
+/* eslint-disable no-unused-expressions */
+/* eslint-disable no-undef */
+/* eslint-disable no-restricted-globals */
 var Io = Object.defineProperty;
 var zo = (h, e, t) => e in h ? Io(h, e, { enumerable: !0, configurable: !0, writable: !0, value: t }) : h[e] = t;
 var Ys = (h, e, t) => (zo(h, typeof e != "symbol" ? e + "" : e, t), t);

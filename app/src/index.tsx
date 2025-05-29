@@ -1,4 +1,5 @@
-  import React from 'react';
+/* eslint-disable no-unused-expressions */
+import React from 'react';
   import ReactDOM from 'react-dom/client';
   import 'bootstrap/dist/css/bootstrap.min.css';
   import 'bootstrap/dist/js/bootstrap.min.js';

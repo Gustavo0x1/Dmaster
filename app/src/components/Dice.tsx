@@ -1,6 +1,7 @@
 // Dice.tsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import DiceBox from './dice-box-threejs.es';
+
 import RollNotification from './RollNotification'; // Importar o componente de notificação
 
 declare global {
