@@ -57,12 +57,15 @@ const ActionManager: React.FC = () => {
       setSavedActions(prevActions => [...prevActions, { ...newAction, isFavorite: newAction.isFavorite ?? false }]);
       alert(`Ação "${newAction.name}" salva com sucesso!`);
     }
+    
     setActiveTab('acoes');
     // Nota: O console.log com filtro pode não refletir o estado mais recente imediatamente devido ao setter assíncrono.
     // console.log("Lista de ações salvas/atualizadas:", [...savedActions.filter(a => a.id !== (actionToEdit?.id || '')), newAction]);
   };
 
-  const handleDeleteAction = (actionId: string) => {
+  const handleDeleteAction = (actionId?: number) => {
+      if(actionId==undefined)
+      {actionId=1}
     if (window.confirm("Tem certeza que deseja excluir esta ação?")) {
       setSavedActions(prevActions => prevActions.filter(action => action.id !== actionId));
       alert("Ação excluída!");
@@ -79,7 +82,7 @@ const ActionManager: React.FC = () => {
     setActiveTab('criar');
   };
 
-  const handleToggleFavorite = (actionId: string, isFavorite: boolean) => {
+  const handleToggleFavorite = (isFavorite: boolean,actionId?: number) => {
     setSavedActions(prevActions => prevActions.map(action =>
       action.id === actionId ? { ...action, isFavorite: isFavorite } : action
     ));
@@ -151,7 +154,9 @@ const ActionManager: React.FC = () => {
         {activeTab === 'criar' && (
           <div className="tab-pane fade show active h-100" id="criar-tab-pane" role="tabpanel" aria-labelledby="criar-tab">
             <ActionCreator
+             characterId={1}
               onSaveAction={handleSaveAction} // Espera CharacterAction
+              onEditAction={handleSaveAction} // Espera CharacterAction
               actionToEdit={actionToEdit} // Pode ser CharacterAction | null
               onCancelEdit={() => setActionToEdit(null)}
             />

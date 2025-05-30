@@ -39,6 +39,7 @@
   "dependencies": {
     "@aspnet/signalr": "^1.1.4",
     "@microsoft/signalr": "^8.0.7",
+    "better-sqlite3": "^11.10.0",
     "electron-squirrel-startup": "^1.0.1",
     "express": "^5.1.0",
     "konva": "^9.3.20",
@@ -55,6 +56,7 @@
     "@electron-forge/plugin-auto-unpack-natives": "^7.8.1",
     "@electron-forge/plugin-fuses": "^7.8.1",
     "@electron/fuses": "^1.8.0",
-    "electron": "^36.2.1"
+    "electron": "^36.2.1",
+    "electron-rebuild": "^3.2.9"
   }
 }

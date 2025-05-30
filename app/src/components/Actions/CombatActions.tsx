@@ -6,12 +6,15 @@ import ConfirmationModal from '../modals/ConfirmationModal';
 
 interface CombatActionsProps {
   actions: CharacterAction[];
-  onDeleteAction: (actionId: string) => void;
+  onDeleteAction: (actionId: number) => void;
   onEditAction: (action: CharacterAction) => void;
-  onToggleFavorite: (actionId: string, isFavorite: boolean) => void;
+  onToggleFavorite: (isFavorite: boolean,actionId?: number) => void;
   selectedTokens?: Token[];
   availableTokens?: Token[];
   onTokenSelected?: (token: Token | null) => void;
+}
+interface CharacterActionWithId extends CharacterAction {
+    id?: number; // The ID is now number | undefined in ActionCreator.tsx
 }
 
 const CombatActions: React.FC<CombatActionsProps> = ({
@@ -26,13 +29,13 @@ const CombatActions: React.FC<CombatActionsProps> = ({
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertModalTitle, setAlertModalTitle] = useState('');
   const [alertModalMessage, setAlertModalMessage] = useState<string | React.ReactNode>('');
-
+   const [actionToEdit, setActionToEdit] = useState<CharacterActionWithId | null>(null); // Corrected type
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmModalTitle, setConfirmModalTitle] = useState('');
   const [confirmModalMessage, setConfirmModalMessage] = useState<string | React.ReactNode>('');
   const [confirmModalOnConfirm, setConfirmModalOnConfirm] = useState<(() => void) | undefined>(undefined);
 
-  const [expandedActionId, setExpandedActionId] = useState<string | null>(null); // State for expanded action
+  const [expandedActionId, setExpandedActionId] = useState<number | null>(null); // State for expanded action
 
   const openAlertModal = (title: string, message: string | React.ReactNode) => {
     setAlertModalTitle(title);
@@ -87,7 +90,10 @@ const CombatActions: React.FC<CombatActionsProps> = ({
     openAlertModal("Ação Aplicada!", effectMessage);
   };
 
-  const handleConfirmDelete = (actionId: string) => {
+  const handleConfirmDelete = (actionId?: number) => {
+  if (actionId === undefined) {
+      return;
+    }
     openConfirmModal(
       "Confirmar Exclusão",
       "Tem certeza que deseja excluir esta ação? Esta ação não pode ser desfeita.",
@@ -95,9 +101,12 @@ const CombatActions: React.FC<CombatActionsProps> = ({
     );
   };
 
-  const handleToggleExpandAction = (actionId: string) => {
-    setExpandedActionId(prevId => (prevId === actionId ? null : actionId));
-  };
+const handleToggleExpandAction = (actionIdParam?: number) => {
+    // Determine the final actionId that is guaranteed to be number or null
+    const finalActionId: number | null = actionIdParam === undefined ? 1 : actionIdParam;
+
+    setExpandedActionId(prevId => (prevId === finalActionId ? null : finalActionId));
+};
 
   return (
     <div className="combat-actions-container h-100 p-3">
@@ -126,14 +135,14 @@ const CombatActions: React.FC<CombatActionsProps> = ({
                         <i
                           className="bi bi-star-fill text-highlight-warning ms-2"
                           title="Desfavoritar"
-                          onClick={(e) => { e.stopPropagation(); onToggleFavorite(action.id, false); }}
+                          onClick={(e) => { e.stopPropagation(); onToggleFavorite(false,action.id); }}
                           style={{ cursor: 'pointer' }}
                         ></i>
                       ) : (
                         <i
                           className="bi bi-star text-secondary-muted ms-2"
                           title="Favoritar"
-                          onClick={(e) => { e.stopPropagation(); onToggleFavorite(action.id, true); }}
+                          onClick={(e) => { e.stopPropagation(); onToggleFavorite(true,action.id); }}
                           style={{ cursor: 'pointer' }}
                         ></i>
                       )}
@@ -173,7 +182,7 @@ const CombatActions: React.FC<CombatActionsProps> = ({
                               {action.level !== undefined && <p className="mb-1 small">Nível: {action.level}</p>}
                               {action.castingTime && <p className="mb-1 small">Tempo de Conjuração: {action.castingTime}</p>}
                               {action.duration && <p className="mb-1 small">Duração: {action.duration}</p>}
-                              {action.school && <p className="mb-1 small">Escola: {action.school}</p>}
+                              {action.school && <p className="mb-1 small">Escola: {action.id}</p>}
                               {action.saveDC && <p className="mb-1 small">Teste de Resistência: {action.saveDC}</p>}
                             </>
                           )}

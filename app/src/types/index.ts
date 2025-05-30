@@ -20,9 +20,12 @@ export interface Skill {
   name: string;
   modifier: string; // Ou number
 }
+export interface CharacterActionWithId extends CharacterAction {
+    id?: number; // Make sure this matches your DB (number for auto-increment)
+}
 
 export interface CharacterAction {
-  id: string; // Identificador único
+  id?: number; // Identificador único
   name: string; // Nome da ação (ex: "Bola de Fogo", "Ataque de Espada")
   description?: string; // Descrição geral da ação
 

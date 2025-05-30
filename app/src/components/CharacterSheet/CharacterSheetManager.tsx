@@ -3,7 +3,7 @@ import FullCharSheet from './FullCharSheet'; // Importa o componente da ficha co
 
 // Defina uma interface para os dados básicos de cada personagem/ficha
 interface CharacterData {
-  id: string; // Um ID único para a ficha (ex: "ficha-guerreira", "ficha-mago")
+  id: number; // Um ID único para a ficha (ex: "ficha-guerreira", "ficha-mago")
   name: string; // Nome do personagem para o rótulo da aba
   // No futuro, aqui você adicionaria todos os dados reais que o FullCharSheet precisaria
   // Ex: attributes: BasicAttribute[]; skills: Skill[]; health: { current: number, max: number };
@@ -13,15 +13,15 @@ const CharacterSheetManager: React.FC = () => {
   // Dados mockados de múltiplas fichas de personagem.
   // No futuro, isso viria de um banco de dados ou de um estado global.
   const [characters, setCharacters] = useState<CharacterData[]>([
-    { id: 'char1-aella', name: 'Aella (Guerreira)' },
-    { id: 'char2-elara', name: 'Elara (Maga)' },
-    { id: 'char3-grom', name: 'Grom (Bárbaro)' },
+    { id: 1, name: 'Aella (Guerreira)' },
+    { id: 2, name: 'Elara (Maga)' },
+    { id: 3, name: 'Grom (Bárbaro)' },
     // Adicione mais personagens conforme necessário
   ]);
 
   // Estado para controlar qual ficha (personagem) está ativa.
   // Inicializa com o ID do primeiro personagem, se houver.
-  const [activeCharacterId, setActiveCharacterId] = useState<string>(characters[0]?.id || '');
+  const [activeCharacterId, setActiveCharacterId] = useState<number>(characters[0]?.id || 0);
 
   // Mensagem caso não haja personagens
   if (characters.length === 0) {
@@ -86,7 +86,7 @@ const CharacterSheetManager: React.FC = () => {
                 específicos da ficha selecionada para ele.
                 Ex: <FullCharSheet characterData={char.fullData} />
               */}
-              <FullCharSheet />
+              <FullCharSheet characterId={char.id} />
             </div>
           )
         ))}

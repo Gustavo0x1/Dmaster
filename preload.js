@@ -43,6 +43,25 @@ on: (channel, callback) => {
       console.warn(`[preload.js] Attempted to remove listener on invalid channel or with invalid callback: ${channel}`);
     }
   },
+   invoke: (channel, ...args) => {
+    // Lista de canais IPC permitidos para invoke
+    const validInvokeChannels = [
+      'request-character-data',
+      'save-action',
+      'edit-action',
+      'delete-action',
+      
+      'save-character-data', // Exemplo: se você for salvar dados
+      'delete-character',     // Exemplo: se você for deletar um personagem
+    ];
+
+    if (validInvokeChannels.includes(channel)) {
+      return ipcRenderer.invoke(channel, ...args);
+    }
+    // Opcional: logar ou lançar um erro se o canal não for válido
+    console.error(`Attempted to invoke an invalid channel: ${channel}`);
+    return Promise.reject(new Error(`Invalid IPC channel: ${channel}`));
+  },
   DoremoveListener: (listener,func) => ipcRenderer.removeListener(listener,func),
 
 });

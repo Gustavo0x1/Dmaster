@@ -1,5 +1,5 @@
 // src/components/CharacterSheet/CharacterSheet.tsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AttributesSection from './Atributos';
 import CharacterPortraitAndHealth from './CharPortrait';
 import SkillsSection from './Skills';
@@ -7,66 +7,80 @@ import token from '../../img/0.png';
 import { BasicAttribute, EssentialAttributes, Skill, CharacterAction, Token } from '../../types';
 import ActionCreator from '../Actions/ActionCreator';
 import ConfirmationModal from '../modals/ConfirmationModal';
-import SimpleAlertModal from '../modals/SimpleAlert'; // <--- AQUI ESTÁ A MUDANÇA: 'type' antes de SimpleAlertModalRef
-import { v4 as uuidv4 } from 'uuid';
-import { sign } from 'crypto';
+import SimpleAlertModal from '../modals/SimpleAlert';
+import { v4 as uuidv4 } from 'uuid'; // Import uuidv4
+
+// Extend Window interface to include electronAPI
+interface CharacterActionWithId extends CharacterAction {
+    id?: number; // The ID is now number | undefined in ActionCreator.tsx
+}
 
 interface CharacterSheetProps {
   onSaveActionForCombat?: (action: CharacterAction) => void;
+  characterId: number; // Add characterId as a prop
 }
 
-const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat }) => {
+const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat, characterId }) => {
+    const electron = (window as any).electron;
+
   const [activeSide, setActiveSide] = useState<'character' | 'bio' | 'actions'>('character');
   const [actions, setActions] = useState<CharacterAction[]>([]);
-  const [actionToEdit, setActionToEdit] = useState<CharacterAction | null>(null);
+   const [actionToEdit, setActionToEdit] = useState<CharacterActionWithId | null>(null); // Corrected type
   const [showActionCreatorModal, setShowActionCreatorModal] = useState<boolean>(false);
-  const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
-  // Estados para o modal de ALERTA SIMPLES (para sucesso, exibir no chat)
+  const [expandedActionId, setExpandedActionId] = useState<number | null>(null);
+
+  // States for SIMPLE ALERT modal (for success, display in chat)
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertModalTitle, setAlertModalTitle] = useState('');
   const [alertModalMessage, setAlertModalMessage] = useState<string | React.ReactNode>('');
-
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmModalTitle, setConfirmModalTitle] = useState('');
   const [confirmModalMessage, setConfirmModalMessage] = useState<string | React.ReactNode>('');
   const [confirmModalOnConfirm, setConfirmModalOnConfirm] = useState<(() => void) | undefined>(undefined);
 
-
   const [bioFields, setBioFields] = useState({
-    history: "A história de Aella é marcada por batalhas em florestas sombrias e uma busca implacável por vingança contra os goblins que destruíram sua vila.",
-    appearance: "Cabelos cor de ébano, olhos penetrantes que brilham no escuro. Uma cicatriz no braço esquerdo, lembrança de um encontro com um lobo atroz.",
-    personality: "Reservada e cautelosa, mas fiercely leal aos seus companheiros. Tem um humor seco e um senso de justiça inabalável.",
-    treasure: "Um punhal élfico de prata, um saco de moedas de ouro (150 gp) e um mapa rasgado de uma masmorra perdida."
+    history: "",
+    appearance: "",
+    personality: "",
+    treasure: ""
   });
 
-  const [myCharacterAttributes, setMyCharacterAttributes] = useState<BasicAttribute[]>([
-    { name: 'Força', value: 18, modifier: 4 },
-    { name: 'Destreza', value: 16, modifier: 3 },
-    { name: 'Constituição', value: 14, modifier: 2 },
-    { name: 'Inteligência', value: 10, modifier: 0 },
-    { name: 'Sabedoria', value: 12, modifier: 1 },
-    { name: 'Carisma', value: 8, modifier: -1 },
-  ]);
+  const [myCharacterAttributes, setMyCharacterAttributes] = useState<BasicAttribute[]>([]);
 
-  const [mySkills, setMySkills] = useState<Skill[]>([
-    { name: 'Atletismo', modifier: '+5' }, { name: 'Acrobacia', modifier: '+3' },
-    { name: 'Furtividade', modifier: '+2' }, { name: 'Prestidigitação', modifier: '+2' },
-    { name: 'Arcanismo', modifier: '+1' }, { name: 'História', modifier: '+0' },
-    { name: 'Investigação', modifier: '+1' }, { name: 'Natureza', modifier: '+1' },
-    { name: 'Religião', modifier: '+0' }, { name: 'Adestrar Animais', modifier: '+0' },
-    { name: 'Intuição', modifier: '+1' }, { name: 'Medicina', modifier: '+0' },
-    { name: 'Percepção', modifier: '+2' }, { name: 'Sobrevivência', modifier: '+0' },
-    { name: 'Atuação', modifier: '+4' }, { name: 'Enganação', modifier: '+4' },
-    { name: 'Intimidação', modifier: '+4' }, { name: 'Persuasão', modifier: '+4' },
-  ]);
+  const [mySkills, setMySkills] = useState<Skill[]>([]);
 
   const [essentialAttributes, setEssentialAttributes] = useState<EssentialAttributes>({
-    armor: 16, initiative: '+2', proficiency: '+2', speed: '9 m',
+    armor: 0, initiative: '', proficiency: '', speed: '',
   });
 
   const [editingEssentialAttribute, setEditingEssentialAttribute] = useState<keyof EssentialAttributes | null>(null);
 
+  // Effect to load character data when characterId changes
+  useEffect(() => {
+        if (characterId) {
+                electron.invoke('request-character-data', characterId)
+                .then((response: any ) => { // <--- Tipagem adicionada aqui
+                    if (response.success && response.data) {
+                        const data = response.data;
+                        setBioFields(data.bioFields || { history: "", appearance: "", personality: "", treasure: "" });
+                        setMyCharacterAttributes(data.myCharacterAttributes || []);
+                        setMySkills(data.mySkills || []);
+                        setEssentialAttributes(data.essentialAttributes || { armor: 0, initiative: '', proficiency: '', speed: '' });
+                        setActions(data.actions || []);
+                        console.log("Dados do personagem carregados:", data);
+                    } else {
+                        console.error("Erro ao carregar dados do personagem:", response.message);
+                        openAlertModal("Erro de Carregamento", response.message || "Não foi possível carregar os dados do personagem.");
+                    }
+                })
+                .catch((error: unknown) => { // Tipagem do erro, como discutido anteriormente
+                    console.error("Erro na comunicação IPC ao carregar dados do personagem:", error);
+                    openAlertModal("Erro de Comunicação", "Não foi possível comunicar com o processo principal para carregar os dados.");
+                });
+        }
+    }, [characterId]);
+ // Re-run when characterId changes
 
   const openAlertModal = (title: string, message: string | React.ReactNode) => {
     setAlertModalTitle(title);
@@ -97,56 +111,104 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
     setConfirmModalOnConfirm(undefined);
   };
 
-  const handleSaveAction = (newAction: CharacterAction) => {
-    if (newAction.id && actions.some(a => a.id === newAction.id)) {
-      setActions(prevActions => prevActions.map(action => action.id === newAction.id ? newAction : action));
-    } else {
-      setActions(prevActions => [...prevActions, { ...newAction, id: uuidv4(), isFavorite: false }]);
-    }
-    setActionToEdit(null);
-    setShowActionCreatorModal(false);
+   const handleSaveAction = async (actionToProcess: CharacterActionWithId) => {
+        try {
+            const response = await electron.invoke('save-action', characterId, actionToProcess);
 
-    if (onSaveActionForCombat) {
-      onSaveActionForCombat(newAction);
-    }
-          setAlertModalTitle("Sucesso?");
-        setAlertModalMessage("a??");
-           <SimpleAlertModal
-        show={showAlertModal}
-        title={alertModalTitle}
-        message={alertModalMessage}
-        onClose={closeAlertModal}
-      />
-  };
-
-  const handleEditAction = (action: CharacterAction) => {
-    setActionToEdit(action);
-    setShowActionCreatorModal(true);
-  };
-
-  const handleDeleteAction = (id: string) => {
-    openConfirmModal(
-      'Confirmar Exclusão',
-      'Tem certeza que deseja excluir esta ação?',
-      () => {
-        setActions(prevActions => prevActions.filter(action => action.id !== id));
-        if (actionToEdit && actionToEdit.id === id) {
-            setActionToEdit(null);
-            setShowActionCreatorModal(false);
+            if (response.success) {
+                setActions(prevActions => {
+                    if (actionToProcess.id !== undefined && prevActions.some(a => a.id === actionToProcess.id)) {
+                        return prevActions.map(a =>
+                            a.id === actionToProcess.id ? { ...actionToProcess, id: response.data.id || actionToProcess.id } : a
+                        );
+                    } else {
+                        const newActionId = response.data?.id || Math.floor(Math.random() * 1000000); // Garante que o ID é um número
+                        return [...prevActions, { ...actionToProcess, id: newActionId }];
+                    }
+                });
+                openAlertModal("Sucesso!", "Ação salva com sucesso!");
+                setActionToEdit(null); // Limpa o estado de edição
+                setShowActionCreatorModal(false); // Fecha o modal após salvar ou atualizar
+            } else {
+                console.error("Failed to save action:", response.message);
+                openAlertModal("Erro!", response.message || "Não foi possível salvar a ação.");
+            }
+        } catch (error) {
+            console.error("Erro ao salvar/atualizar ação via IPC:", error);
+            openAlertModal("Erro de Comunicação", "Não foi possível comunicar com o processo principal para salvar a ação.");
         }
-        setAlertModalTitle("Sucesso?");
-        setAlertModalMessage("a??");
-           <SimpleAlertModal
-        show={showAlertModal}
-        title={alertModalTitle}
-        message={alertModalMessage}
-        onClose={closeAlertModal}
-      />
-      }
-    );
-  };
 
-  const handleToggleFavorite = (actionId: string, isFavorite: boolean) => {
+        // Esta parte foi movida para dentro do if (response.success) acima,
+        // para garantir que o modal só feche após o sucesso.
+        // setActionToEdit(null);
+        // setShowActionCreatorModal(false);
+
+        if (onSaveActionForCombat) {
+            onSaveActionForCombat(actionToProcess);
+        }
+    };
+const handleEditAction = (action: CharacterActionWithId) => { // Removed 'async' and 'await'
+    // This function is now solely responsible for setting the action to be edited
+    // and opening the modal. The actual database update will happen when
+    // the user clicks "Atualizar Ação" inside the ActionCreator modal.
+    setActionToEdit(action);
+    setShowActionCreatorModal(true); // Open the modal
+};
+
+// This function will be passed to ActionCreator as onEditAction prop
+const handleUpdateActionInDb = async (action: CharacterActionWithId) => {
+    try {
+        const response = await electron.invoke('edit-action', characterId, action);
+        if (response.success) {
+            setActions(prevActions =>
+                prevActions.map(a => a.id === action.id ? action : a)
+            );
+            openAlertModal("Sucesso!", "Ação atualizada com sucesso!");
+            setShowActionCreatorModal(false); // Close the modal after successful update
+            setActionToEdit(null); // Clear the editing state
+        } else {
+            console.error("Erro ao editar ação:", response.message);
+            openAlertModal("Erro!", response.message || "Não foi possível editar a ação.");
+        }
+    } catch (error) {
+        console.error("Erro ao atualizar db:", error);
+        openAlertModal("Erro!", "Ocorreu um erro ao tentar editar a ação.");
+    }
+};
+
+
+    const handleDeleteAction = (actionId?: number) => { // Certifique-se que actionId é sempre um número
+        if(actionId==undefined)
+        {
+          return;
+        }
+        openConfirmModal(
+            'Confirmar Exclusão',
+            'Tem certeza que deseja excluir esta ação? Esta ação é irreversível.',
+            async () => { // Usar async aqui para aguardar a operação IPC
+                try {
+                    const response = await electron.invoke('delete-action', characterId, actionId);
+
+                    if (response.success) {
+                        setActions(prevActions => prevActions.filter(action => action.id !== actionId));
+                        openAlertModal("Sucesso!", "Ação excluída com sucesso!");
+                    } else {
+                        console.error("Erro ao excluir ação:", response.message);
+                        openAlertModal("Erro na Exclusão", response.message || "Não foi possível excluir a ação.");
+                    }
+                } catch (error) {
+                    console.error("Erro na comunicação IPC ao excluir ação:", error);
+                    openAlertModal("Erro de Comunicação", "Não foi possível comunicar com o processo principal para excluir a ação.");
+                }
+                closeConfirmModal(); // Fechar o modal de confirmação em qualquer caso
+            }
+        );
+    };
+
+  const handleToggleFavorite = (isFavorite: boolean,actionId?: number) => {
+       if(actionId == undefined){
+      actionId =1;
+    }
     setActions(prevActions =>
       prevActions.map(action =>
         action.id === actionId ? { ...action, isFavorite: isFavorite } : action
@@ -155,13 +217,16 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
   };
 
   const handleShowInChat = (action: CharacterAction) => {
-    
+
     console.log("Ação para exibir no chat:", action);
   };
 
-  const handleToggleExpandAction = (actionId: string) => {
-    setExpandedActionId(prevId => (prevId === actionId ? null : actionId));
-  };
+const handleToggleExpandAction = (actionIdParam?: number) => {
+    // Determine the final actionId that is guaranteed to be number or null
+    const finalActionId: number | null = actionIdParam === undefined ? 1 : actionIdParam;
+
+    setExpandedActionId(prevId => (prevId === finalActionId ? null : finalActionId));
+};
 
   const handleOpenActionCreatorModal = () => {
     setActionToEdit(null);
@@ -219,7 +284,7 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
 
   return (
     <div style={{ paddingTop: 5 }} className="container-fluid character-sheet-container h-100">
-      <div className="row h-100 d-flex flex-column">
+      <div className="h-100 d-flex flex-column">
 
         {/* Abas de Navegação */}
         <div className="col-12 mb-3 flex-shrink-0">
@@ -288,8 +353,8 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
                 <div className="col-md-4 d-flex flex-column align-items-center justify-content-start py-3 overflow-y-auto">
                   <CharacterPortraitAndHealth
                     imageUrl={token}
-                    currentHealth={20}
-                    maxHealth={100}
+                    currentHealth={20} // This should also be loaded from character data
+                    maxHealth={100}   // This should also be loaded from character data
                   />
                   <div className="mt-4 text-center character-essential-attributes">
                     <h5 className="text-highlight-warning section-title">Dados Essenciais</h5>
@@ -327,7 +392,7 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
 
           {activeSide === 'bio' && (
             <div className="tab-page-active fade show active flex-grow-1 character-bio-tab" id="bio-tab-page" role="tabpanel" aria-labelledby="bio-tab">
-              <div className="row h-100 justify-content-center py-3">
+              <div className="h-100 justify-content-center py-3">
                 <div className="col-lg-10 col-md-11 col-sm-12">
                   <h3 className="text-highlight-warning mb-4 text-center">Bio: Detalhes do Personagem</h3>
                   <div className="row g-3">
@@ -394,14 +459,14 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
                                       <i
                                         className="bi bi-star-fill text-highlight-warning ms-2"
                                         title="Desfavoritar"
-                                        onClick={(e) => { e.stopPropagation(); handleToggleFavorite(action.id, false); }}
+                                        onClick={(e) => { e.stopPropagation(); handleToggleFavorite( false,action.id,); }}
                                         style={{ cursor: 'pointer' }}
                                       ></i>
                                   ) : (
                                       <i
                                         className="bi bi-star text-secondary-muted ms-2"
                                         title="Favoritar"
-                                        onClick={(e) => { e.stopPropagation(); handleToggleFavorite(action.id, true); }}
+                                        onClick={(e) => { e.stopPropagation(); handleToggleFavorite(true,action.id); }}
                                         style={{ cursor: 'pointer' }}
                                       ></i>
                                   )}
@@ -472,11 +537,13 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
                 <button type="button" className="btn-close btn-close-white" aria-label="Close" onClick={handleCloseActionCreatorModal}></button>
               </div>
               <div className="modal-body custom-card-scrollable-body" style={{ maxHeight: '70vh' }}>
-                <ActionCreator
-                  onSaveAction={handleSaveAction}
-                  actionToEdit={actionToEdit}
-                  onCancelEdit={handleCloseActionCreatorModal}
-                />
+           <ActionCreator
+            characterId={characterId}
+            onSaveAction={handleSaveAction}
+            onEditAction={handleUpdateActionInDb} // This is the corrected function
+            actionToEdit={actionToEdit}
+            onCancelEdit={handleCloseActionCreatorModal} // This function should clear the state
+        />
               </div>
             </div>
           </div>
@@ -494,8 +561,14 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat })
         confirmButtonText="Confirmar"
       />
 
-      {/* Modal de Alerta Simples (agora via ref) */}
-      
+      {/* Modal de Alerta Simples */}
+      <SimpleAlertModal
+        show={showAlertModal}
+        title={alertModalTitle}
+        message={alertModalMessage}
+        onClose={closeAlertModal}
+      />
+
     </div>
   );
 };

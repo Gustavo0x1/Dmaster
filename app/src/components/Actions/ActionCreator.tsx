@@ -1,9 +1,10 @@
+/* eslint-disable no-restricted-globals */
 import React, { useState, useEffect, useRef } from 'react';
-import { CharacterAction, RawSpellData } from '../../types'; // Importado CharacterAction
-import { v4 as uuidv4 } from 'uuid';
+// Certifique-se que CharacterAction e CharacterActionWithId estão corretos no seu types.ts
+import { CharacterAction, RawSpellData, CharacterActionWithId } from '../../types';
 import SimpleAlertModal from '../modals/SimpleAlert';
-import ConfirmationModal from '../modals/ConfirmationModal'; // Certifique-se que o caminho está correto
-import magicData from './MAGIAS.json'; // Ajuste o caminho se necessário!
+import ConfirmationModal from '../modals/ConfirmationModal';
+import magicData from './MAGIAS.json';
 
 // --- Funções Auxiliares (fora do componente para evitar recriação desnecessária) ---
 const normalizeString = (str: string): string => {
@@ -55,25 +56,26 @@ const OUTCOME_MAP: { [key: string]: string } = {
     "none": "sem efeito"
 };
 
-// --- Props do Componente ---
-interface ActionCreatorProps {
-  onSaveAction: (action: CharacterAction) => void; // Tipo alterado
-  actionToEdit: CharacterAction | null; // Tipo alterado
-  onCancelEdit: () => void;
-}
 
-const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdit, onCancelEdit }) => {
-   
+interface ActionCreatorProps {
+  onSaveAction: (action: CharacterActionWithId) => void;
+  actionToEdit: CharacterActionWithId | null;
+  onEditAction: (action: CharacterActionWithId) => void; // This prop seems unused in the provided code
+  onCancelEdit: () => void;
+  characterId: number | null;
+}
+const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdit, onCancelEdit ,onEditAction}) => { 
+   console.log("Run once:")
   // --- Estados ---
   const [predefinedSpells, setPredefinedSpells] = useState<RawSpellData[]>([]);
   const [loadingSpells, setLoadingSpells] = useState<boolean>(true);
   const [spellLoadError, setSpellLoadError] = useState<string | null>(null);
 
   // Estados do formulário, renomeado 'actionType' para 'mainType'
-  const [mainType, setMainType] = useState<'attack' | 'spell' | 'utility' | 'ability'>('attack'); // Adicionado 'utility' e 'ability'
-  const [effectCategory, setEffectCategory] = useState<'damage' | 'utility' | 'healing'>('damage'); // Adicionado 'healing'
+  const [mainType, setMainType] = useState<'attack' | 'spell' | 'utility' | 'ability'>('attack');
+  const [effectCategory, setEffectCategory] = useState<'damage' | 'utility' | 'healing'>('damage');
   const [actionName, setActionName] = useState<string>('');
-  const [description, setDescription] = useState<string>(''); // Movido para campo comum
+  const [description, setDescription] = useState<string>('');
 
   // Campos de Dano
   const [damageDice, setDamageDice] = useState<string>('');
@@ -97,11 +99,11 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
 
 
   // Campos de Cura
-  const [healingDice, setHealingDice] = useState<string>(''); // Novo campo para dados de cura
+  const [healingDice, setHealingDice] = useState<string>('');
 
   // Campos comuns de alcance
-  const [range, setRange] = useState<string>(''); // Renomeado para 'attackRange' no tipo, mas mantido aqui para compatibilidade
-  const [target, setTarget] = useState<string>(''); // Novo campo para alvo
+  const [range, setRange] = useState<string>('');
+  const [target, setTarget] = useState<string>('');
 
   // Campos específicos para Ataques
   const [properties, setProperties] = useState<string>('');
@@ -137,7 +139,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
   ) => {
     setConfirmModalTitle(title);
     setConfirmModalMessage(message);
-    setConfirmModalOnConfirm(() => onConfirm); // Passa a função diretamente
+    setConfirmModalOnConfirm(() => onConfirm);
     setShowConfirmModal(true);
   };
 
@@ -172,7 +174,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       setMainType(actionToEdit.mainType);
       setEffectCategory(actionToEdit.effectCategory);
       setActionName(actionToEdit.name);
-      setDescription(actionToEdit.description || ''); // Pode ser opcional
+      setDescription(actionToEdit.description || '');
 
       // Carrega campos de dano
       setDamageDice(actionToEdit.damageDice || '');
@@ -187,7 +189,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       setHealingDice(actionToEdit.healingDice || '');
 
       // Carrega campos de alcance e alvo
-      setRange(actionToEdit.attackRange || ''); // 'attackRange' na interface, 'range' aqui
+      setRange(actionToEdit.attackRange || '');
       setTarget(actionToEdit.target || '');
 
       // Carrega campos de ataque
@@ -199,7 +201,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       setDuration(actionToEdit.duration || '');
       setSaveDC(actionToEdit.saveDC || '');
       setSpellSchool(actionToEdit.school || '');
-
+      
       setSelectedPredefinedSpellName(actionToEdit.name);
     } else {
       clearFormFields(true);
@@ -215,9 +217,9 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
     setDamageType('');
     setUtilityTitle('');
     setUtilityValue('');
-    setHealingDice(''); // Limpa o campo de cura
+    setHealingDice('');
     setRange('');
-    setTarget(''); // Limpa o campo de alvo
+    setTarget('');
     setProperties('');
     setSpellLevel('0');
     setCastingTime('');
@@ -226,27 +228,26 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
     setSpellSchool('');
     setSelectedPredefinedSpellName('');
     if (resetTypes) {
-        setMainType('attack'); // Reinicia para 'attack'
-        setEffectCategory('damage'); // Reinicia para 'damage'
+        setMainType('attack');
+        setEffectCategory('damage');
     }
+
   };
 
   const handleMainTypeChange = (type: 'attack' | 'spell' | 'utility' | 'ability') => {
     setMainType(type);
-    clearFormFields(false); // Não reseta o tipo principal, mas limpa os outros campos
-    // Define um effectCategory padrão com base no mainType, se desejar
+    clearFormFields(false);
     if (type === 'attack' || type === 'spell') {
         setEffectCategory('damage');
     } else if (type === 'utility') {
         setEffectCategory('utility');
     } else { // 'ability'
-        setEffectCategory('utility'); // Ou outro padrão para 'ability'
+        setEffectCategory('utility');
     }
   };
 
   const handleEffectCategoryChange = (type: 'damage' | 'utility' | 'healing') => {
     setEffectCategory(type);
-    // Limpar campos irrelevantes com base no novo effectCategory
     if (type === 'damage') {
         setUtilityTitle('');
         setUtilityValue('');
@@ -276,19 +277,18 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
 
     const spell = predefinedSpells.find(s => s.name === spellName);
     if (spell) {
-      setMainType('spell'); // Define o tipo principal como 'spell'
+      setMainType('spell');
       setActionName(spell.name);
-      setDescription(processEntries(spell.entries)); // Descrição da magia
+      setDescription(processEntries(spell.entries));
 
-      // Determinar effectCategory
       if (spell.damage || spell.damageType) {
           setEffectCategory('damage');
           setDamageDice(spell.damage || '');
           setDamageType(spell.damageType || '');
-          setHealingDice(''); // Certifica que o campo de cura está vazio
+          setHealingDice('');
           setUtilityTitle('');
           setUtilityValue('');
-      } else if (spell.healingDice) { // Se o JSON de magias tiver um campo de cura
+      } else if (spell.healingDice) {
           setEffectCategory('healing');
           setHealingDice(spell.healingDice);
           setDamageDice('');
@@ -298,7 +298,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
       }
       else {
           setEffectCategory('utility');
-          setUtilityTitle(spell.name); // Pode ser o nome da magia como título da utilidade
+          setUtilityTitle(spell.name);
           setUtilityValue('');
           setDamageDice('');
           setDamageType('');
@@ -323,7 +323,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
           }
       }
       setRange(formattedRange);
-      setProperties(''); // Magias geralmente não têm 'properties' de ataque
+      setProperties('');
 
       let level = '0';
       if (spell.level !== undefined) {
@@ -374,93 +374,96 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
           saveDCString = `${translatedCheckType} (Teste Oposto)`;
       }
       setSaveDC(saveDCString);
-
-      // A descrição já foi preenchida no início
     }
   };
   
-  const handleSave = () => {
-    // Validação do Nome da Ação
-    if (!actionName.trim()) {
-        openAlertModal("Nome da Ação Obrigatório", "Por favor, preencha o nome da ação.");
-        return; // É crucial retornar aqui para parar a execução da função
-    }
+  // Refatorada para ser uma função interna que constrói o objeto de ação
+  const buildActionObject = (isNew: boolean): CharacterActionWithId | null => {
+      // Validação do Nome da Ação
+      if (!actionName.trim()) {
+          openAlertModal("Nome da Ação Obrigatório", "Por favor, preencha o nome da ação.");
+          return null;
+      }
 
-    // Validações adicionais baseadas nos tipos de efeito (usando openAlertModal)
-    if (effectCategory === 'damage') {
-      if (!damageDice.trim() && !damageModifier.trim()) {
-        openAlertModal('Dados de Dano Obrigatórios', 'Dados de dano ou modificador são obrigatórios para ações de dano!');
-        return;
-      }
-      if (!damageType.trim()) {
-        openAlertModal('Tipo de Dano Obrigatório', 'Tipo de dano é obrigatório para ações de dano!');
-        return;
-      }
-    } else if (effectCategory === 'healing') {
-        if (!healingDice.trim()) {
-            openAlertModal('Dados de Cura Obrigatórios', 'Dados de cura são obrigatórios para ações de cura!');
-            return;
+      // Validações adicionais baseadas nos tipos de efeito (usando openAlertModal)
+      if (effectCategory === 'damage') {
+        if (!damageDice.trim() && !damageModifier.trim()) {
+          openAlertModal('Dados de Dano Obrigatórios', 'Dados de dano ou modificador são obrigatórios para ações de dano!');
+          return null;
         }
-    } else if (effectCategory === 'utility') {
-        if (!utilityTitle.trim()) {
-            openAlertModal('Título da Utilidade Obrigatório', 'Título da utilidade é obrigatório para ações de utilidade!');
-            return;
+        if (!damageType.trim()) {
+          openAlertModal('Tipo de Dano Obrigatório', 'Tipo de dano é obrigatório para ações de dano!');
+          return null;
         }
-    }
-
-    if (mainType === 'spell' && !description.trim()) {
-        openAlertModal('Descrição da Magia Obrigatória', 'Descrição da magia é obrigatória para magias!');
-        return;
-    }
-
-    // Se todas as validações passarem, proceda com a criação/atualização da ação
-    const newAction: CharacterAction = {
-      id: actionToEdit ? actionToEdit.id : uuidv4(),
-      name: actionName.trim(),
-      description: description.trim() || undefined,
-      mainType: mainType,
-      effectCategory: effectCategory,
-      isFavorite: actionToEdit?.isFavorite || false,
-
-      // Propriedades opcionais, serão undefined se não preenchidas
-      damageDice: (effectCategory === 'damage' && damageDice.trim()) ? damageDice.trim() : undefined,
-      damageType: (effectCategory === 'damage' && damageType.trim()) ? damageType.trim() : undefined,
-      healingDice: (effectCategory === 'healing' && healingDice.trim()) ? healingDice.trim() : undefined,
-      utilityTitle: (effectCategory === 'utility' && utilityTitle.trim()) ? utilityTitle.trim() : undefined,
-      utilityValue: (effectCategory === 'utility' && utilityValue.trim()) ? utilityValue.trim() : undefined,
-      attackRange: range.trim() || undefined,
-      target: target.trim() || undefined,
-      properties: (mainType === 'attack' && properties.trim()) ? properties.split(',').map(p => p.trim()).filter(p => p) : undefined,
-
-      // Propriedades de Magia (sempre opcional se mainType não for 'spell')
-      level: (mainType === 'spell' && spellLevel.trim() !== '' && !isNaN(parseInt(spellLevel, 10))) ? parseInt(spellLevel, 10) : undefined,
-      castingTime: (mainType === 'spell' && castingTime.trim()) ? castingTime.trim() : undefined,
-      duration: (mainType === 'spell' && duration.trim()) ? duration.trim() : undefined,
-      saveDC: (mainType === 'spell' && saveDC.trim()) ? saveDC.trim() : undefined,
-      school: (mainType === 'spell' && spellSchool.trim()) ? spellSchool.trim() : undefined,
-    };
-
-    // Exemplo de como usar ConfirmationModal antes de salvar (opcional)
-    // Se você quiser uma confirmação antes de salvar, descomente este bloco
-    // e comente as 3 linhas abaixo (onSaveAction, clearFormFields, onCancelEdit)
-    /*
-    openConfirmModal(
-      "Confirmar Salvamento",
-      "Tem certeza que deseja salvar esta ação?",
-      () => {
-        onSaveAction(newAction);
-        clearFormFields();
-        onCancelEdit();
+      } else if (effectCategory === 'healing') {
+          if (!healingDice.trim()) {
+              openAlertModal('Dados de Cura Obrigatórios', 'Dados de cura são obrigatórios para ações de cura!');
+              return null;
+          }
+      } else if (effectCategory === 'utility') {
+          if (!utilityTitle.trim()) {
+              openAlertModal('Título da Utilidade Obrigatório', 'Título da utilidade é obrigatório para ações de utilidade!');
+              return null;
+          }
       }
-    );
-    */
 
-    // Se não usar ConfirmationModal para o salvamento final, execute as ações diretamente:
-    onSaveAction(newAction);
-    clearFormFields();
-    onCancelEdit();
+      if (mainType === 'spell' && !description.trim()) {
+          openAlertModal('Descrição da Magia Obrigatória', 'Descrição da magia é obrigatória para magias!');
+          return null;
+      }
+
+      // Garante que o ID é um número se estiver editando, ou undefined se for novo
+      const id = isNew ? undefined : actionToEdit?.id;
+
+      // Retorna o objeto CharacterActionWithId
+      return {
+        id: id as number | undefined, // Type assertion for safety, though it should be handled by CharacterActionWithId definition
+        name: actionName.trim(),
+        description: description.trim() || undefined,
+        mainType: mainType,
+        effectCategory: effectCategory,
+        isFavorite: actionToEdit?.isFavorite || false, // Mantém favorito se for edição, senão false
+
+        damageDice: (effectCategory === 'damage' && damageDice.trim()) ? damageDice.trim() : undefined,
+        damageType: (effectCategory === 'damage' && damageType.trim()) ? damageType.trim() : undefined,
+        healingDice: (effectCategory === 'healing' && healingDice.trim()) ? healingDice.trim() : undefined,
+        utilityTitle: (effectCategory === 'utility' && utilityTitle.trim()) ? utilityTitle.trim() : undefined,
+        utilityValue: (effectCategory === 'utility' && utilityValue.trim()) ? utilityValue.trim() : undefined,
+        attackRange: range.trim() || undefined,
+        target: target.trim() || undefined,
+        properties: (mainType === 'attack' && properties.trim()) ? properties.split(',').map(p => p.trim()).filter(p => p) : undefined,
+
+        level: (mainType === 'spell' && spellLevel.trim() !== '' && !isNaN(parseInt(spellLevel, 10))) ? parseInt(spellLevel, 10) : undefined,
+        castingTime: (mainType === 'spell' && castingTime.trim()) ? castingTime.trim() : undefined,
+        duration: (mainType === 'spell' && duration.trim()) ? duration.trim() : undefined,
+        saveDC: (mainType === 'spell' && saveDC.trim()) ? saveDC.trim() : undefined,
+        school: (mainType === 'spell' && spellSchool.trim()) ? spellSchool.trim() : undefined,
+      };
   };
 
+
+  const handleCreateClick = () => {
+    console.log("INSIDE create CLICK")
+    const newAction = buildActionObject(true); // true = é uma nova ação
+    if (newAction) {
+      onSaveAction(newAction);
+      clearFormFields();
+      
+      onCancelEdit();
+    }
+  };
+const handleUpdateClick = () => {
+    if (!actionToEdit || actionToEdit.id === undefined) {
+        openAlertModal("Erro", "Não foi possível atualizar a ação: ID não encontrado.");
+        return;
+    }
+    
+    const updatedAction = buildActionObject(false);
+    if (updatedAction) {
+        updatedAction.id = actionToEdit.id;
+        onEditAction(updatedAction); // Isso deve fechar o modal quando completar
+    }
+};
   return (
     <div className="card bg-dark border-secondary text-white h-100 p-3 action-creator-card">
       <h5 className="card-title text-warning mb-3">{actionToEdit ? 'Editar Ação' : 'Criar Nova Ação'}</h5>
@@ -517,8 +520,6 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
             >
               <i className="bi bi-stars me-2"></i>Magia
             </button>
-            {/* Adicione botões para 'utility' e 'ability' se desejar um formulário para criá-los diretamente */}
-            {/* Exemplo: */}
             <button
                 type="button"
                 className={`btn ${mainType === 'ability' ? 'btn-primary' : 'btn-outline-primary'}`}
@@ -793,7 +794,7 @@ const ActionCreator: React.FC<ActionCreatorProps> = ({ onSaveAction, actionToEdi
         <button
           type="button"
           className="btn btn-success w-100"
-          onClick={handleSave}
+        onClick={actionToEdit ? handleUpdateClick : handleCreateClick}
         >
           <i className="bi bi-save me-2"></i>{actionToEdit ? 'Atualizar Ação' : 'Salvar Ação'}
         </button>
