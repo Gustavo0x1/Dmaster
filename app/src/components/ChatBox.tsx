@@ -2,13 +2,15 @@
 import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import img from '../img/1.png'; // Avatar padrão para 'other' ou o bot
+import BotImg from '../img/bot.png'
 import DiceApp from './Dice';
 
-declare global {
-  interface Window {
-    DiceBoxInstance: any;
-  }
-}
+
+
+// NOVO: Acessando ipcRenderer através do objeto 'electron' injetado
+const electron = (window as any).electron;
+const ipcRenderer = electron ? electron.ipcRenderer : null;
+
 
 type Message = {
   id: number;
@@ -22,22 +24,22 @@ type Message = {
 
 interface ChatProps {
   setSendChatMessage: (func: (message: string, senderId?: string, senderName?: string, senderAvatar?: string) => void) => void;
+  userId:number;
 }
 
 // Constantes para o remetente padrão do sistema (Consistentes com Dice.tsx)
 const DEFAULT_SYSTEM_SENDER_ID = '-1';
 const DEFAULT_SYSTEM_SENDER_NAME = 'Sistema';
-const DEFAULT_SYSTEM_SENDER_AVATAR = 'https://via.placeholder.com/50/808080/FFFFFF?text=SYS'; // Avatar cinza para o sistema
+const DEFAULT_SYSTEM_SENDER_AVATAR = BotImg; // Avatar cinza para o sistema
 
-const Chat: React.FC<ChatProps> = ({ setSendChatMessage }) => {
+const Chat: React.FC<ChatProps> = ({ setSendChatMessage,userId }) => {
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, text: 'Bem-vindo ao chat!', sender: { id: DEFAULT_SYSTEM_SENDER_ID, name: DEFAULT_SYSTEM_SENDER_NAME, avatar: DEFAULT_SYSTEM_SENDER_AVATAR } },
-    { id: 2, text: 'Gostaria de saber mais sobre o projeto.', sender: { id: 'john_doe', name: 'João Silva', avatar: 'https://via.placeholder.com/50/FF5733/FFFFFF?text=JS' } },
-    { id: 3, text: 'Olá! Em que posso ajudar?', sender: { id: 'user', name: 'Você', avatar: 'https://via.placeholder.com/50/3366FF/FFFFFF?text=VC' } },
+    { id: 2, text: 'Teste!.', sender: { id: 'john_doe', name: 'João Silva', avatar: img } },
+
   ]);
   const [showDiceApp, setShowDiceApp] = useState<boolean>(true); // Controla se o componente DiceApp é montado/desmontado
   const [newMessage, setNewMessage] = useState<string>('');
-  // REMOVIDO: isDiceContainerVisible não é mais gerenciado aqui
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -73,6 +75,36 @@ const Chat: React.FC<ChatProps> = ({ setSendChatMessage }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(() => {
+    if (!electron) {
+        console.warn('Objeto electron não encontrado. Ignorando listeners.');
+        return;
+   }
+   console.log("HERE!")
+   electron.on("chat-message",()=>console.log(1));
+
+    return () => {
+      electron.DoremoveListener("SyncTokenPosition",()=>console.log(1)); // CORREÇÃO: removeListener
+    };
+  }, [electron, sendMessage]);
+
+  useEffect(() => {
+    if (ipcRenderer) { 
+ 
+      const handleDiceRollMessage = (event: Electron.IpcRendererEvent, message: string, senderId: string, senderName: string, senderAvatar: string) => {
+        sendMessage(message, senderId, senderName, senderAvatar);
+      };
+
+      ipcRenderer.on('display-dice-roll-message', handleDiceRollMessage);
+
+      // Cleanup: Remova o listener quando o componente for desmontado
+      return () => {
+        ipcRenderer.removeListener('display-dice-roll-message', handleDiceRollMessage);
+      };
+    }
+  }, [sendMessage]);
+
+
   const handleCommand = (command: string) => {
     if (command.startsWith("/roll")) {
         const parts = command.split(' ');
@@ -85,13 +117,11 @@ const Chat: React.FC<ChatProps> = ({ setSendChatMessage }) => {
 
         forcedValue = 'random';
         if (parts.length > 2 && sendMessageRef.current) {
-            sendMessageRef.current(`Ignorando valor forçado. Rolando ${diceNotation} aleatoriamente.`, 'user', 'Você', 'https://via.placeholder.com/50/3366FF/FFFFFF?text=VC');
+            sendMessageRef.current(`Ignorando valor forçado. Rolando ${diceNotation} aleatoriamente.`, 'user', 'Você', BotImg);
         }
 
         if (rollDiceInAppRef.current) {
-            // REMOVIDO: setIsDiceContainerVisible(true); e o setTimeout para esconder
-
-            rollDiceInAppRef.current(diceNotation, forcedValue); // O DiceApp agora gerencia sua própria visibilidade
+            rollDiceInAppRef.current(diceNotation, forcedValue);
 
             let forceMessage = '';
             if (forcedValue !== undefined) {
@@ -100,7 +130,7 @@ const Chat: React.FC<ChatProps> = ({ setSendChatMessage }) => {
             const initialRollMessage = `Comando: Rolando ${diceNotation}${forceMessage}...`;
 
             if (sendMessageRef.current) {
-                sendMessageRef.current(initialRollMessage, 'user', 'Você', 'https://via.placeholder.com/50/3366FF/FFFFFF?text=VC');
+                sendMessageRef.current(initialRollMessage, 'user', 'Você', BotImg);
             }
             console.log("Comando /roll processado. Notificação e mensagem no chat gerenciadas pelo DiceApp.");
 
@@ -118,12 +148,15 @@ const Chat: React.FC<ChatProps> = ({ setSendChatMessage }) => {
   };
 
   const handleSendMessage = (): void => {
+
+   electron.invoke("send-message", newMessage,userId);
+   
     if (newMessage.trim() !== '') {
       if (newMessage.startsWith('/')) {
         handleCommand(newMessage);
       } else {
         if (sendMessageRef.current) {
-            sendMessageRef.current(newMessage, 'user', 'Você', 'https://via.placeholder.com/50/3366FF/FFFFFF?text=VC');
+            sendMessageRef.current(newMessage, 'user', 'Você', BotImg);
         }
       }
       setNewMessage('');
@@ -139,12 +172,10 @@ const Chat: React.FC<ChatProps> = ({ setSendChatMessage }) => {
 
   return (
     <div className="d-flex flex-column" style={{ height: 'calc(90vh)', overflow: 'hidden' }}>
-      {/* O DiceApp agora renderiza sua própria div #dice-container */}
       {showDiceApp && (
         <DiceApp
           onRollRequest={(rollFn) => { rollDiceInAppRef.current = rollFn; }}
           onSendChatMessage={sendMessage}
-          // REMOVIDO: isVisible prop
         />
       )}
 

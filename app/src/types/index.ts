@@ -2,6 +2,7 @@
 
 // Para Atributos Básicos (Força, Destreza, etc.)
 export interface BasicAttribute {
+   id: number;
   name: string;
   value: number;
   modifier: number;

@@ -13,10 +13,12 @@ interface CombatInterfaceProps {
 }
 
 const CombatInterface: React.FC<CombatInterfaceProps> = () => {
+  
   // NOVO: Ações de combate gerenciadas aqui.
   const [combatActions, setCombatActions] = useState<CharacterAction[]>([]);
   // Mudar a forma como os tokens são gerenciados
   const [enemies, setEnemies] = useState<Token[]>([]);
+  const electron = (window as any).electron;
   const [allies, setAllies] = useState<Token[]>([]);
   const [selectedTokens, setSelectedTokens] = useState<Token[]>([]); // NOVO: Estado para tokens selecionados
 
@@ -41,7 +43,25 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
 
   // useLayout para injetar o CombatTokensDisplay na coluna esquerda
   const { addContentToLeft, clearContentFromLeft } = useLayout();
-
+  useEffect(() => {
+        if (1) {
+                electron.invoke('request-character-data', 1)
+                .then((response: any ) => { // <--- Tipagem adicionada aqui
+                    if (response.success && response.data) {
+                        const data = response.data;
+                        setCombatActions(data.actions || []);
+                        console.log("Dados do personagem carregados:", data);
+                    } else {
+                        console.error("Erro ao carregar dados do personagem:", response.message);
+                     
+                    }
+                })
+                .catch((error: unknown) => { // Tipagem do erro, como discutido anteriormente
+                    console.error("Erro na comunicação IPC ao carregar dados do personagem:", error);
+                 
+                });
+        }
+    }, []);
   useEffect(() => {
     // Renderiza o CombatTokensDisplay na coluna esquerda
     addContentToLeft(

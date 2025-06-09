@@ -10,12 +10,14 @@ contextBridge.exposeInMainWorld('electron',{
     ipcRenderer.send("request-tokenMove", { tokenId,posX,posY,sceneId:0 }),
   onSyncScenario: (callback) =>
     ipcRenderer.on("sync-scenario", (event, data) => callback(data)),
+
   onSyncAll: (callback) =>
     ipcRenderer.on("sync-all", (event, data) => (callback(data))),
+
 on: (channel, callback) => {
     // === LISTA DE CANAIS PERMITIDOS ===
     // Adicione AQUI todos os canais que seu renderer process OUVIRÁ (ex: 'SyncTokenPosition', 'chatMessage')
-    const validChannels = ['SyncTokenPosition', 'chatMessage']; 
+    const validChannels = ['SyncTokenPosition', 'send-message']; 
 
     if (validChannels.includes(channel)) {
       // Cria um wrapper para o callback para evitar que o objeto 'event' do Electron
@@ -33,7 +35,7 @@ on: (channel, callback) => {
   off: (channel, callback) => {
     // === LISTA DE CANAIS PERMITIDOS ===
     // Adicione AQUI todos os canais que seu renderer process REMOVERÁ listeners
-    const validChannels = ['SyncTokenPosition', 'chatMessage']; 
+    const validChannels = ['SyncTokenPosition', 'send-message']; 
 
     if (validChannels.includes(channel) && callback) {
       // ipcRenderer.off é um alias para ipcRenderer.removeListener.
@@ -50,7 +52,11 @@ on: (channel, callback) => {
       'save-action',
       'edit-action',
       'delete-action',
-      
+      'update-character-attributes',
+      'send-message',
+      'update-character-bio',
+      'update-character-essentials',
+      'update-character-skills',
       'save-character-data', // Exemplo: se você for salvar dados
       'delete-character',     // Exemplo: se você for deletar um personagem
     ];

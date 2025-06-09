@@ -4,13 +4,116 @@ const url = require('url')
 const path = require('path')
 const Database = require('better-sqlite3'); // Importa o better-sqlite3
 const { act } = require("react");
+const { Console } = require("console");
 const DB_PATH = path.join(app.getPath('userData'), 'characters.db');
 
 let MainWindow;
 let ws;
 let db;
 // Mock database for demonstration. In a real app, this would be a database call.
+const defaultCharacterData = {
+  // Dados para a tabela 'characters'
+  bioFields: {
+    history: "Um herói misterioso, forjado na chama da aventura, com um passado ainda a ser desvendado.",
+    appearance: "Alto e esguio, com cabelos escuros e olhos penetrantes que denotam sabedoria.",
+    personality: "Determinado e corajoso, mas com um toque de melancolia. Leal aos seus aliados.",
+    treasure: "Uma velha espada enferrujada (mas confiável), um punhado de moedas de cobre e um diário de viagens empoeirado."
+  },
+  essentialAttributes: {
+    armor: 14,
+    initiative: 'dex', // Exemplo: iniciativa baseada em Destreza
+    proficiency: '+2', // Exemplo: bônus de proficiência
+    speed: '30ft',
+  },
+  // MaxHp, CurrentHp, TempHp, Shield, Race, Class, SubClass, Level, XP, PLAYERNAME, CHARNAME
+  // Estes campos não são diretamente manipulados no CharacterSheet.tsx,
+  // mas estariam na tabela 'characters' e poderiam ser carregados/salvos
+  // se você tivesse uma seção para eles na UI.
+  // Para este default, vamos incluir apenas os que são relevantes para o CharacterSheet atual
+  // ou fornecer valores padrão.
+  MaxHp: 80,
+  CurrentHp: 60,
+  TempHp: 0,
+  Shield: 0,
+  Race: "Humano",
+  Class: "Guerreiro",
+  SubClass: "Nenhum",
+  Level: 5,
+  XP: 1250,
+  PLAYERNAME: "Mestre",
+  CHARNAME: "Herói Desconhecido",
 
+  // Dados para a tabela 'character_attributes'
+  myCharacterAttributes: [
+    { id: 1, name: 'Força', value: 16, modifier: 3 }, // (16-10)/2 = 3
+    { id: 2, name: 'Destreza', value: 14, modifier: 2 }, // (14-10)/2 = 2
+    { id: 3, name: 'Constituição', value: 15, modifier: 2 }, // (15-10)/2 = 2.5 -> 2
+    { id: 4, name: 'Inteligência', value: 12, modifier: 1 }, // (12-10)/2 = 1
+    { id: 5, name: 'Sabedoria', value: 10, modifier: 0 }, // (10-10)/2 = 0
+    { id: 6, name: 'Carisma', value: 8, modifier: -1 }, // (8-10)/2 = -1
+  ],
+
+  // Dados para a tabela 'character_skills'
+  mySkills: [
+    { name: 'Acrobacia', modifier: 'dex' },
+    { name: 'Arcanismo', modifier: 'int' },
+    { name: 'Atletismo', modifier: 'str' },
+    { name: 'Atuação', modifier: 'car' },
+    { name: 'Enganação', modifier: 'car' },
+    { name: 'Furtividade', modifier: 'dex' },
+    { name: 'Intimidação', modifier: 'car' },
+    { name: 'Intuição', modifier: 'sab' },
+    { name: 'Investigação', modifier: 'int' },
+    { name: 'Medicina', modifier: 'sab' },
+    { name: 'Natureza', modifier: 'int' },
+    { name: 'Percepção', modifier: 'sab' },
+    { name: 'Persuasão', modifier: 'car' },
+    { name: 'Prestidigitação', modifier: 'dex' },
+    { name: 'Religião', modifier: 'int' },
+    { name: 'Sobrevivência', modifier: 'sab' },
+    
+
+  ],
+
+  // Dados para a tabela 'character_actions'
+  actions: [
+    {
+      // id não é passado, o DB vai auto-incrementar
+      name: 'Ataque de Espada Longa',
+      mainType: 'attack',
+      effectCategory: 'damage',
+      attackRange: 'Corpo a corpo',
+      target: 'Uma criatura',
+      damageDice: '1d8',
+      damageType: 'Cortante',
+      properties: ['Versátil (1d10)'],
+      description: 'Um golpe padrão com sua espada longa.',
+      isFavorite: true,
+    },
+    {
+      name: 'Cura Leve de Ferimentos',
+      mainType: 'spell',
+      effectCategory: 'healing',
+      castingTime: '1 Ação',
+      duration: 'Instantânea',
+      healingDice: '1d8 + modificador de Sabedoria',
+      school: 'Evocação',
+      description: 'Uma explosão de energia positiva que cura um alvo.',
+      isFavorite: false,
+    },
+    {
+      name: 'Inspiração Bárdica',
+      mainType: 'utility',
+      effectCategory: 'utility',
+      utilityTitle: 'Bônus de Inspiração',
+      utilityValue: '1d6',
+      castingTime: '1 Ação Bônus',
+      duration: '10 minutos',
+      description: 'Você inspira uma criatura, que pode adicionar um d6 a um teste de atributo, ataque ou resistência.',
+      isFavorite: false,
+    },
+  ]
+};
 function initializeDatabase() {
   try {
     db = new Database(DB_PATH, { verbose: console.log });
@@ -22,7 +125,18 @@ function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS characters (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         bioFields TEXT,
-        essentialAttributes TEXT
+        essentialAttributes TEXT,
+        MaxHp INTEGER,
+        CurrentHp INTEGER,
+        TempHp INTEGER,
+        Shield INTEGER,
+        Race TEXT,
+        Class TEXT,
+        SubClass TEXT,
+        Level INTEGER,
+        XP INTEGER,
+        PLAYERNAME TEXT,
+        CHARNAME TEXT
       );
     `);
     db.exec(`
@@ -152,9 +266,19 @@ ws.on("message", (message) => {
 
     }
 
+    
+    if (type === "send-message") {
+        console.log("ARRIVED")
+      MainWindow.webContents.send("send-message", data);
+
+    }
+
     if (type === "syncAll") {
       MainWindow.webContents.send("sync-all", data);
       console.log(1)
+    }
+      if (type === "chat-message") {
+      console.log("ARRIVED: "+message)
     }
   } catch (err) {
     console.error("Erro ao processar mensagem do servidor:", err);
@@ -195,6 +319,7 @@ function createMainWindow(){
 
 app.whenReady().then(()=>{
   createMainWindow();
+  createMainWindow();
   initializeDatabase();
     startWebSocket();
 });
@@ -217,12 +342,14 @@ ipcMain.on("update-scenario", (event, data) => {
     console.error("WebSocket não está conectado. Mensagem não enviada.");
   }
 });
+
 // Manipular alterações de cenário enviadas pela interface
 ipcMain.on("request-tokenMove", (event, data) => {
   const message = JSON.stringify({ type: "request-tokenMove", data });
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(message);
+    console.log("MOVING")
     console.log("Mensagem enviada ao servidor:", message);
   } else {
     console.error("WebSocket não está conectado. Mensagem não enviada.");
@@ -252,7 +379,7 @@ ipcMain.handle('request-character-data', async (event, characterId) => {
     const bioFields = JSON.parse(characterRow.bioFields);
     const essentialAttributes = JSON.parse(characterRow.essentialAttributes);
 
-    const attributes = db.prepare('SELECT name, value, modifier FROM character_attributes WHERE character_id = ?').all(characterRow.id);
+    const attributes = db.prepare('SELECT id,name, value, modifier FROM character_attributes WHERE character_id = ?').all(characterRow.id);
     const skills = db.prepare('SELECT name, modifier FROM character_skills WHERE character_id = ?').all(characterRow.id);
     // Selecionar todas as colunas da ação, incluindo o ID auto-incrementado
     const actions = db.prepare('SELECT * FROM character_actions WHERE character_id = ?').all(characterRow.id).map(actionRow => ({
@@ -279,7 +406,121 @@ ipcMain.handle('request-character-data', async (event, characterId) => {
 });
 
 
+ipcMain.handle('update-character-skills', async (event, value,id) => {
+  const characterId = id;
+  console.log(value)
+  console.log(id)
+  try {
+    db.transaction(() => {
+      if (characterId) {
+        db.prepare(`
+          UPDATE character_skills
+          SET modifier = ?
+          WHERE character_id = ?
+        `).run(
+          value,
+          characterId
+        );
 
+      } 
+      return { success: true, message: "Dados salvos com sucesso no SQLite!"};
+
+    })(); // Executa a transação
+
+    return { success: true, message: "Dados salvos com sucesso no SQLite!" };
+  } catch (error) {
+    console.error(`[Main Process] Erro ao salvar dados no SQLite:`, error);
+    return { success: false, message: `Erro ao salvar dados: ${error.message}` };
+  }
+});
+ipcMain.handle('update-character-bio', async (event, value,id) => {
+  const characterId = id;
+  console.log(value)
+  console.log(id)
+  try {
+    db.transaction(() => {
+      if (characterId) {
+        db.prepare(`
+          UPDATE characters
+          SET bioFields = ?
+          WHERE id = ?
+        `).run(
+          value,
+          characterId
+        );
+
+      } 
+      return { success: true, message: "Dados salvos com sucesso no SQLite!"};
+
+    })(); // Executa a transação
+
+    return { success: true, message: "Dados salvos com sucesso no SQLite!" };
+  } catch (error) {
+    console.error(`[Main Process] Erro ao salvar dados no SQLite:`, error);
+    return { success: false, message: `Erro ao salvar dados: ${error.message}` };
+  }
+});
+
+ipcMain.handle('update-character-essentials', async (event, value,id) => {
+  const characterId = id;
+  try {
+    db.transaction(() => {
+      if (characterId) {
+        db.prepare(`
+          UPDATE characters
+          SET essentialAttributes = ?
+          WHERE id = ?
+        `).run(
+          value,
+          characterId
+        );
+
+      } 
+      return { success: true, message: "Dados salvos com sucesso no SQLite!"};
+
+    })(); // Executa a transação
+
+    return { success: true, message: "Dados salvos com sucesso no SQLite!" };
+  } catch (error) {
+    console.error(`[Main Process] Erro ao salvar dados no SQLite:`, error);
+    return { success: false, message: `Erro ao salvar dados: ${error.message}` };
+  }
+});
+
+
+ipcMain.handle('send-message', async (event, value,id) => {
+        const testMessage = {
+            type: 'send-message',
+            timestamp: new Date().toISOString(),
+            data: {type:"chat-message",message:value,id:id}
+        };
+  ws.send(JSON.stringify(testMessage))
+});
+ipcMain.handle('update-character-attributes', async (event, value,id) => {
+  const characterId = id;
+  try {
+    db.transaction(() => {
+      if (characterId) {
+        db.prepare(`
+          UPDATE character_attributes
+          SET value = ?
+          WHERE id = ?
+        `).run(
+          value,
+          characterId
+        );
+
+      } 
+      return { success: true, message: "Dados salvos com sucesso no SQLite!"};
+
+    })(); // Executa a transação
+
+    return { success: true, message: "Dados salvos com sucesso no SQLite!" };
+  } catch (error) {
+    console.error(`[Main Process] Erro ao salvar dados no SQLite:`, error);
+    return { success: false, message: `Erro ao salvar dados: ${error.message}` };
+  }
+});
 ipcMain.handle('save-character-data', async (event, characterData) => {
   console.log(`[Main Process] Recebida requisição para salvar dados do personagem.`);
   const characterId = characterData.id;

@@ -35,7 +35,10 @@ wss.on("connection", (ws) => {
   ws.on("message", (message) => {
     try {
       const { type, data } = JSON.parse(message);
-
+if (type === "send-message") {
+           
+ws.send(JSON.stringify(data));
+            }
       if (type === "updateScenario") {
         const { scenarioId, tokens, map } = data;
 
@@ -97,7 +100,6 @@ wss.on("connection", (ws) => {
   });
 });
 
-// Função para enviar mensagem a todos os clientes conectados
 function broadcast(message) {
 
   for (const ws of connections) {

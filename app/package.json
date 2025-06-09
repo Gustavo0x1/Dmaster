@@ -23,6 +23,7 @@
     "formik": "^2.4.6",
     "framer-motion": "^12.11.4",
     "konva": "^9.3.20",
+    "mathjs": "^14.5.2",
     "react": "^19.1.0",
     "react-bootstrap": "^2.10.10",
     "react-dnd": "^16.0.1",
@@ -62,6 +63,7 @@
   },
   "devDependencies": {
     "@3d-dice/dice-box": "^1.1.4",
+    "@types/electron": "^1.4.38",
     "@typescript-eslint/eslint-plugin": "^x.x.x",
     "@typescript-eslint/parser": "^x.x.x",
     "eslint": "^8.57.1"

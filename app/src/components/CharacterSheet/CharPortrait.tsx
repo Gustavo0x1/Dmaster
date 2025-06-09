@@ -25,8 +25,6 @@ const CharacterPortraitAndHealth: React.FC<CharacterPortraitAndHealthProps> = ({
         />
       </div>
 
-      {/* Controlador de Pontos de Vida (HealthController) */}
-      {/* O HealthController já é autocontido, apenas repassamos as props iniciais se existirem */}
       <HealthController
         initialCurrentHealth={currentHealth}
         initialMaxHealth={maxHealth}

@@ -16,7 +16,7 @@ const Home: React.FC = () => {
     // Add RPGGrid to the center column
     addContentToCenter(<RPGGrid />);
     // Add Chat to the right column, passing the setSendChatMessage prop
-    addContentToRight(<Chat setSendChatMessage={setSendChatMessage} />);
+    addContentToRight(<Chat setSendChatMessage={setSendChatMessage} userId={1} />);
 
     // Cleanup function to remove components when Home unmounts
     return () => {
