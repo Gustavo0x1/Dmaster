@@ -25,13 +25,10 @@ interface DiceProps {
   // containerId agora é apenas um ID PADRÃO, não uma prop que se refere a um elemento externo
   containerId?: string;
   onRollRequest?: (rollFn: (diceNotation: string, forcedValue?: number | 'random') => void) => void;
-  onSendChatMessage?: (message: string, senderId?: string, senderName?: string, senderAvatar?: string) => void;
+  onSendChatMessage?: (message: string, senderId?: number, senderName?: string, senderAvatar?: string) => void;
   // REMOVIDO: isVisible prop
 }
 
-const DEFAULT_SYSTEM_SENDER_ID = '-1';
-const DEFAULT_SYSTEM_SENDER_NAME = 'Sistema';
-const DEFAULT_SYSTEM_SENDER_AVATAR = 'https://via.placeholder.com/50/808080/FFFFFF?text=SYS';
 
 const Dice: React.FC<DiceProps> = ({
   containerId = "dice-container", // ID padrão para a div que o Dice.tsx renderizará
@@ -39,6 +36,7 @@ const Dice: React.FC<DiceProps> = ({
   onSendChatMessage,
 }) => {
   const diceBoxRef = useRef<any>(null);
+  const electron = (window as any).electron;
   const [rollNotification, setRollNotification] = useState<{
     message: string;
     type: 'success' | 'danger' | 'info' | 'warning';
@@ -151,7 +149,8 @@ const Dice: React.FC<DiceProps> = ({
                 id: Date.now(),
             });
             if (onSendChatMessage) {
-                onSendChatMessage(messageToDisplay, DEFAULT_SYSTEM_SENDER_ID, DEFAULT_SYSTEM_SENDER_NAME, DEFAULT_SYSTEM_SENDER_AVATAR);
+                electron.invoke("send-message", messageToDisplay,-1);
+                // onSendChatMessage(messageToDisplay, DEFAULT_SYSTEM_SENDER_ID, DEFAULT_SYSTEM_SENDER_NAME, DEFAULT_SYSTEM_SENDER_AVATAR);
             }
             
         }, 3000);

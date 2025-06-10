@@ -6,10 +6,13 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "electron-forge start",
-    "start:watch": "npx electronmon --trace-warnings .",
+    "start:watch": "npx electronmon .",
     "build": "electron-builder",
     "package": "electron-forge package",
     "make": "electron-forge make"
+  },
+    "electronmon": {
+    "patterns": [ "!**/chatHistory.json"]
   },
   "keywords": [
     "electron",
@@ -43,6 +46,7 @@
     "electron-squirrel-startup": "^1.0.1",
     "express": "^5.1.0",
     "konva": "^9.3.20",
+    "node-imgur": "^0.1.2",
     "react-konva": "^19.0.3",
     "react-router-dom": "^7.6.0",
     "ws": "^8.18.2"

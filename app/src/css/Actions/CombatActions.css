@@ -1,0 +1,91 @@
+/* src/styles/custom.css */
+
+:root {
+  /* Cores de fundo */
+  --bs-body-bg: #2b2b2b; /* Fundo principal mais suave */
+  --bs-dark-subtle-bg: #3c3c3c; /* Fundo para blocos e cards, mais claro que o body */
+  --bs-secondary-bg: #4a4a4a; /* Fundo para elementos secundários */
+
+  /* Cores de texto */
+  --bs-body-color: #e0e0e0; /* Texto principal, branco suave */
+  --bs-secondary-color: #b0b0b0; /* Texto secundário, cinza claro */
+  --bs-muted-color: #8a8a8a; /* Texto muito sutil, para descrições */
+
+  /* Cores de destaque (mantendo a visibilidade) */
+  --bs-highlight-warning: #ffc107; /* Amarelo de destaque */
+  --bs-highlight-success: #28a745; /* Verde de sucesso */
+  --bs-highlight-info: #17a2b8; /* Azul claro de informação */
+
+  /* Borda para elementos destacados (ex: blocos de fórmula) */
+  --bs-info-border-color: #17a2b8; /* Cor da borda para info/blocos */
+}
+
+/* Aplica as novas cores ao body */
+body {
+  background-color: var(--bs-body-bg) !important;
+  color: var(--bs-body-color) !important;
+}
+
+/* Sobrescreve as variáveis do Bootstrap para componentes específicos */
+.text-white {
+  color: var(--bs-body-color) !important;
+}
+
+.text-light-base {
+  color: var(--bs-body-color) !important;
+}
+
+.text-secondary-muted {
+  color: var(--bs-muted-color) !important;
+}
+
+/* Fundo para elementos sutis, como cards e blocos de fórmula */
+.bg-dark-subtle {
+  background-color: var(--bs-dark-subtle-bg) !important;
+}
+
+/* Borda secundária */
+.border-secondary {
+  border-color: var(--bs-secondary-bg) !important;
+}
+
+/* Input backgrounds */
+.form-control.bg-dark {
+  background-color: var(--bs-secondary-bg) !important;
+  color: var(--bs-body-color) !important;
+  border-color: var(--bs-secondary-bg) !important;
+}
+
+/* Cores de destaque para texto */
+.text-highlight-warning {
+  color: var(--bs-highlight-warning) !important;
+}
+
+.text-highlight-success {
+  color: var(--bs-highlight-success) !important;
+}
+
+.text-highlight-info {
+  color: var(--bs-highlight-info) !important;
+}
+
+/* Custom card base (se você tiver uma classe específica) */
+.custom-card-base {
+  background-color: var(--bs-dark-subtle-bg) !important;
+  border-color: var(--bs-secondary-bg) !important;
+  color: var(--bs-body-color) !important;
+}
+
+/* Borda para os blocos de formula */
+.border-info {
+  border-color: var(--bs-info-border-color) !important;
+}
+
+/* Tabela */
+.table-dark {
+  --bs-table-bg: var(--bs-dark-subtle-bg);
+  --bs-table-striped-bg: var(--bs-secondary-bg);
+  --bs-table-hover-bg: #5a5a5a; /* Um pouco mais claro no hover */
+  --bs-table-color: var(--bs-body-color);
+  color: var(--bs-body-color);
+}

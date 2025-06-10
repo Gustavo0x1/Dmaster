@@ -448,3 +448,39 @@ input[type="number"] {
   max-width: 200px;
   /* ... outros estilos ... */
 }
+:root {
+  /* ... (suas variáveis existentes) ... */
+  --scrollbar-thumb-color: #ffda6a; /* Um amarelo mais claro e visível */
+  --scrollbar-thumb-border-color: #ffc107; /* O amarelo de destaque existente para a borda */
+  --scrollbar-thumb-hover-color: #ffe89f; /* Amarelo ainda mais claro no hover */
+}
+
+
+/* Para navegadores WebKit (Chrome, Safari, Edge, Opera) */
+::-webkit-scrollbar {
+  width: 8px; /* Largura da barra de rolagem vertical */
+  height: 8px; /* Altura da barra de rolagem horizontal */
+  background-color: transparent; /* Fundo transparente para a trilha */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb-color); /* Usa a variável para o thumb */
+  border-radius: 4px;
+  border: 1px solid var(--scrollbar-thumb-border-color); /* Usa a variável para a borda */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover-color); /* Usa a variável para o hover */
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+  border-radius: 4px;
+}
+
+/* Para Firefox */
+* {
+  scrollbar-width: thin;
+  /* Cor do thumb (primeiro valor) e cor da trilha (segundo valor) */
+  scrollbar-color: var(--scrollbar-thumb-color) transparent;
+}

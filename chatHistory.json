@@ -1,0 +1,388 @@
+[
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:16.747Z",
+    "message": "ff",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:18.537Z",
+    "message": "pfb",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:19.810Z",
+    "message": "asdf",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:21.165Z",
+    "message": "afsdas",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:21.998Z",
+    "message": "asdf",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:22.698Z",
+    "message": "gg",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:23.450Z",
+    "message": "gg",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:24.266Z",
+    "message": "hh",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:25.360Z",
+    "message": "rr",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:26.046Z",
+    "message": "44",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:26.921Z",
+    "message": "22",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:28.131Z",
+    "message": "1234",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:29.826Z",
+    "message": "1234",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:35.503Z",
+    "message": "É",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:36.144Z",
+    "message": "its",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:37.625Z",
+    "message": "ok",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:28:39.684Z",
+    "message": "ithink",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:29:03.050Z",
+    "message": "fff",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:29:04.029Z",
+    "message": "ggg",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:29:05.016Z",
+    "message": "hhhh",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:29:06.031Z",
+    "message": "asdf",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:29:07.415Z",
+    "message": "2134",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:29:08.245Z",
+    "message": "123",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:29:08.915Z",
+    "message": "123",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:29:10.556Z",
+    "message": "asqwe",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:29:20.557Z",
+    "message": "__actioncard: name:Ataque de Espada Longa, type:attack, effectCategory:damage, description:Um golpe padrão com sua espada longa.",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T05:29:21.788Z",
+    "message": "__actioncard: name:Cura Leve de Ferimentos, type:spell, effectCategory:healing, description:Uma explosão de energia positiva que cura um alvo.",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:45:47.791Z",
+    "message": "1234",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:45:48.046Z",
+    "message": "1234",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:45:48.322Z",
+    "message": "1234",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:45:48.551Z",
+    "message": "1234",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:45:48.772Z",
+    "message": "1234",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:45:48.968Z",
+    "message": "123",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:45:49.195Z",
+    "message": "41234",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:45:49.385Z",
+    "message": "123",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:48:01.392Z",
+    "message": "__actioncard: name:Ataque de Espada Longa, type:attack, effectCategory:damage, description:Um golpe padrão com sua espada longa.",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:48:06.939Z",
+    "message": "__actioncard: name:Cura Leve de Ferimentos, type:spell, effectCategory:healing, description:Uma explosão de energia positiva que cura um alvo.",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:48:08.050Z",
+    "message": "__actioncard: name:Inspiração Bárdica, type:utility, effectCategory:utility, description:Você inspira uma criatura, que pode adicionar um d6 a um teste de atributo, ataque ou resistência.",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:48:08.467Z",
+    "message": "__actioncard: name:Alarme, type:spell, effectCategory:utility, description:Você coloca um alarme para intrusos desavisados. Escolha uma porta, uma janela ou uma área dentro do alcance que não seja maior que 6 metros cúbicos. Até a magia acabar, um alarme alerta você sempre que uma criatura Miúda ou maior tocarem ou entrarem na área protegida. Quando você conjura a magia, você pode designar as criaturas que não ativarão o alarme. Você também escolhe se o alarme será mental ou audível.\n\nUm alarme mental alerta você com um silvo na sua mente, se você estiver a até de 1,5 quilômetro da área protegida. Esse silvo acordará você se você estiver dormindo.\n\nUm alarme audível produz o som de um sino de mão por 10 minutos num raio de 18 metros.",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:48:14.243Z",
+    "message": "asdf",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:48:14.486Z",
+    "message": "asdf",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:48:14.823Z",
+    "message": "asdf",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:48:15.048Z",
+    "message": "asd",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:48:16.108Z",
+    "message": "asdf",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:48:16.206Z",
+    "message": "A",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:48:16.352Z",
+    "message": "F",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:48:17.529Z",
+    "message": "ASDASDFA",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T21:48:17.786Z",
+    "message": "ASDF",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T22:40:52.801Z",
+    "message": "__actioncard: name:Ataque de Espada Longa, type:attack, effectCategory:damage, description:Um golpe padrão com sua espada longa.",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T22:44:45.050Z",
+    "message": "r",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  }
+]

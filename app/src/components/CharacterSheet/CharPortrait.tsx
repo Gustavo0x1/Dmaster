@@ -1,29 +1,72 @@
-import React from 'react';
+import React, { useRef, useState, ChangeEvent, useEffect } from 'react';
 import HealthController from './HealthController'; // Ajuste o caminho se necessário
 
+// Definir uma chave para o localStorage
+import LOCAL_STORAGE_IMAGE_KEY from '../../img/localplayer/PlayerImage.png';
+
 interface CharacterPortraitAndHealthProps {
-  imageUrl: string; // URL da imagem do personagem
   currentHealth?: number;
   maxHealth?: number;
 }
 
 const CharacterPortraitAndHealth: React.FC<CharacterPortraitAndHealthProps> = ({
-  imageUrl,
   currentHealth,
   maxHealth,
 }) => {
-  return (
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-    <div  className="d-flex flex-column align-items-center mb-3"> {/* Centraliza a imagem e a vida verticalmente */}
-      {/* Imagem do Personagem */}
-      <div className="character-portrait-container mb-2"> {/* mb-2 para espaçamento entre imagem e vida */}
+  // Carrega a imagem do localStorage ao montar o componente
+  useEffect(() => {
+    const storedImage = localStorage.getItem(LOCAL_STORAGE_IMAGE_KEY);
+    if (storedImage) {
+      setSelectedImage(storedImage);
+    }
+  }, []); // O array vazio garante que isso rode apenas uma vez ao montar
+
+  const handleImageClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const imageDataURL = reader.result as string;
+        setSelectedImage(imageDataURL);
+        // Salva a imagem no localStorage
+        localStorage.setItem(LOCAL_STORAGE_IMAGE_KEY, imageDataURL);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div className="d-flex flex-column align-items-center mb-3">
+      <div
+        className="character-portrait-container mb-2"
+        onClick={handleImageClick}
+        style={{ cursor: 'pointer' }}
+      >
         <img
-          src={imageUrl}
+          src={selectedImage || LOCAL_STORAGE_IMAGE_KEY} // Placeholder se não houver imagem selecionada/armazenada
           alt="Ícone do Personagem"
-          className="img-fluid rounded-circle border border-warning" // Classes Bootstrap para responsividade, circular e borda
-          style={{ width: '120px', height: '120px', objectFit: 'cover' }} // Tamanho fixo para o avatar
+          className="img-fluid rounded-circle border border-warning"
+          style={{ width: '120px', height: '120px', objectFit: 'cover' }}
         />
       </div>
+
+      <input
+        type="file"
+        accept="image/png, image/jpeg"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
 
       <HealthController
         initialCurrentHealth={currentHealth}

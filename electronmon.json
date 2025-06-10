@@ -1,0 +1,8 @@
+{
+  "verbose": true,
+  "legacyWatch": true,
+  "watch": ["."],
+  "ignore": [
+    "**/chatHistory.json"
+  ]
+}

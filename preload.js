@@ -17,7 +17,7 @@ contextBridge.exposeInMainWorld('electron',{
 on: (channel, callback) => {
     // === LISTA DE CANAIS PERMITIDOS ===
     // Adicione AQUI todos os canais que seu renderer process OUVIRÁ (ex: 'SyncTokenPosition', 'chatMessage')
-    const validChannels = ['SyncTokenPosition', 'send-message']; 
+    const validChannels = ['SyncTokenPosition', 'new-chat-message','send-message-ack','chat-history']; 
 
     if (validChannels.includes(channel)) {
       // Cria um wrapper para o callback para evitar que o objeto 'event' do Electron
@@ -35,7 +35,7 @@ on: (channel, callback) => {
   off: (channel, callback) => {
     // === LISTA DE CANAIS PERMITIDOS ===
     // Adicione AQUI todos os canais que seu renderer process REMOVERÁ listeners
-    const validChannels = ['SyncTokenPosition', 'send-message']; 
+    const validChannels = ['SyncTokenPosition', 'new-chat-message','send-message-ack','chat-history']; 
 
     if (validChannels.includes(channel) && callback) {
       // ipcRenderer.off é um alias para ipcRenderer.removeListener.
@@ -54,6 +54,10 @@ on: (channel, callback) => {
       'delete-action',
       'update-character-attributes',
       'send-message',
+      'set-userid',
+      'get-userid',
+      'request-chat-history',
+      'login-check',
       'update-character-bio',
       'update-character-essentials',
       'update-character-skills',

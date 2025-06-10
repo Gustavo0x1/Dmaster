@@ -1,19 +1,20 @@
 // src/components/CombatInterface/CombatInterface.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import CombatActions from './CombatActions';
 import CombatTokensDisplay from '../CombatTokenDisplay';
 import { CharacterAction, Token } from '../../types';
 import { useLayout } from '../Layout';
 import { v4 as uuidv4 } from 'uuid';
-import SampleToken from '../../img/0.png'
-import SampleToken2 from '../../img/1.png'
+import SampleToken from '../../img/0.png';
+import SampleToken2 from '../../img/1.png';
+
 interface CombatInterfaceProps {
   // Se as ações fossem gerenciadas por um pai mais acima, elas viriam aqui
   // Por agora, vamos simular que este componente "recebe" ações e também as cria.
 }
 
 const CombatInterface: React.FC<CombatInterfaceProps> = () => {
-  
+
   // NOVO: Ações de combate gerenciadas aqui.
   const [combatActions, setCombatActions] = useState<CharacterAction[]>([]);
   // Mudar a forma como os tokens são gerenciados
@@ -21,6 +22,25 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
   const electron = (window as any).electron;
   const [allies, setAllies] = useState<Token[]>([]);
   const [selectedTokens, setSelectedTokens] = useState<Token[]>([]); // NOVO: Estado para tokens selecionados
+
+  // useLayout para injetar o CombatTokensDisplay na coluna esquerda
+  const { addContentToLeft, clearContentFromLeft, addContentToRight, clearContentFromRight } = useLayout();
+
+  // State to hold the JSX for the Damage Formula section
+  const [damageFormulaContent, setDamageFormulaContent] = useState<React.ReactNode | null>(null);
+  // NEW State to hold the JSX for the Hit Formula section
+  const [hitFormulaContent, setHitFormulaContent] = useState<React.ReactNode | null>(null);
+
+
+  // Callback to receive the Damage Formula JSX from CombatActions
+  const handleRenderDamageFormula = useCallback((formulaJSX: React.ReactNode) => {
+    setDamageFormulaContent(formulaJSX);
+  }, []);
+
+  // NEW Callback to receive the Hit Formula JSX from CombatActions
+  const handleRenderHitFormula = useCallback((formulaJSX: React.ReactNode) => {
+    setHitFormulaContent(formulaJSX);
+  }, []);
 
   // Mocks de tokens disponíveis para o combate
   useEffect(() => {
@@ -36,32 +56,26 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
     ];
     setEnemies(initialEnemies);
     setAllies(initialAllies);
-
-
-
   }, []);
 
-  // useLayout para injetar o CombatTokensDisplay na coluna esquerda
-  const { addContentToLeft, clearContentFromLeft } = useLayout();
   useEffect(() => {
-        if (1) {
-                electron.invoke('request-character-data', 1)
-                .then((response: any ) => { // <--- Tipagem adicionada aqui
-                    if (response.success && response.data) {
-                        const data = response.data;
-                        setCombatActions(data.actions || []);
-                        console.log("Dados do personagem carregados:", data);
-                    } else {
-                        console.error("Erro ao carregar dados do personagem:", response.message);
-                     
-                    }
-                })
-                .catch((error: unknown) => { // Tipagem do erro, como discutido anteriormente
-                    console.error("Erro na comunicação IPC ao carregar dados do personagem:", error);
-                 
-                });
-        }
-    }, []);
+    if (1) {
+      electron.invoke('request-character-data', 1)
+        .then((response: any) => {
+          if (response.success && response.data) {
+            const data = response.data;
+            setCombatActions(data.actions || []);
+            console.log("Dados do personagem carregados:", data);
+          } else {
+            console.error("Erro ao carregar dados do personagem:", response.message);
+          }
+        })
+        .catch((error: unknown) => {
+          console.error("Erro na comunicação IPC ao carregar dados do personagem:", error);
+        });
+    }
+  }, [electron]);
+
   useEffect(() => {
     // Renderiza o CombatTokensDisplay na coluna esquerda
     addContentToLeft(
@@ -72,9 +86,39 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
         onTokenSelectionChange={setSelectedTokens} // Passa a função para atualizar os selecionados
       />
     );
-    // Limpa o conteúdo da coluna esquerda quando o componente é desmontado
-    return () => { clearContentFromLeft(); };
-  }, [enemies, allies, selectedTokens, addContentToLeft, clearContentFromLeft]);
+
+    // Renderiza o conteúdo das fórmulas de Dano e Acerto na coluna direita
+    if (damageFormulaContent && hitFormulaContent) {
+      // You can arrange them as you like here, e.g., using a div to wrap them
+      addContentToRight(
+        <div>
+          {damageFormulaContent}
+          {hitFormulaContent}
+        </div>
+      );
+    } else if (damageFormulaContent) {
+      addContentToRight(damageFormulaContent);
+    } else if (hitFormulaContent) {
+      addContentToRight(hitFormulaContent);
+    }
+
+
+    // Limpa o conteúdo da coluna esquerda e direita quando o componente é desmontado
+    return () => {
+      clearContentFromLeft();
+      clearContentFromRight();
+    };
+  }, [
+    enemies,
+    allies,
+    selectedTokens,
+    addContentToLeft,
+    clearContentFromLeft,
+    damageFormulaContent,
+    hitFormulaContent,
+    addContentToRight,
+    clearContentFromRight
+  ]);
 
 
   // Funções que o CombatActions usará para gerenciar as ações de combate
@@ -85,14 +129,13 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
     // para que a edição seja persistente e consistente entre as duas telas.
   };
   const handleDeleteCombatAction = (actionId: number) => {
-// <--- This function expects 'actionId' to be a 'number'
     setCombatActions(prev => prev.filter(a => a.id !== actionId));
     console.log("Ação deletada no CombatInterface:", actionId);
     // IMPORTANTE: Notificar o CharacterSheet ou o gerenciador de estado global
   };
 
 
-  const handleToggleCombatFavorite = (isFavorite: boolean,actionId?: number) => {
+  const handleToggleCombatFavorite = (isFavorite: boolean, actionId?: number) => {
     setCombatActions(prev => prev.map(a => a.id === actionId ? { ...a, isFavorite: isFavorite } : a));
     console.log(`Ação ${actionId} favoritada: ${isFavorite} no CombatInterface.`);
     // IMPORTANTE: Notificar o CharacterSheet ou o gerenciador de estado global
@@ -109,7 +152,8 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
           onEditAction={handleEditCombatAction}
           onToggleFavorite={handleToggleCombatFavorite}
           selectedTokens={selectedTokens}
-
+          onRenderDamageFormula={handleRenderDamageFormula} // Pass the new prop
+          onRenderHitFormula={handleRenderHitFormula} // NEW: Pass the hit formula prop
         />
       </div>
     </div>

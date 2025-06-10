@@ -469,7 +469,7 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
                 </div>
                 <div className="col-md-4 d-flex flex-column align-items-center justify-content-start py-3 overflow-y-auto">
                   <CharacterPortraitAndHealth
-                    imageUrl={token}
+
                     currentHealth={20}
                     maxHealth={100}
                   />

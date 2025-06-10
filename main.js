@@ -2,14 +2,14 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const WebSocket = require("ws");
 const url = require('url')
 const path = require('path')
-const Database = require('better-sqlite3'); // Importa o better-sqlite3
-const { act } = require("react");
-const { Console } = require("console");
+const Database = require('better-sqlite3');
 const DB_PATH = path.join(app.getPath('userData'), 'characters.db');
 
 let MainWindow;
 let ws;
 let db;
+let USERID; // Este USERID é do Main Process, usado para identificar a janela atual ou o mestre.
+
 // Mock database for demonstration. In a real app, this would be a database call.
 const defaultCharacterData = {
   // Dados para a tabela 'characters'
@@ -26,11 +26,6 @@ const defaultCharacterData = {
     speed: '30ft',
   },
   // MaxHp, CurrentHp, TempHp, Shield, Race, Class, SubClass, Level, XP, PLAYERNAME, CHARNAME
-  // Estes campos não são diretamente manipulados no CharacterSheet.tsx,
-  // mas estariam na tabela 'characters' e poderiam ser carregados/salvos
-  // se você tivesse uma seção para eles na UI.
-  // Para este default, vamos incluir apenas os que são relevantes para o CharacterSheet atual
-  // ou fornecer valores padrão.
   MaxHp: 80,
   CurrentHp: 60,
   TempHp: 0,
@@ -71,8 +66,6 @@ const defaultCharacterData = {
     { name: 'Prestidigitação', modifier: 'dex' },
     { name: 'Religião', modifier: 'int' },
     { name: 'Sobrevivência', modifier: 'sab' },
-    
-
   ],
 
   // Dados para a tabela 'character_actions'
@@ -114,6 +107,7 @@ const defaultCharacterData = {
     },
   ]
 };
+
 function initializeDatabase() {
   try {
     db = new Database(DB_PATH, { verbose: console.log });
@@ -156,6 +150,14 @@ function initializeDatabase() {
         name TEXT,
         modifier TEXT,
         FOREIGN KEY(character_id) REFERENCES characters(id) ON DELETE CASCADE
+      );
+    `);
+        db.exec(`
+      CREATE TABLE IF NOT EXISTS players (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        user TEXT,
+        password TEXT
       );
     `);
     // A tabela 'character_actions' agora usa INTEGER PRIMARY KEY AUTOINCREMENT para o id
@@ -253,7 +255,8 @@ function startWebSocket() {
 
 ws.on("message", (message) => {
   try {
-    const { type, data } = JSON.parse(message);
+    const parsedMessage = JSON.parse(message); // Parseie a mensagem uma vez
+    const { type, data } = parsedMessage;
 
     if (!MainWindow) {
       console.warn("MainWindow ainda não está pronta para enviar mensagens");
@@ -261,25 +264,33 @@ ws.on("message", (message) => {
     }
 
     if (type === "SyncTokenPosition") {
-
       MainWindow.webContents.send("SyncTokenPosition", data);
-
     }
-
-    
-    if (type === "send-message") {
-        console.log("ARRIVED")
-      MainWindow.webContents.send("send-message", data);
-
-    }
-
+  if (type === "chat-history") {
+        console.log("[Main Process] Recebido chat-history do servidor:", data);
+        if (data && Array.isArray(data)) {
+          // Encaminha o histórico para o frontend
+          MainWindow.webContents.send("chat-history", data);
+        }
+      }
+    // --- CÓDIGO CRÍTICO PARA O CHAT ---
+    // --- CÓDIGO CRÍTICO PARA O CHAT: CORREÇÃO ---
+if (type === "chat-message") {
+        if(parsedMessage.id == USERID){
+          return
+        }
+        if (MainWindow && MainWindow.webContents) {
+          MainWindow.webContents.send("new-chat-message", parsedMessage);
+        } else {
+          console.warn("MainWindow ou webContents não está pronto.");
+        }
+      }
+    // -
     if (type === "syncAll") {
       MainWindow.webContents.send("sync-all", data);
-      console.log(1)
+ 
     }
-      if (type === "chat-message") {
-      console.log("ARRIVED: "+message)
-    }
+
   } catch (err) {
     console.error("Erro ao processar mensagem do servidor:", err);
   }
@@ -305,7 +316,7 @@ function createMainWindow(){
         resizable:false,
         webPreferences:{
             contextIsolation:true,
-            nodeIntegration:true,
+            nodeIntegration:true, // Embora nodeIntegration seja true aqui, contextIsolation é true, então o preload é a maneira segura.
             preload: path.join(__dirname,'preload.js')
         }
     });
@@ -314,14 +325,14 @@ function createMainWindow(){
         pathname:path.join(__dirname,'./app/build/index.html'),
         protocol:'file'
     })
-    MainWindow.loadURL('http://localhost:3000')
+    MainWindow.loadURL(startUrl) // Certifique-se de que este é o URL correto do seu React App
 }
 
 app.whenReady().then(()=>{
   createMainWindow();
-  createMainWindow();
+
   initializeDatabase();
-    startWebSocket();
+  startWebSocket();
 });
 
 
@@ -342,7 +353,17 @@ ipcMain.on("update-scenario", (event, data) => {
     console.error("WebSocket não está conectado. Mensagem não enviada.");
   }
 });
-
+ipcMain.handle('request-chat-history', async (event) => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    // Envia uma mensagem para o servidor solicitando o histórico
+    ws.send(JSON.stringify({ type: "request-chat-history" })); // Novo tipo de mensagem para o servidor
+    console.log("[Main Process] Solicitando histórico de chat ao servidor WebSocket.");
+    return { success: true, message: "Requisição de histórico enviada." };
+  } else {
+    console.error("[Main Process] WebSocket não está conectado. Não foi possível solicitar histórico.");
+    return { success: false, message: "WebSocket não conectado." };
+  }
+});
 // Manipular alterações de cenário enviadas pela interface
 ipcMain.on("request-tokenMove", (event, data) => {
   const message = JSON.stringify({ type: "request-tokenMove", data });
@@ -356,7 +377,31 @@ ipcMain.on("request-tokenMove", (event, data) => {
   }
 });
 
+ipcMain.handle('set-userid', async (event, userid) => {
+        USERID = userid
+        console.log("USER ID! : "+ userid)
+});
+ipcMain.handle('get-userid', async (event) => { // Removi userid do argumento, pois USERID é global
+        return USERID;
+});
 
+
+ipcMain.handle('login-check', async (event, user, pass) => {
+  try {
+    const characterRow = db.prepare('SELECT * FROM players WHERE user = ? and password = ?').get(user, pass);
+    console.log("++++ " + characterRow);
+
+    if (characterRow) {
+      return { success: true, userId: characterRow.id };
+    } else {
+      return { success: false, message: 'Usuário ou senha inválidos.' };
+    }
+
+  } catch (error) {
+    console.error(`[Main Process] Erro ao obter usuario e senha do SQLite:`, error);
+    return { success: false, message: `Erro ao carregar dados: ${error.message}` };
+  }
+});
 ipcMain.handle('request-character-data', async (event, characterId) => {
   console.log(`[Main Process] Carregando dados do personagem ${characterId} do SQLite.`);
   try {
@@ -381,7 +426,6 @@ ipcMain.handle('request-character-data', async (event, characterId) => {
 
     const attributes = db.prepare('SELECT id,name, value, modifier FROM character_attributes WHERE character_id = ?').all(characterRow.id);
     const skills = db.prepare('SELECT name, modifier FROM character_skills WHERE character_id = ?').all(characterRow.id);
-    // Selecionar todas as colunas da ação, incluindo o ID auto-incrementado
     const actions = db.prepare('SELECT * FROM character_actions WHERE character_id = ?').all(characterRow.id).map(actionRow => ({
         ...actionRow,
         properties: actionRow.properties ? JSON.parse(actionRow.properties) : [],
@@ -400,7 +444,7 @@ ipcMain.handle('request-character-data', async (event, characterId) => {
     return { success: true, data: fullCharacterData };
 
   } catch (error) {
-    console.error(`[Main Process] Erro ao carregar personagem ${characterId} do SQLite:`, error);
+error(`[Main Process] Erro ao carregar personagem ${characterId} do SQLite:`, error);
     return { success: false, message: `Erro ao carregar dados: ${error.message}` };
   }
 });
@@ -422,7 +466,7 @@ ipcMain.handle('update-character-skills', async (event, value,id) => {
           characterId
         );
 
-      } 
+      }
       return { success: true, message: "Dados salvos com sucesso no SQLite!"};
 
     })(); // Executa a transação
@@ -449,7 +493,7 @@ ipcMain.handle('update-character-bio', async (event, value,id) => {
           characterId
         );
 
-      } 
+      }
       return { success: true, message: "Dados salvos com sucesso no SQLite!"};
 
     })(); // Executa a transação
@@ -475,7 +519,7 @@ ipcMain.handle('update-character-essentials', async (event, value,id) => {
           characterId
         );
 
-      } 
+      }
       return { success: true, message: "Dados salvos com sucesso no SQLite!"};
 
     })(); // Executa a transação
@@ -487,15 +531,33 @@ ipcMain.handle('update-character-essentials', async (event, value,id) => {
   }
 });
 
+ipcMain.handle('send-message', async (event, messageText, senderId, senderName, senderAvatar) => {
+  const messagePayload = {
+    type: 'chat-message',
+    timestamp: new Date().toISOString(),
+    message: messageText,
+    id: senderId,
+    senderName: senderName,
+    senderAvatar: senderAvatar
+  };
 
-ipcMain.handle('send-message', async (event, value,id) => {
-        const testMessage = {
-            type: 'send-message',
-            timestamp: new Date().toISOString(),
-            data: {type:"chat-message",message:value,id:id}
-        };
-  ws.send(JSON.stringify(testMessage))
+  const testMessage = {
+    type: 'send-message',
+    timestamp: new Date().toISOString(),
+    data: messagePayload
+  };
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(testMessage));
+    console.log(`[Main Process] Mensagem de chat enviada ao servidor WebSocket: ${JSON.stringify(testMessage)}`);
+    return { success: true, message: "Mensagem enviada ao servidor." };
+  } else {
+    console.error("[Main Process] WebSocket não está conectado. Mensagem de chat não enviada.");
+    return { success: false, message: "WebSocket não conectado." };
+  }
 });
+
+
 ipcMain.handle('update-character-attributes', async (event, value,id) => {
   const characterId = id;
   try {
@@ -510,7 +572,7 @@ ipcMain.handle('update-character-attributes', async (event, value,id) => {
           characterId
         );
 
-      } 
+      }
       return { success: true, message: "Dados salvos com sucesso no SQLite!"};
 
     })(); // Executa a transação
@@ -758,7 +820,3 @@ ipcMain.handle('delete-character', async (event, characterId) => {
     return { success: false, message: `Erro ao deletar: ${error.message}` };
   }
 });
-// Criar um novo personagem (sem dados iniciais, retorna apenas o ID)
-
-
-// Deletar um personagem completo (mantido igual)

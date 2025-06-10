@@ -20,7 +20,7 @@ const AttributesSection: React.FC<AttributesSectionProps> = ({ attributes, onUpd
   const [editingAttributeId, setEditingAttributeId] = useState<number | null>(null);
   const [tempEditedValue, setTempEditedValue] = useState<number>(0);
 
-  const handleDiceMessage = useCallback((message: string, senderId?: string, senderName?: string, senderAvatar?: string) => {
+  const handleDiceMessage = useCallback((message: string, senderId?: number, senderName?: string, senderAvatar?: string) => {
     console.log(`Mensagem do dado (via Atributos.tsx): [${senderName || 'Desconhecido'} - ${senderId || 'N/A'}] ${message}`);
   }, []);
 

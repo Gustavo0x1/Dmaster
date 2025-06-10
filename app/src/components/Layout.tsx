@@ -1,9 +1,9 @@
 /* eslint-disable no-unused-expressions */
-import React, { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import React, { createContext, useContext, useEffect,useState, ReactNode, useCallback } from "react";
 import Header from "./Header";
 import { Outlet } from 'react-router-dom';
 import { Token } from '../types'; // Importe o tipo Token
-
+import { ChatProvider } from '../components/contexts/ChatContext';
 // Context API para o layout
 interface LayoutContextProps {
   addContentToLeft: (content: ReactNode) => void;
@@ -30,13 +30,43 @@ export const useLayout = () => {
 
 // Componente Layout
 export const Layout = ({ children }: { children?: ReactNode }) => {
+
   const [column, setColumn] = useState<"left" | "center" | "right">("center");
   const [leftContent, setLeftContent] = useState<React.ReactNode>(null);
   const [centerContent, setCenterContent] = useState<React.ReactNode>(null);
   const [rightContent, setRightContent] = useState<React.ReactNode>(null);
   const [selectedTokens, setSelectedTokens] = useState<Token[]>([]); // NOVO: Estado para tokens selecionados no Layout
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [isLoadingUserId, setIsLoadingUserId] = useState<boolean>(true);
+  const electron = (window as any).electron
 
-  // Memoizar funções com useCallback
+      useEffect(() => {
+      const getUserIdFromMain = async () => {
+          if (!electron) {
+              console.warn('Objeto electron não encontrado. Não será possível buscar o userId.');
+              setCurrentUserId(1); // Fallback
+              setIsLoadingUserId(false);
+              return;
+          }
+          try {
+              const userId = await electron.invoke('get-userid');
+              console.log('USERID obtido do MAIN no Layout:', userId);
+              if (userId !== undefined && userId !== null) {
+                  setCurrentUserId(userId);
+              } else {
+                  console.warn('USERID retornado do MAIN é nulo ou indefinido. Usando 1 como fallback.');
+                  setCurrentUserId(1); // Fallback
+              }
+          } catch (error) {
+              console.error('Erro ao buscar USERID do MAIN no Layout:', error);
+              setCurrentUserId(1); // Fallback
+          } finally {
+              setIsLoadingUserId(false);
+          }
+      };
+
+      getUserIdFromMain();
+  }, [electron]);
   const addContentToLeft = useCallback((content: ReactNode) => {
     setLeftContent(content);
   }, []);
@@ -62,6 +92,9 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
   }, []);
 
   return (
+    <ChatProvider USERID={currentUserId as number}>
+
+
     <LayoutContext.Provider
       value={{
         addContentToLeft,
@@ -94,5 +127,6 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
         </div>
       </div>
     </LayoutContext.Provider>
+        </ChatProvider>
   );
 };

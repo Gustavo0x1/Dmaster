@@ -1,9 +1,9 @@
 // src/components/CombatInterface/CombatActions.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CharacterAction, Token } from '../../types';
 import SimpleAlertModal from '../modals/SimpleAlert';
 import ConfirmationModal from '../modals/ConfirmationModal';
-
+import '../../css/Actions/CombatActions.css'
 interface CombatActionsProps {
   actions: CharacterAction[];
   onDeleteAction: (actionId: number) => void;
@@ -12,13 +12,15 @@ interface CombatActionsProps {
   selectedTokens?: Token[];
   availableTokens?: Token[];
   onTokenSelected?: (token: Token | null) => void;
+  onRenderDamageFormula: (formulaJSX: React.ReactNode) => void;
+  onRenderHitFormula: (formulaJSX: React.ReactNode) => void;
 }
 
-// Interface para um bloco de dano
-interface DamageBlock {
+// Interface para um bloco de dano ou acerto
+interface FormulaBlock {
   id: number;
-  type: 'dice' | 'modifier'; // 'dice' para rolagem de dados, 'modifier' para valor fixo
-  value: string; // O valor do dado (ex: "1d20", "2d6") ou do modificador (ex: "5", "-2")
+  type: 'dice' | 'modifier';
+  value: string;
 }
 
 const CombatActions: React.FC<CombatActionsProps> = ({
@@ -29,7 +31,10 @@ const CombatActions: React.FC<CombatActionsProps> = ({
   selectedTokens,
   availableTokens,
   onTokenSelected,
+  onRenderDamageFormula,
+  onRenderHitFormula,
 }) => {
+  const electron = (window as any).electron
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertModalTitle, setAlertModalTitle] = useState('');
   const [alertModalMessage, setAlertModalMessage] = useState<string | React.ReactNode>('');
@@ -42,14 +47,24 @@ const CombatActions: React.FC<CombatActionsProps> = ({
   const [expandedActionId, setExpandedActionId] = useState<number | null>(null);
 
   // Estados para o gerenciador de fórmula de dano por blocos
-  const [damageBlocks, setDamageBlocks] = useState<DamageBlock[]>([
-    { id: 1, type: 'dice', value: '1d20' } // Bloco inicial padrão de 1d20
+  const [damageBlocks, setDamageBlocks] = useState<FormulaBlock[]>([
+    { id: 1, type: 'dice', value: '1d20' }
   ]);
-  const [nextBlockId, setNextBlockId] = useState<number>(2); // Próximo ID disponível para novos blocos
+  const [nextDamageBlockId, setNextDamageBlockId] = useState<number>(2);
 
-  // Estados para vantagem e desvantagem
+  // Estados para o gerenciador de fórmula de acerto por blocos
+  const [hitBlocks, setHitBlocks] = useState<FormulaBlock[]>([
+    { id: 1, type: 'dice', value: '1d20' }
+  ]);
+  const [nextHitBlockId, setNextHitBlockId] = useState<number>(2);
+  const [fixedHitValue, setFixedHitValue] = useState<string>('');
+  const [useFixedHitValue, setUseFixedHitValue] = useState<boolean>(false);
+
+  // Estados para vantagem e desvantagem (aplicáveis ao acerto)
   const [useAdvantage, setUseAdvantage] = useState<boolean>(false);
   const [useDisadvantage, setUseDisadvantage] = useState<boolean>(false);
+
+  // Removido: minimumHitToRollDamage agora vem da CA do token
 
   // --- Funções de controle de Modal ---
   const openAlertModal = (title: string, message: string | React.ReactNode) => {
@@ -82,41 +97,47 @@ const CombatActions: React.FC<CombatActionsProps> = ({
     setConfirmModalOnConfirm(undefined);
   };
 
-  // --- Funções para Gerenciamento de Blocos de Dano ---
-  const addDamageBlock = (type: 'dice' | 'modifier', initialValue: string = '') => {
-    setDamageBlocks(prevBlocks => [
-      ...prevBlocks,
-      { id: nextBlockId, type, value: initialValue }
-    ]);
-    setNextBlockId(prevId => prevId + 1);
+  // --- Funções para Gerenciamento de Blocos ---
+  const addBlock = (setBlocks: React.Dispatch<React.SetStateAction<FormulaBlock[]>>, setNextId: React.Dispatch<React.SetStateAction<number>>, type: 'dice' | 'modifier', initialValue: string = '') => {
+    // Get the current nextId value, then immediately update it for the next call
+    setNextId(prevId => {
+      const newId = prevId; // Use the current value as the ID for the new block
+      setBlocks(prevBlocks => [
+        ...prevBlocks,
+        { id: newId, type, value: initialValue }
+      ]);
+      return prevId + 1; // Increment for the next block
+    });
   };
 
-  const updateDamageBlock = (id: number, newValue: string) => {
-    setDamageBlocks(prevBlocks =>
+
+  const updateBlock = (setBlocks: React.Dispatch<React.SetStateAction<FormulaBlock[]>>, id: number, newValue: string) => {
+    setBlocks(prevBlocks =>
       prevBlocks.map(block =>
         block.id === id ? { ...block, value: newValue } : block
       )
     );
   };
 
-  const removeDamageBlock = (id: number) => {
-    setDamageBlocks(prevBlocks => prevBlocks.filter(block => block.id !== id));
+  const removeBlock = (setBlocks: React.Dispatch<React.SetStateAction<FormulaBlock[]>>, id: number) => {
+    setBlocks(prevBlocks => prevBlocks.filter(block => block.id !== id));
   };
 
+
   // --- Função Auxiliar para Rolagem de Dados e Cálculos ---
-  const rollDice = (blocks: DamageBlock[], advantage: boolean, disadvantage: boolean): { total: number, rollsDetail: string, formulaString: string } => {
-    let totalDamage = 0;
+  const rollFormula = (blocks: FormulaBlock[], advantage: boolean, disadvantage: boolean): { total: number, rollsDetail: string, formulaString: string } => {
+    let total = 0;
     let rollsDetail: string[] = [];
     let formulaParts: string[] = [];
 
     blocks.forEach(block => {
-      formulaParts.push(block.value); // Para a string da fórmula final
+      formulaParts.push(block.value);
 
       if (block.type === 'dice') {
-        const diceMatch = block.value.trim().match(/^(\d*)d(\d+)$/i); // Captura "1d6", "d20", "2d4"
+        const diceMatch = block.value.trim().match(/^(\d*)d(\d+)$/i);
 
         if (diceMatch) {
-          const numDice = parseInt(diceMatch[1] || '1'); // Padrão para 1 se não especificado (e.g., 'd20')
+          const numDice = parseInt(diceMatch[1] || '1');
           const dieSize = parseInt(diceMatch[2]);
 
           if (isNaN(numDice) || isNaN(dieSize) || dieSize <= 0) {
@@ -124,45 +145,34 @@ const CombatActions: React.FC<CombatActionsProps> = ({
             return;
           }
 
-          let currentBlockRolls: number[] = [];
+          let sumOfBlockRolls = 0;
+          let detailForThisBlock: string[] = [];
+
           if (advantage || disadvantage) {
-            // Para vantagem/desvantagem, rola o primeiro dado 'numDice' vezes, e depois escolhe o melhor/pior para o *total* do bloco
-            // Nota: Uma rolagem mais robusta para 2d6 com vantagem, por exemplo, faria 2d6 duas vezes e pegaria o total maior.
-            // Esta implementação simplifica para rolar 'numDice' vezes e aplicar vantagem/desvantagem *individualmente* a cada dado
-            // ou ao primeiro dado para uma abordagem mais simples de rolagem de ataque.
-            // Para o objetivo atual, vamos aplicar vantagem/desvantagem à rolagem principal (o primeiro dado, se 'numDice' > 1)
-            // ou a cada dado individualmente se quisermos a complexidade extra.
-            // Aqui, simplificamos: se tiver vantagem/desvantagem, rola 2 vezes e escolhe para CADA dado no bloco.
-            let sumOfBlockRolls = 0;
-            let detailForThisBlock: string[] = [];
-
             for (let i = 0; i < numDice; i++) {
-                const roll1 = Math.floor(Math.random() * dieSize) + 1;
-                const roll2 = Math.floor(Math.random() * dieSize) + 1;
-                let chosenRoll = 0;
+              const roll1 = Math.floor(Math.random() * dieSize) + 1;
+              const roll2 = Math.floor(Math.random() * dieSize) + 1;
+              let chosenRoll = 0;
 
-                if (advantage) {
-                    chosenRoll = Math.max(roll1, roll2);
-                    detailForThisBlock.push(`${chosenRoll} (${roll1},${roll2} V)`);
-                } else { // disadvantage
-                    chosenRoll = Math.min(roll1, roll2);
-                    detailForThisBlock.push(`${chosenRoll} (${roll1},${roll2} D)`);
-                }
-                sumOfBlockRolls += chosenRoll;
+              if (advantage) {
+                chosenRoll = Math.max(roll1, roll2);
+                detailForThisBlock.push(`${chosenRoll} (${roll1},${roll2} V)`);
+              } else {
+                chosenRoll = Math.min(roll1, roll2);
+                detailForThisBlock.push(`${chosenRoll} (${roll1},${roll2} D)`);
+              }
+              sumOfBlockRolls += chosenRoll;
             }
-            totalDamage += sumOfBlockRolls;
+            total += sumOfBlockRolls;
             rollsDetail.push(`[${block.value}: ${detailForThisBlock.join(' + ')}]`);
 
           } else {
-            let sumOfBlockRolls = 0;
-            let detailForThisBlock: string[] = [];
             for (let i = 0; i < numDice; i++) {
               const roll = Math.floor(Math.random() * dieSize) + 1;
-              currentBlockRolls.push(roll);
               sumOfBlockRolls += roll;
               detailForThisBlock.push(`${roll}`);
             }
-            totalDamage += sumOfBlockRolls;
+            total += sumOfBlockRolls;
             rollsDetail.push(`[${block.value}: ${detailForThisBlock.join('+')}]`);
           }
         } else {
@@ -171,7 +181,7 @@ const CombatActions: React.FC<CombatActionsProps> = ({
       } else if (block.type === 'modifier') {
         const modifier = parseInt(block.value.trim());
         if (!isNaN(modifier)) {
-          totalDamage += modifier;
+          total += modifier;
           rollsDetail.push(`[Modificador: ${modifier}]`);
         } else {
           rollsDetail.push(`[Modificador Inválido: ${block.value}]`);
@@ -179,7 +189,7 @@ const CombatActions: React.FC<CombatActionsProps> = ({
       }
     });
 
-    return { total: totalDamage, rollsDetail: rollsDetail.join(' '), formulaString: formulaParts.join(' + ') };
+    return { total: total, rollsDetail: rollsDetail.join(' '), formulaString: formulaParts.join(' + ') };
   };
 
   // --- Manipulador para Usar Ação ---
@@ -189,24 +199,51 @@ const CombatActions: React.FC<CombatActionsProps> = ({
       return;
     }
 
-    let effectMessage = `Ação "${action.name}" aplicada a: `;
+    let overallMessage = `Ação "${action.name}" aplicada a: `;
+
     selectedTokens.forEach(token => {
-      if (action.effectCategory === 'damage') {
-        const { total: damage, rollsDetail, formulaString } = rollDice(damageBlocks, useAdvantage, useDisadvantage);
-        effectMessage += `\n- ${token.name} sofre ${damage} de ${action.damageType || 'dano'}.` +
-                         ` (Fórmula: ${formulaString}, Detalhes: ${rollsDetail})`;
-      } else if (action.effectCategory === 'healing' && action.healingDice) {
-        // Para cura, usa o healingDice da ação, não o gerenciador de fórmula de dano
-        const healingRollSize = parseInt(action.healingDice.replace('d', ''));
-        const healing = Math.floor(Math.random() * healingRollSize) + 1;
-        effectMessage += `\n- ${token.name} cura ${healing} HP (baseado em ${action.healingDice})`;
-      } else if (action.effectCategory === 'utility' && action.utilityTitle) {
-        effectMessage += `\n- ${token.name} recebe o efeito: "${action.utilityTitle}"`;
+      let hitRollResult: { total: number, rollsDetail: string, formulaString: string };
+      let finalHitValue: number;
+
+      if (useFixedHitValue && fixedHitValue !== '') {
+        const parsedFixedValue = parseInt(fixedHitValue);
+        if (!isNaN(parsedFixedValue)) {
+          finalHitValue = parsedFixedValue;
+          hitRollResult = { total: parsedFixedValue, rollsDetail: `[Valor Fixo: ${parsedFixedValue}]`, formulaString: `${parsedFixedValue}` };
+        } else {
+          overallMessage += `\n- ${token.name}: Valor Fixo de Acerto Inválido.`;
+          return;
+        }
       } else {
-        effectMessage += `\n- ${token.name} (Efeito desconhecido)`;
+        hitRollResult = rollFormula(hitBlocks, useAdvantage, useDisadvantage);
+        finalHitValue = hitRollResult.total;
+      }
+
+      // NOVO: O mínimo para acerto é a CA do token
+      const minimumHitToRollDamage = token.ac || 0; // Se a AC não estiver definida, usa 0 como fallback
+
+      overallMessage += `\n- ${token.name} (AC: ${token.ac || 'N/A'}): Rolagem de Acerto: ${finalHitValue}` +
+        ` (Fórmula: ${hitRollResult.formulaString}, Detalhes: ${hitRollResult.rollsDetail}).`;
+
+      if (finalHitValue >= minimumHitToRollDamage) {
+        if (action.effectCategory === 'damage') {
+          const { total: damage, rollsDetail: damageRollsDetail, formulaString: damageFormulaString } = rollFormula(damageBlocks, false, false);
+          overallMessage += `\n  ACERTO! Causa ${damage} de ${action.damageType || 'dano'}.` +
+            ` (Fórmula: ${damageFormulaString}, Detalhes: ${damageRollsDetail})`;
+        } else if (action.effectCategory === 'healing' && action.healingDice) {
+          const healingRollSize = parseInt(action.healingDice.replace('d', ''));
+          const healing = Math.floor(Math.random() * healingRollSize) + 1;
+          overallMessage += `\n  ACERTO! ${token.name} cura ${healing} HP (baseado em ${action.healingDice})`;
+        } else if (action.effectCategory === 'utility' && action.utilityTitle) {
+          overallMessage += `\n  ACERTO! ${token.name} recebe o efeito: "${action.utilityTitle}"`;
+        } else {
+          overallMessage += `\n  ACERTO! ${token.name} (Efeito desconhecido)`;
+        }
+      } else {
+        overallMessage += `\n  ERROU! (Acerto ${finalHitValue} < AC ${minimumHitToRollDamage})`;
       }
     });
-    openAlertModal("Ação Aplicada!", effectMessage);
+    openAlertModal("Ação Aplicada!", overallMessage);
   };
 
   // --- Manipuladores de Exclusão e Expansão ---
@@ -226,91 +263,179 @@ const CombatActions: React.FC<CombatActionsProps> = ({
     setExpandedActionId(prevId => (prevId === finalActionId ? null : finalActionId));
   };
 
-  return (
-    <div className="combat-actions-container h-100 p-3">
-      <h4 className="text-white text-center mb-3">Ações de Combate</h4>
-      <hr className="border-secondary mb-4" />
+  // NEW: Effect to send the Hit Formula JSX to the parent
+  useEffect(() => {
+    const hitFormulaJSX = (
+      <div className="compact-formula-card mb-3 p-2 border border-secondary rounded bg-dark-subtle">
+        <h6 className="text-highlight-warning mb-2 text-center">Fórmula de ACERTO</h6>
 
-      {/* Seção do Gerenciador de Fórmula de Dano por Blocos */}
-      <div className="mb-4 p-3 border border-secondary rounded bg-dark-subtle">
-        <h5 className="text-highlight-warning mb-3 text-center">Construir Fórmula de Dano</h5>
+        {/* Controles de Vantagem/Desvantagem/Valor Fixo */}
+        <div className="d-flex justify-content-around mb-2 flex-wrap">
+          <button
+            className={`btn btn-sm ${useAdvantage ? 'btn-success' : 'btn-outline-success'} flex-grow-1 me-1 mb-1`}
+            onClick={() => {
+              setUseAdvantage((prev: boolean) => !prev);
+              if (!useAdvantage) {
+                setUseDisadvantage(false);
+                setUseFixedHitValue(false);
+              }
+            }}
+          >
+            <i className="bi bi-arrow-up-circle-fill me-1"></i>
+            {useAdvantage ? 'Vantagem Ativa' : 'Vantagem'}
+          </button>
+          <button
+            className={`btn btn-sm ${useDisadvantage ? 'btn-danger' : 'btn-outline-danger'} flex-grow-1 ms-1 mb-1`}
+            onClick={() => {
+              setUseDisadvantage((prev: boolean) => !prev);
+              if (!useDisadvantage) {
+                setUseAdvantage(false);
+                setUseFixedHitValue(false);
+              }
+            }}
+          >
+            <i className="bi bi-arrow-down-circle-fill me-1"></i>
+            {useDisadvantage ? 'Desvantagem Ativa' : 'Desvantagem'}
+          </button>
+        </div>
+        <div className="mb-2">
+          <div className="form-check form-switch d-flex align-items-center justify-content-center">
+            <input
+              className="form-check-input me-2"
+              type="checkbox"
+              id="useFixedHitValueSwitch"
+              checked={useFixedHitValue}
+              onChange={() => {
+                setUseFixedHitValue(prev => !prev);
+                if (!useFixedHitValue) {
+                  setUseAdvantage(false);
+                  setUseDisadvantage(false);
+                }
+              }}
+            />
+            <label className="form-check-label text-light-base small" htmlFor="useFixedHitValueSwitch">
+              Usar Valor Fixo
+            </label>
+          </div>
+          {useFixedHitValue && (
+            <input
+              type="number"
+              className="form-control form-control-sm bg-dark text-white border-secondary mt-1 text-center"
+              placeholder="Valor Fixo"
+              value={fixedHitValue}
+              onChange={(e) => setFixedHitValue(e.target.value)}
+            />
+          )}
+        </div>
+
+        {/* Exibição e Edição dos Blocos da Fórmula de Acerto (visível apenas se não usar valor fixo) */}
+        {!useFixedHitValue && (
+          <>
+            <div className="d-flex flex-nowrap overflow-auto hide-scrollbar mb-2 p-1 border-top border-bottom border-secondary">
+              {hitBlocks.length === 0 ? (
+                <p className="text-muted small w-100 text-center my-auto">Adicione blocos de acerto.</p>
+              ) : (
+                hitBlocks.map((block, index) => (
+                  <div key={block.id} className="d-flex align-items-center me-1 p-1 border border-info rounded bg-dark-subtle flex-shrink-0">
+                    <span className="me-1 text-light-base small">{block.type === 'dice' ? 'D:' : 'M:'}</span>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm bg-dark text-white border-secondary formula-input"
+                      value={block.value}
+                      onChange={(e) => updateBlock(setHitBlocks, block.id, e.target.value)}
+                      placeholder={block.type === 'dice' ? '1d20' : '5'}
+                    />
+                    <button
+                      className="btn btn-sm btn-outline-danger ms-1 formula-btn"
+                      onClick={() => removeBlock(setHitBlocks, block.id)}
+                      title="Remover Bloco"
+                    >
+                      <i className="bi bi-x-lg"></i>
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Botões para Adicionar Novos Blocos de Acerto */}
+            <div className="d-flex justify-content-around">
+              <button
+                className="btn btn-sm btn-outline-info me-1 flex-grow-1"
+                onClick={() => addBlock(setHitBlocks, setNextHitBlockId, 'dice', '1d20')}
+              >
+                <i className="bi bi-dice-5 me-1"></i> Dado
+              </button>
+              <button
+                className="btn btn-sm btn-outline-info ms-1 flex-grow-1"
+                onClick={() => addBlock(setHitBlocks, setNextHitBlockId, 'modifier', '1')}
+              >
+                <i className="bi bi-plus-circle me-1"></i> Mod
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+    onRenderHitFormula(hitFormulaJSX);
+  }, [hitBlocks, nextHitBlockId, useAdvantage, useDisadvantage, useFixedHitValue, fixedHitValue, onRenderHitFormula]);
+
+  // Effect to send the damage formula JSX to the parent
+  useEffect(() => {
+    const damageFormulaJSX = (
+      <div className="compact-formula-card mb-3 p-2 border border-secondary rounded bg-dark-subtle">
+        <h6 className="text-highlight-warning mb-2 text-center">Fórmula de DANO</h6>
 
         {/* Exibição e Edição dos Blocos da Fórmula */}
-        <div className="d-flex flex-wrap align-items-center mb-3">
+        <div className="d-flex flex-nowrap overflow-auto hide-scrollbar mb-2 p-1 border-top border-bottom border-secondary">
           {damageBlocks.length === 0 ? (
-            <p className="text-muted small w-100 text-center">Adicione blocos para construir sua fórmula de dano.</p>
+            <p className="text-muted small w-100 text-center my-auto">Adicione blocos de dano.</p>
           ) : (
             damageBlocks.map((block, index) => (
-              <React.Fragment key={block.id}>
-                {index > 0 && <span className="text-white mx-1">+</span>} {/* Adiciona '+' entre os blocos */}
-                <div className="d-flex align-items-center me-2 mb-2 p-2 border border-info rounded bg-dark-subtle">
-                  {block.type === 'dice' ? (
-                    <span className="me-1 text-light-base small">Dado:</span>
-                  ) : (
-                    <span className="me-1 text-light-base small">Mod:</span>
-                  )}
-                  <input
-                    type="text"
-                    className="form-control form-control-sm bg-dark text-white border-secondary"
-                    style={{ width: '80px' }}
-                    value={block.value}
-                    onChange={(e) => updateDamageBlock(block.id, e.target.value)}
-                    placeholder={block.type === 'dice' ? '1d6' : '3'}
-                  />
-                  <button
-                    className="btn btn-sm btn-outline-danger ms-2"
-                    onClick={() => removeDamageBlock(block.id)}
-                    title="Remover Bloco"
-                  >
-                    <i className="bi bi-x-lg"></i>
-                  </button>
-                </div>
-              </React.Fragment>
+              <div key={block.id} className="d-flex align-items-center me-1 p-1 border border-info rounded bg-dark-subtle flex-shrink-0">
+                <span className="me-1 text-light-base small">{block.type === 'dice' ? 'D:' : 'M:'}</span>
+                <input
+                  type="text"
+                  className="form-control form-control-sm bg-dark text-white border-secondary formula-input"
+                  value={block.value}
+                  onChange={(e) => updateBlock(setDamageBlocks, block.id, e.target.value)}
+                  placeholder={block.type === 'dice' ? '1d6' : '3'}
+                />
+                <button
+                  className="btn btn-sm btn-outline-danger ms-1 formula-btn"
+                  onClick={() => removeBlock(setDamageBlocks, block.id)}
+                  title="Remover Bloco"
+                >
+                  <i className="bi bi-x-lg"></i>
+                </button>
+              </div>
             ))
           )}
         </div>
 
         {/* Botões para Adicionar Novos Blocos */}
-        <div className="d-flex justify-content-around mb-3">
+        <div className="d-flex justify-content-around">
           <button
-            className="btn btn-sm btn-outline-info me-2 flex-grow-1"
-            onClick={() => addDamageBlock('dice', '1d6')}
+            className="btn btn-sm btn-outline-info me-1 flex-grow-1"
+            onClick={() => addBlock(setDamageBlocks, setNextDamageBlockId, 'dice', '1d6')}
           >
-            <i className="bi bi-dice-5 me-2"></i> Adicionar Dado
+            <i className="bi bi-dice-5 me-1"></i> Dado
           </button>
           <button
-            className="btn btn-sm btn-outline-info flex-grow-1"
-            onClick={() => addDamageBlock('modifier', '1')}
+            className="btn btn-sm btn-outline-info ms-1 flex-grow-1"
+            onClick={() => addBlock(setDamageBlocks, setNextDamageBlockId, 'modifier', '1')}
           >
-            <i className="bi bi-plus-circle me-2"></i> Adicionar Modificador
-          </button>
-        </div>
-
-        {/* Controles de Vantagem/Desvantagem */}
-        <div className="d-flex justify-content-around mb-3">
-          <button
-            className={`btn ${useAdvantage ? 'btn-success' : 'btn-outline-success'} flex-grow-1 me-2`}
-            onClick={() => {
-              setUseAdvantage(prev => !prev);
-              if (!useAdvantage) setUseDisadvantage(false); // Desativa desvantagem se vantagem for ativada
-            }}
-          >
-            <i className="bi bi-arrow-up-circle-fill me-2"></i>
-            {useAdvantage ? 'Vantagem Ativa' : 'Vantagem'}
-          </button>
-          <button
-            className={`btn ${useDisadvantage ? 'btn-danger' : 'btn-outline-danger'} flex-grow-1 ms-2`}
-            onClick={() => {
-              setUseDisadvantage(prev => !prev);
-              if (!useDisadvantage) setUseAdvantage(false); // Desativa vantagem se desvantagem for ativada
-            }}
-          >
-            <i className="bi bi-arrow-down-circle-fill me-2"></i>
-            {useDisadvantage ? 'Desvantagem Ativa' : 'Desvantagem'}
+            <i className="bi bi-plus-circle me-1"></i> Mod
           </button>
         </div>
       </div>
-      {/* Fim da Seção do Gerenciador de Blocos */}
+    );
+    onRenderDamageFormula(damageFormulaJSX);
+  }, [damageBlocks, nextDamageBlockId, onRenderDamageFormula]);
+
+  return (
+    <div className="combat-actions-container h-100 p-3">
+      <h4 className="text-white text-center mb-3">Ações de Combate</h4>
+      <hr className="border-secondary mb-4" />
 
       {actions.length === 0 ? (
         <p className="text-muted text-center">Nenhuma ação disponível. Crie uma nova ação na Ficha de Personagem.</p>
@@ -360,6 +485,24 @@ const CombatActions: React.FC<CombatActionsProps> = ({
                       >
                         Usar
                       </button>
+                        <button
+    className="btn btn-secondary btn-sm"
+    onClick={(e) => {
+      e.stopPropagation();
+      const messageToDisplay = `__actioncard: name:${action.name}, type:${action.mainType}, effectCategory:${action.effectCategory}, description:${action.description || ''}`;
+      // Chama a função de envio de mensagem do chat via Electron
+      // Assumindo que `electron` está disponível e `send-message` aceita a string e um ID de remetente.
+      if (electron && electron.invoke) {
+          electron.invoke("send-message", messageToDisplay, -1); // -1 para sistema
+      } else {
+          console.warn("Electron API não disponível para enviar mensagem de habilidade.");
+          // Opcional: openAlertModal para notificar o usuário sobre o erro
+      }
+    }}
+    title="Mostrar no Chat"
+  >
+    <i className="bi bi-chat-dots"></i> {/* Ícone de comentário */}
+  </button>
                     </td>
                     <td className="text-center">
                       <i className={`bi ${expandedActionId === action.id ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>

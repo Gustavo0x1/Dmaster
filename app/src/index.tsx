@@ -15,6 +15,7 @@ import React from 'react';
   import FullCharSheet from './components/CharacterSheet/CharacterSheetManager';
 import  Home  from './pages/Home';
 
+import AppRouterAndAuth from './AppRouterAndAuth';
 
   const root = ReactDOM.createRoot(
     document.getElementById('root') as HTMLElement
@@ -22,28 +23,12 @@ import  Home  from './pages/Home';
 
   root.render(
     
-    <React.StrictMode>
+    <>
       <meta httpEquiv="Content-Security-Policy" content="default-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"></meta>
-
-<HashRouter basename="/">
-  <Routes>
-
-      
-    <Route path="/" element={<Layout />}>
-      <Route path='/' element={<Home/>}/>
-      <Route path='/acoes' element={<Actions/>}/>
-      <Route path='/ficha' element={ <FullCharSheet></FullCharSheet>}/>
-      <Route path='/inventario' element={<Inventory/>}/>
+      <AppRouterAndAuth></AppRouterAndAuth>
 
 
-
-     </Route>
- 
-  </Routes>
-</HashRouter>
-
-
-    </React.StrictMode>,
+    </>,
   );
 
   // If you want to start measuring performance in your app, pass a function
