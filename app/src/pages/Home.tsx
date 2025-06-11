@@ -4,8 +4,13 @@ import { useLayout } from '../components/Layout'; // Import useLayout
 import RPGGrid from '../components/MainGrids';
 import Chat from '../components/ChatBox';
 import { ChatProvider } from '../components/contexts/ChatContext';
+import CombatTracker from '../components/CombatTracker';
+import { CombatTrackerToken } from '../types';
 
-// Define a type for the sendChatMessage function
+import Img1 from '../img/0.png'
+import Img2 from '../img/1.png'
+import Img3 from '../img/15.png'
+
 type SendChatMessageFunction = (message: string) => void;
 
 // Define a interface para o objeto electron exposto no window
@@ -18,11 +23,21 @@ interface ElectronAPI {
 
 const Home: React.FC = () => {
     const electron = (window as any).electron; // Acessa a API Electron
-    const { addContentToCenter, addContentToRight, clearContentFromCenter, clearContentFromRight } = useLayout(); // Use the layout hook
+    const { addContentToCenter, addContentToRight, clearContentFromCenter, clearContentFromRight,addContentToLeft,clearContentFromLeft } = useLayout(); // Use the layout hook
     const [sendChatMessage, setSendChatMessage] = useState<SendChatMessageFunction | null>(null);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null); // Estado para armazenar o USERID do MAIN
     const [isLoadingUserId, setIsLoadingUserId] = useState<boolean>(true); // Estado para controlar o carregamento do userId
+    const [combatants, setCombatants] = useState<CombatTrackerToken[]>([
+        { id: '1', name: 'Herói Valente', portraitUrl: Img1, ac: 17, currentHp: 80, maxHp: 90, initiative: 20, type: 'ally', danoCausado: 25, danoSofrido: 10 },
+        { id: '2', name: 'Orc Brutal', portraitUrl: Img2, ac: 15, currentHp: 15, maxHp: 25, initiative: 18, type: 'enemy', danoCausado: 10, danoSofrido: 25 },
+        { id: '3', name: 'Maga Arcana', portraitUrl: Img3, ac: 12, currentHp: 50, maxHp: 50, initiative: 15, type: 'ally', danoCausado: 40, danoSofrido: 0 },
+    ]);
 
+
+  // Esta função será passada como prop para o CombatTracker
+  const handleCombatantsChange = (updatedCombatants: CombatTrackerToken[]) => {
+    setCombatants(updatedCombatants);
+  };
     // Efeito para buscar o USERID do processo MAIN
     useEffect(() => {
         const getUserIdFromMain = async () => {
@@ -58,6 +73,15 @@ const Home: React.FC = () => {
         // Só adicione os componentes se o userId já foi carregado
         if (!isLoadingUserId && currentUserId !== null) {
             // Add RPGGrid to the center column
+            addContentToLeft(    <CombatTracker 
+          combatants={combatants} 
+          
+          
+        />);
+
+
+// ... no seu JSX
+
             addContentToCenter(<RPGGrid />);
             // Add Chat to the right column, passing the setSendChatMessage prop and the currentUserId
             addContentToRight(<ChatProvider  USERID={currentUserId}><Chat  USERID={currentUserId} /></ChatProvider>); // Use userId aqui

@@ -42,7 +42,7 @@ const RPGGrid: React.FC = () => {
     token: null,
     opacity: 0.5,
   });
-  const { addContentToLeft, addContentToRight, clearContentFromLeft, setSelectedTokens } = useLayout(); // NOVO: setSelectedTokens do Layout
+  const {  addContentToRight, setSelectedTokens } = useLayout(); // NOVO: setSelectedTokens do Layout
   const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState<number>(1);
   const [isPanning, setIsPanning] = useState<boolean>(false);
@@ -355,9 +355,9 @@ const RPGGrid: React.FC = () => {
     // Limpeza: Ao desmontar o RPGGrid, limpa os tokens selecionados no Layout
     return () => {
       setSelectedTokens([]);
-      clearContentFromLeft(); // Limpa todo o conteúdo do layout (se for o caso)
+      
     };
-  }, [selectedGridTokenIds, tokens, convertGridTokenToAppToken, setSelectedTokens, clearContentFromLeft]);
+  }, [selectedGridTokenIds, tokens, convertGridTokenToAppToken, setSelectedTokens]);
 
 
   // Event Listeners globais (resize, wheel)

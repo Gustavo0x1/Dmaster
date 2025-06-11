@@ -325,7 +325,7 @@ function createMainWindow(){
         pathname:path.join(__dirname,'./app/build/index.html'),
         protocol:'file'
     })
-    MainWindow.loadURL(startUrl) // Certifique-se de que este é o URL correto do seu React App
+    MainWindow.loadURL('http://localhost:3000/') // Certifique-se de que este é o URL correto do seu React App
 }
 
 app.whenReady().then(()=>{

@@ -1,134 +1,6 @@
 [
   {
     "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:16.747Z",
-    "message": "ff",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:18.537Z",
-    "message": "pfb",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:19.810Z",
-    "message": "asdf",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:21.165Z",
-    "message": "afsdas",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:21.998Z",
-    "message": "asdf",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:22.698Z",
-    "message": "gg",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:23.450Z",
-    "message": "gg",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:24.266Z",
-    "message": "hh",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:25.360Z",
-    "message": "rr",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:26.046Z",
-    "message": "44",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:26.921Z",
-    "message": "22",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:28.131Z",
-    "message": "1234",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:29.826Z",
-    "message": "1234",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:35.503Z",
-    "message": "É",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:36.144Z",
-    "message": "its",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:37.625Z",
-    "message": "ok",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
     "timestamp": "2025-06-10T05:28:39.684Z",
     "message": "ithink",
     "id": 1,
@@ -384,5 +256,123 @@
     "id": 1,
     "senderName": "Você",
     "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T23:04:42.792Z",
+    "message": "boggs",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T23:04:45.156Z",
+    "message": "teste",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T23:04:46.402Z",
+    "message": "444",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T23:04:49.817Z",
+    "message": "123",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T23:04:50.663Z",
+    "message": "sadf",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T23:04:51.711Z",
+    "message": "ffff",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T23:04:52.619Z",
+    "message": "gggg",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T23:04:54.617Z",
+    "message": "asfdasdf",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T23:05:10.683Z",
+    "message": "Ué",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T23:05:11.327Z",
+    "message": "123",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T23:05:34.529Z",
+    "message": "?",
+    "id": 2,
+    "senderName": "Você",
+    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T23:06:27.031Z",
+    "message": "__actioncard: name:Ataque de Espada Longa, type:attack, effectCategory:damage, description:Um golpe padrão com sua espada longa.",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T23:06:28.738Z",
+    "message": "__actioncard: name:Cura Leve de Ferimentos, type:spell, effectCategory:healing, description:Uma explosão de energia positiva que cura um alvo.",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-10T23:06:29.731Z",
+    "message": "__actioncard: name:Inspiração Bárdica, type:utility, effectCategory:utility, description:Você inspira uma criatura, que pode adicionar um d6 a um teste de atributo, ataque ou resistência.",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-11T03:40:46.031Z",
+    "message": "__actioncard: name:Alarme, type:spell, effectCategory:utility, description:Você coloca um alarme para intrusos desavisados. Escolha uma porta, uma janela ou uma área dentro do alcance que não seja maior que 6 metros cúbicos. Até a magia acabar, um alarme alerta você sempre que uma criatura Miúda ou maior tocarem ou entrarem na área protegida. Quando você conjura a magia, você pode designar as criaturas que não ativarão o alarme. Você também escolhe se o alarme será mental ou audível.\n\nUm alarme mental alerta você com um silvo na sua mente, se você estiver a até de 1,5 quilômetro da área protegida. Esse silvo acordará você se você estiver dormindo.\n\nUm alarme audível produz o som de um sino de mão por 10 minutos num raio de 18 metros.",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-11T03:40:53.473Z",
+    "message": "__actioncard: name:Inspiração Bárdica, type:utility, effectCategory:utility, description:Você inspira uma criatura, que pode adicionar um d6 a um teste de atributo, ataque ou resistência.",
+    "id": -1
   }
 ]

@@ -114,3 +114,16 @@ export interface Token {
   width: number; // Largura do token no grid
   height: number; // Altura do token no grid
 }
+export interface CombatTrackerToken {
+  id: string;
+  name: string;
+  portraitUrl: string;
+  ac: number;
+  currentHp: number;
+  maxHp: number;
+  initiative: number; // Essencial para a ordenação
+  type: 'ally' | 'enemy';
+  danoCausado: number,
+  danoSofrido: number,
+
+}
