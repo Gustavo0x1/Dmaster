@@ -1,30 +1,6 @@
 [
   {
     "type": "chat-message",
-    "timestamp": "2025-06-10T05:28:39.684Z",
-    "message": "ithink",
-    "id": 1,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:29:03.050Z",
-    "message": "fff",
-    "id": 2,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-10T05:29:04.029Z",
-    "message": "ggg",
-    "id": 2,
-    "senderName": "Você",
-    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
     "timestamp": "2025-06-10T05:29:05.016Z",
     "message": "hhhh",
     "id": 2,
@@ -374,5 +350,29 @@
     "timestamp": "2025-06-11T03:40:53.473Z",
     "message": "__actioncard: name:Inspiração Bárdica, type:utility, effectCategory:utility, description:Você inspira uma criatura, que pode adicionar um d6 a um teste de atributo, ataque ou resistência.",
     "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-12T04:53:07.364Z",
+    "message": "Teste",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-12T04:53:09.592Z",
+    "message": "aa",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-06-12T04:53:10.803Z",
+    "message": "asdf",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
   }
 ]

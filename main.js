@@ -138,6 +138,15 @@ function initializeDatabase() {
 
     // Criação das tabelas se não existirem
     // A tabela 'characters' usa INTEGER PRIMARY KEY AUTOINCREMENT para o id
+db.exec(`
+  CREATE TABLE IF NOT EXISTS scenarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+    name TEXT NOT NULL,
+    map_asset_id INTEGER,
+    tokens TEXT,
+    fog_of_war TEXT
+  );
+`);
     db.exec(`
       CREATE TABLE IF NOT EXISTS characters (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -236,6 +245,16 @@ function initializeDatabase() {
       const insertSkill = db.prepare(`INSERT INTO character_skills (character_id, name, modifier) VALUES (?, ?, ?)`);
       defaultCharacterData.mySkills.forEach(skill => {
         insertSkill.run(defaultCharacterDbId, skill.name, skill.modifier);
+      });
+
+
+      const DePlayer = db.prepare(`INSERT INTO players ( user,password) VALUES (?, ?)`);
+      defaultCharacterData.mySkills.forEach(skill => {
+        DePlayer.run( 'admin', 'admin');
+      });
+      const DePlayer2 = db.prepare(`INSERT INTO players ( user,password) VALUES (?, ?)`);
+      defaultCharacterData.mySkills.forEach(skill => {
+        DePlayer2.run( 'admin2', 'admin2');
       });
 
       // Inserir ações
@@ -387,14 +406,49 @@ app.on('before-quit', () => {
   }
 });
 // Manipular alterações de cenário enviadas pela interface
-ipcMain.on("update-scenario", (event, data) => {
-  const message = JSON.stringify({ type: "updateScenario", data });
+// Em main.js, adicione este novo handler
 
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(message);
-    console.log("Mensagem enviada ao servidor:", message);
-  } else {
-    console.error("WebSocket não está conectado. Mensagem não enviada.");
+ipcMain.handle('update-scenario', async (event, scenarioId, scenarioData) => {
+  console.log(`[Main Process] Recebida requisição para ATUALIZAR cenário ID: ${scenarioId}.`);
+
+  if (!scenarioId) {
+    return { success: false, message: "ID do cenário inválido para atualização." };
+  }
+
+  try {
+    // A lógica de processamento dos dados é a mesma do save-scenario
+    const mapsManifest = JSON.parse(fs.readFileSync(mapManifestPath));
+    const mapBase64Data = scenarioData.mapImageUrl.split(',')[1];
+    const mapAsset = mapsManifest.find(map => map.data === mapBase64Data);
+    if (!mapAsset) return { success: false, message: "Mapa não encontrado." };
+    const mapAssetId = mapAsset.id;
+
+    const tokensManifest = JSON.parse(fs.readFileSync(tokenManifestPath));
+    const scenarioTokens = scenarioData.tokens.map(token => {
+        const tokenBase64Data = token.image.split(',')[1];
+        const tokenAsset = tokensManifest.find(t => t.data === tokenBase64Data);
+        if (!tokenAsset) return null;
+        return { assetId: tokenAsset.id, x: token.x, y: token.y, width: token.width, height: token.height };
+    }).filter(t => t !== null);
+
+    const tokensJson = JSON.stringify(scenarioTokens);
+    const fogGridJson = JSON.stringify(scenarioData.fogGrid);
+
+    // Query SQL de UPDATE
+    const stmt = db.prepare(`
+      UPDATE scenarios 
+      SET map_asset_id = ?, tokens = ?, fog_of_war = ?
+      WHERE id = ?
+    `);
+    stmt.run(mapAssetId, tokensJson, fogGridJson, scenarioId);
+
+    // ... (lógica de sincronização via WebSocket, se desejar) ...
+
+    return { success: true, message: "Cenário atualizado com sucesso!" };
+
+  } catch (error) {
+    console.error(`[Main Process] Erro ao atualizar cenário ${scenarioId}:`, error);
+    return { success: false, message: `Erro: ${error.message}` };
   }
 });
 ipcMain.handle('request-chat-history', async (event) => {
@@ -931,4 +985,156 @@ ipcMain.handle('manage-assets:add-image', async (event, assetType) => {
   fs.writeFileSync(manifestPath, JSON.stringify(manifestData, null, 2));
 
   return manifestData;
+});
+ipcMain.handle('save-scenario', async (event, scenarioData, scenarioName) => {
+  console.log('[Main Process] Recebida requisição para salvar cenário.');
+  
+  try {
+    // 1. Encontrar o ID do mapa
+    const mapsManifest = JSON.parse(fs.readFileSync(mapManifestPath));
+    const mapBase64Data = scenarioData.mapImageUrl.split(',')[1]; // Extrai o dado base64 da URL
+    const mapAsset = mapsManifest.find(map => map.data === mapBase64Data);
+    if (!mapAsset) {
+      return { success: false, message: "Mapa do cenário não encontrado na biblioteca de mapas." };
+    }
+    const mapAssetId = mapAsset.id;
+
+    // 2. Processar os tokens
+    const tokensManifest = JSON.parse(fs.readFileSync(tokenManifestPath));
+    const scenarioTokens = scenarioData.tokens.map(token => {
+      const tokenBase64Data = token.image.split(',')[1];
+      const tokenAsset = tokensManifest.find(t => t.data === tokenBase64Data);
+      
+      if (!tokenAsset) {
+        console.warn(`Token com imagem ${token.name} não encontrado na biblioteca, será ignorado.`);
+        return null;
+      }
+      
+      // Armazenamos apenas a informação essencial
+      return {
+        assetId: tokenAsset.id, // ID do token no manifest
+        x: token.x,
+        y: token.y,
+        width: token.width,
+        height: token.height,
+        // Você pode adicionar outros dados que precisam ser salvos por token aqui
+        // Ex: currentHp: token.currentHp
+      };
+    }).filter(t => t !== null); // Remove tokens que não foram encontrados
+
+    // 3. Stringify dos dados complexos para armazenamento
+    const tokensJson = JSON.stringify(scenarioTokens);
+    const fogGridJson = JSON.stringify(scenarioData.fogGrid);
+
+    // 4. Salvar no banco de dados
+    // Usamos 'INSERT OR REPLACE' para sempre atualizar o cenário de ID 1 (o "cenário ativo")
+    // A query agora é um INSERT simples, pois o ID é AUTOINCREMENT
+    const stmt = db.prepare(`
+      INSERT INTO scenarios (name, map_asset_id, tokens, fog_of_war)
+      VALUES (?, ?, ?, ?)
+    `);
+    const info = stmt.run(scenarioName, mapAssetId, tokensJson, fogGridJson);
+
+    // Enviar sinal de sincronização para outros clientes via WebSocket
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const syncData = {
+          mapAssetId: mapAssetId,
+          tokens: scenarioTokens,
+          fogOfWar: scenarioData.fogGrid,
+      };
+      ws.send(JSON.stringify({ type: "syncAll", data: syncData }));
+      console.log("[Main Process] Cenário salvo e enviado para sincronização.");
+    }
+
+    return { success: true, message: "Cenário salvo com sucesso!" };
+
+  } catch (error) {
+    console.error('[Main Process] Erro ao salvar cenário:', error);
+    return { success: false, message: `Erro ao salvar cenário: ${error.message}` };
+  }
+});
+ipcMain.handle('load-scenario', async (event,scenarioId) => {
+  console.log('[Main Process] Carregando cenário salvo.');
+  try {
+  const scenarioRow = db.prepare('SELECT * FROM scenarios WHERE id = ?').get(scenarioId);
+
+    if (!scenarioRow) {
+      return { success: false, message: "Nenhum cenário salvo encontrado." };
+    }
+
+    // O processo inverso: reconstruir o objeto de cenário para o frontend
+    const mapsManifest = JSON.parse(fs.readFileSync(mapManifestPath));
+    const tokensManifest = JSON.parse(fs.readFileSync(tokenManifestPath));
+
+    // 1. Encontrar o mapa
+    const mapAsset = mapsManifest.find(map => map.id === scenarioRow.map_asset_id);
+    if (!mapAsset) {
+      return { success: false, message: "O mapa salvo não existe mais na biblioteca." };
+    }
+    const mapImageUrl = `data:${mapAsset.type};base64,${mapAsset.data}`;
+
+    // 2. Reconstruir os tokens
+    const savedTokens = JSON.parse(scenarioRow.tokens);
+    const scenarioTokens = savedTokens.map(savedToken => {
+      const tokenAsset = tokensManifest.find(t => t.id === savedToken.assetId);
+      if (!tokenAsset) return null;
+
+      // Recria o objeto completo que o frontend espera
+      return {
+        ...savedToken, // x, y, width, height
+        id: tokenAsset.id, // Usa o ID do asset como ID único do token
+        name: tokenAsset.name,
+        image: `data:${tokenAsset.type};base64,${tokenAsset.data}`,
+        portraitUrl: `data:${tokenAsset.type};base64,${tokenAsset.data}`,
+        // Preencha outros dados com valores padrão ou salvos
+        currentHp: 10, 
+        maxHp: 10,
+        ac: 10,
+        damageDealt: "1d4"
+      };
+    }).filter(t => t !== null);
+
+    // 3. Montar o objeto de cenário final
+    const fullScenarioData = {
+      mapImageUrl: mapImageUrl,
+      tokens: scenarioTokens,
+      fogGrid: JSON.parse(scenarioRow.fog_of_war),
+    };
+
+    return { success: true, data: fullScenarioData };
+
+  } catch (error) {
+    console.error('[Main Process] Erro ao carregar cenário:', error);
+    return { success: false, message: `Erro ao carregar cenário: ${error.message}` };
+  }
+});
+ipcMain.handle('get-scenario-list', async () => {
+  try {
+    // 1. Lê o manifest dos mapas para ter acesso às imagens
+    const mapsManifest = JSON.parse(fs.readFileSync(mapManifestPath));
+    
+    // 2. Busca os cenários do DB, agora incluindo o ID do mapa
+    const scenariosFromDb = db.prepare('SELECT id, name, map_asset_id FROM scenarios').all();
+
+    // 3. Combina as informações
+    const scenariosWithPreview = scenariosFromDb.map(scenario => {
+      // Encontra o asset do mapa correspondente no manifest
+      const mapAsset = mapsManifest.find(map => map.id === scenario.map_asset_id);
+      
+      // Retorna um novo objeto com os dados do preview
+      return {
+        id: scenario.id,
+        name: scenario.name,
+        // Envia os dados da imagem para o frontend, se o mapa for encontrado
+        mapPreviewData: mapAsset ? mapAsset.data : null, // O base64 da imagem
+        mapMimeType: mapAsset ? mapAsset.type : null     // O tipo da imagem (ex: 'image/png')
+      };
+    });
+
+    return { success: true, data: scenariosWithPreview };
+
+  } catch (error) {
+    console.error('[Main Process] Erro ao buscar lista de cenários com preview:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
 });

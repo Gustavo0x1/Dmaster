@@ -4,6 +4,7 @@ import Header from "./Header";
 import { Outlet } from 'react-router-dom';
 import { Token } from '../types'; // Importe o tipo Token
 import { ChatProvider } from '../components/contexts/ChatContext';
+import { AudioProvider} from "./AUDIO/MusicPlayer";
 // Context API para o layout
 interface LayoutContextProps {
   addContentToLeft: (content: ReactNode) => void;
@@ -94,6 +95,8 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
   return (
     <ChatProvider USERID={currentUserId as number}>
 
+<AudioProvider>
+
 
     <LayoutContext.Provider
       value={{
@@ -127,6 +130,7 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
         </div>
       </div>
     </LayoutContext.Provider>
+    </AudioProvider>
         </ChatProvider>
   );
 };

@@ -49,8 +49,11 @@ on: (channel, callback) => {
     // Lista de canais IPC permitidos para invoke
     const validInvokeChannels = [
       'request-character-data',
+        'get-scenario-list',
       'save-action',
       'edit-action',
+      'load-scenario',
+       'update-scenario',
       'delete-action',
       'update-character-attributes',
       'send-message',
@@ -60,6 +63,7 @@ on: (channel, callback) => {
       'manage-assets:add-image',
       'request-chat-history',
       'login-check',
+      'save-scenario',
       'update-grid-state',
       'update-character-bio',
       'update-character-essentials',
