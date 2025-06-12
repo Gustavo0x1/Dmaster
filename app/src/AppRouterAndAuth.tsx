@@ -45,7 +45,7 @@ function AppRouterAndAuth() {
         <>
             {/* A tag meta de Content-Security-Policy geralmente vai no public/index.html */}
             {/* Se você precisar dela aqui por algum motivo específico do Electron, certifique-se de que é a forma correta para o Electron */}
-            <meta httpEquiv="Content-Security-Policy" content="default-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"></meta>
+            <meta httpEquiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: asset:;"></meta>
 
             <HashRouter basename="/">
                 <Routes>

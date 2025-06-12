@@ -1,14 +1,37 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const sharp = require('sharp');
+
+const { app, BrowserWindow, ipcMain,dialog,protocol, session } = require("electron");
+const helmet = require('helmet');
 const WebSocket = require("ws");
 const url = require('url')
+const fs = require('fs');
+const express = require('express');
+const app2 = express();
+
 const path = require('path')
 const Database = require('better-sqlite3');
 const DB_PATH = path.join(app.getPath('userData'), 'characters.db');
-
+const MAX_MAP_DIMENSION = 2048;
 let MainWindow;
 let ws;
 let db;
 let USERID; // Este USERID é do Main Process, usado para identificar a janela atual ou o mestre.
+const userDataPath = app.getPath('userData');
+const assetsPath = path.join(userDataPath, 'assets');
+if (!fs.existsSync(assetsPath)) {
+  fs.mkdirSync(assetsPath, { recursive: true });
+}
+
+function initializeAssetManifest(assetType) {
+  const manifestPath = path.join(userDataPath, `${assetType}.json`);
+  if (!fs.existsSync(manifestPath)) {
+    fs.writeFileSync(manifestPath, JSON.stringify([]));
+  }
+  return manifestPath;
+}
+
+const tokenManifestPath = initializeAssetManifest('tokens');
+const mapManifestPath = initializeAssetManifest('maps');
 
 // Mock database for demonstration. In a real app, this would be a database call.
 const defaultCharacterData = {
@@ -317,6 +340,7 @@ function createMainWindow(){
         webPreferences:{
             contextIsolation:true,
             nodeIntegration:true, // Embora nodeIntegration seja true aqui, contextIsolation é true, então o preload é a maneira segura.
+              contentSecurityPolicy: "img-src 'self' data: asset:;",
             preload: path.join(__dirname,'preload.js')
         }
     });
@@ -329,6 +353,26 @@ function createMainWindow(){
 }
 
 app.whenReady().then(()=>{
+   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+        callback({
+            responseHeaders: {
+                ...details.responseHeaders,
+                'Content-Security-Policy': ["img-src 'self' data: asset:"]
+            }
+        });
+protocol.registerStreamProtocol('asset', (request, callback) => {
+    const urlPath = decodeURIComponent(request.url.replace('asset://', ''));
+    const filePath = path.normalize(path.join(assetsPath, urlPath));
+    callback({
+      statusCode: 200,
+      headers: { 'Content-Type': 'image/png' }, // Idealmente, o tipo deveria ser dinâmico
+      data: fs.createReadStream(filePath),
+    });
+  });
+
+    });
+   // FIX 2: Corrigir a lógica do protocolo 'asset://' para usar o caminho correto
+
   createMainWindow();
 
   initializeDatabase();
@@ -819,4 +863,72 @@ ipcMain.handle('delete-character', async (event, characterId) => {
     console.error(`[Main Process] Erro ao deletar personagem ${characterId} do SQLite:`, error);
     return { success: false, message: `Erro ao deletar: ${error.message}` };
   }
+});
+ipcMain.handle('manage-assets:get-pool', async (event, assetType) => {
+  const manifestPath = assetType === 'token' ? tokenManifestPath : mapManifestPath;
+  const assetFolder = path.join(assetsPath, `${assetType}s`);
+  if (!fs.existsSync(assetFolder)) {
+    fs.mkdirSync(assetFolder);
+}
+  const data = fs.readFileSync(manifestPath);
+  return JSON.parse(data);
+});
+
+ipcMain.handle('manage-assets:add-image', async (event, assetType) => {
+  const manifestPath = assetType === 'token' ? tokenManifestPath : mapManifestPath;
+
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: `Adicionar Novo ${assetType === 'token' ? 'Token' : 'Mapa'}`,
+    properties: ['openFile'],
+    filters: [{ name: 'Imagens', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+  });
+
+  if (canceled || filePaths.length === 0) {
+    return null;
+  }
+  
+  const originalPath = filePaths[0];
+
+  let newAsset;
+  const manifestData = JSON.parse(fs.readFileSync(manifestPath));
+  
+  // Inicia o pipeline de processamento com sharp para ambos os casos
+  let imagePipeline = sharp(originalPath);
+  
+  // Pega os metadados para obter dimensões e formato
+  const metadata = await imagePipeline.metadata();
+  
+  // SE FOR UM MAPA, APLICA O REDIMENSIONAMENTO SE NECESSÁRIO
+  if (assetType === 'map') {
+    if (metadata.width > MAX_MAP_DIMENSION || metadata.height > MAX_MAP_DIMENSION) {
+      console.log(`[Main Process] Mapa grande detectado (${metadata.width}x${metadata.height}). Redimensionando...`);
+      imagePipeline.resize({
+        width: MAX_MAP_DIMENSION,
+        height: MAX_MAP_DIMENSION,
+        fit: 'inside',
+        withoutEnlargement: true
+      });
+    }
+  }
+
+  // CONVERTE O RESULTADO (REDIMENSIONADO OU NÃO) PARA BASE64
+  // O método .toBuffer() obtém a imagem processada
+  const processedImageBuffer = await imagePipeline.toBuffer();
+  const base64Data = processedImageBuffer.toString('base64');
+  
+  // O formato é pego dos metadados para maior precisão
+  const mimeType = `image/${metadata.format}`;
+
+  // Cria o objeto do asset. Agora mapas e tokens têm a MESMA ESTRUTURA.
+  newAsset = {
+    id: Date.now(),
+    name: path.basename(originalPath),
+    type: mimeType,
+    data: base64Data
+  };
+  
+  manifestData.push(newAsset);
+  fs.writeFileSync(manifestPath, JSON.stringify(manifestData, null, 2));
+
+  return manifestData;
 });
