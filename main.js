@@ -1,6 +1,8 @@
-const sharp = require('sharp');
+// main.js
+// const sharp = require('sharp'); // REMOVA esta linha
 
-const { app, BrowserWindow, ipcMain,dialog,protocol, session } = require("electron");
+const  sharp = require('sharp'); // ADICIONE esta linha
+const { app, BrowserWindow, ipcMain, dialog, protocol, session } = require("electron");
 const helmet = require('helmet');
 const WebSocket = require("ws");
 const url = require('url')
@@ -10,20 +12,20 @@ const app2 = express();
 
 const path = require('path')
 const Database = require('better-sqlite3');
-const DB_PATH = path.join(app.getPath('userData'), 'characters.db');
+const DB_PATH = path.join(__dirname, 'characters.db');
 const MAX_MAP_DIMENSION = 2048;
 let MainWindow;
 let ws;
 let db;
 let USERID; // Este USERID é do Main Process, usado para identificar a janela atual ou o mestre.
-const userDataPath = app.getPath('userData');
-const assetsPath = path.join(userDataPath, 'assets');
+
+const assetsPath = path.join(__dirname, 'assets');
 if (!fs.existsSync(assetsPath)) {
   fs.mkdirSync(assetsPath, { recursive: true });
 }
 
 function initializeAssetManifest(assetType) {
-  const manifestPath = path.join(userDataPath, `${assetType}.json`);
+  const manifestPath = path.join(__dirname, `${assetType}.json`);
   if (!fs.existsSync(manifestPath)) {
     fs.writeFileSync(manifestPath, JSON.stringify([]));
   }
@@ -134,13 +136,13 @@ const defaultCharacterData = {
 function initializeDatabase() {
   try {
     db = new Database(DB_PATH, { verbose: console.log });
-    console.log(`[Main Process] Banco de dados SQLite aberto em: ${DB_PATH}`);
+    
 
     // Criação das tabelas se não existirem
     // A tabela 'characters' usa INTEGER PRIMARY KEY AUTOINCREMENT para o id
 db.exec(`
   CREATE TABLE IF NOT EXISTS scenarios (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     map_asset_id INTEGER,
     tokens TEXT,
@@ -289,7 +291,7 @@ db.exec(`
 
 // Função para iniciar a conexão WebSocket
 function startWebSocket() {
-  ws = new WebSocket("ws://26.37.35.114:5000");
+  ws = new WebSocket("ws://26.61.163.136:5000");
 
   ws.on("open", () => {
     console.log("Conectado ao servidor WebSocket.");
@@ -304,12 +306,20 @@ ws.on("message", (message) => {
       console.warn("MainWindow ainda não está pronta para enviar mensagens");
       return;
     }
-
+   if (type === "sendActiveScenarioToRequester") {
+            console.log("[Main Process] Recebido cenário ativo exclusivo do servidor:", data);
+            MainWindow.webContents.send("sendActiveScenarioToRequester", data); // Usa o mesmo nome
+            return; // Consome a mensagem
+        }
     if (type === "SyncTokenPosition") {
       MainWindow.webContents.send("SyncTokenPosition", data);
     }
+    if (type === "syncActiveScenario") {
+      console.log(data)
+      MainWindow.webContents.send("syncActiveScenario", data);
+    }
   if (type === "chat-history") {
-        console.log("[Main Process] Recebido chat-history do servidor:", data);
+    
         if (data && Array.isArray(data)) {
           // Encaminha o histórico para o frontend
           MainWindow.webContents.send("chat-history", data);
@@ -327,10 +337,10 @@ if (type === "chat-message") {
           console.warn("MainWindow ou webContents não está pronto.");
         }
       }
-    // -
+
     if (type === "syncAll") {
       MainWindow.webContents.send("sync-all", data);
- 
+
     }
 
   } catch (err) {
@@ -379,15 +389,7 @@ app.whenReady().then(()=>{
                 'Content-Security-Policy': ["img-src 'self' data: asset:"]
             }
         });
-protocol.registerStreamProtocol('asset', (request, callback) => {
-    const urlPath = decodeURIComponent(request.url.replace('asset://', ''));
-    const filePath = path.normalize(path.join(assetsPath, urlPath));
-    callback({
-      statusCode: 200,
-      headers: { 'Content-Type': 'image/png' }, // Idealmente, o tipo deveria ser dinâmico
-      data: fs.createReadStream(filePath),
-    });
-  });
+
 
     });
    // FIX 2: Corrigir a lógica do protocolo 'asset://' para usar o caminho correto
@@ -407,7 +409,18 @@ app.on('before-quit', () => {
 });
 // Manipular alterações de cenário enviadas pela interface
 // Em main.js, adicione este novo handler
-
+ipcMain.handle('request-initial-scenario', async (event) => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    // Envia uma mensagem específica para o servidor solicitando o cenário ativo
+    ws.send(JSON.stringify({ type: "requestActiveScenario" }));
+    console.log("[Main Process] Frontend pronto. Solicitando cenário ativo do servidor.");
+    // Não retorna nada aqui, a resposta virá via 'sendActiveScenarioToRequester'
+    return { success: true };
+  } else {
+    console.error("[Main Process] Não foi possível solicitar o cenário inicial, WebSocket não está conectado.");
+    return { success: false, message: "WebSocket não conectado." };
+  }
+});
 ipcMain.handle('update-scenario', async (event, scenarioId, scenarioData) => {
   console.log(`[Main Process] Recebida requisição para ATUALIZAR cenário ID: ${scenarioId}.`);
 
@@ -436,7 +449,7 @@ ipcMain.handle('update-scenario', async (event, scenarioId, scenarioData) => {
 
     // Query SQL de UPDATE
     const stmt = db.prepare(`
-      UPDATE scenarios 
+      UPDATE scenarios
       SET map_asset_id = ?, tokens = ?, fog_of_war = ?
       WHERE id = ?
     `);
@@ -838,7 +851,7 @@ ipcMain.handle('save-action', async (event, characterId, action) => {
       );
       action.id = info.lastInsertRowid; // Atribui o novo ID auto-incrementado à ação
       console.log(`[Main Process] Nova ação ${action.name} inserida com ID: ${action.id}.`);
-    
+
     return { success: true, message: "Ação salva com sucesso!", newActionId: action.id };
   } catch (error) {
     console.error(`[Main Process] Erro ao salvar ação para o personagem ${characterId}:`, error);
@@ -928,6 +941,7 @@ ipcMain.handle('manage-assets:get-pool', async (event, assetType) => {
   return JSON.parse(data);
 });
 
+
 ipcMain.handle('manage-assets:add-image', async (event, assetType) => {
   const manifestPath = assetType === 'token' ? tokenManifestPath : mapManifestPath;
 
@@ -986,9 +1000,20 @@ ipcMain.handle('manage-assets:add-image', async (event, assetType) => {
 
   return manifestData;
 });
+ipcMain.on('add-tokens-to-initiative', (event, tokens) => {
+  if (MainWindow) {
+    MainWindow.webContents.send('add-tokens-to-combat-tracker', tokens);
+  }
+});
 ipcMain.handle('save-scenario', async (event, scenarioData, scenarioName) => {
+  if(ws){
+    console.log("CONSOLE")
+    ws.send(JSON.stringify({ type: "sync-scenario", data: null }))
+  }else{
+    console.log("NOggers")
+  }
   console.log('[Main Process] Recebida requisição para salvar cenário.');
-  
+
   try {
     // 1. Encontrar o ID do mapa
     const mapsManifest = JSON.parse(fs.readFileSync(mapManifestPath));
@@ -1004,14 +1029,15 @@ ipcMain.handle('save-scenario', async (event, scenarioData, scenarioName) => {
     const scenarioTokens = scenarioData.tokens.map(token => {
       const tokenBase64Data = token.image.split(',')[1];
       const tokenAsset = tokensManifest.find(t => t.data === tokenBase64Data);
-      
+
       if (!tokenAsset) {
         console.warn(`Token com imagem ${token.name} não encontrado na biblioteca, será ignorado.`);
         return null;
       }
-      
+
       // Armazenamos apenas a informação essencial
       return {
+        id: token.id,
         assetId: tokenAsset.id, // ID do token no manifest
         x: token.x,
         y: token.y,
@@ -1053,6 +1079,16 @@ ipcMain.handle('save-scenario', async (event, scenarioData, scenarioName) => {
     return { success: false, message: `Erro ao salvar cenário: ${error.message}` };
   }
 });
+ipcMain.handle('MovePlayersToScenario', async (event, scenarioId) => {
+
+  if(ws){
+    console.log("Teste")
+    ws.send(JSON.stringify({ type: "sync-scenario", data: scenarioId }))
+    return { success:true}
+  }
+  return { success:false}
+
+});
 ipcMain.handle('load-scenario', async (event,scenarioId) => {
   console.log('[Main Process] Carregando cenário salvo.');
   try {
@@ -1078,16 +1114,16 @@ ipcMain.handle('load-scenario', async (event,scenarioId) => {
     const scenarioTokens = savedTokens.map(savedToken => {
       const tokenAsset = tokensManifest.find(t => t.id === savedToken.assetId);
       if (!tokenAsset) return null;
-
+      console.log("TOKEN ID :"+savedToken.id)
       // Recria o objeto completo que o frontend espera
       return {
         ...savedToken, // x, y, width, height
-        id: tokenAsset.id, // Usa o ID do asset como ID único do token
+       
         name: tokenAsset.name,
         image: `data:${tokenAsset.type};base64,${tokenAsset.data}`,
         portraitUrl: `data:${tokenAsset.type};base64,${tokenAsset.data}`,
         // Preencha outros dados com valores padrão ou salvos
-        currentHp: 10, 
+        currentHp: 10,
         maxHp: 10,
         ac: 10,
         damageDealt: "1d4"
@@ -1112,7 +1148,7 @@ ipcMain.handle('get-scenario-list', async () => {
   try {
     // 1. Lê o manifest dos mapas para ter acesso às imagens
     const mapsManifest = JSON.parse(fs.readFileSync(mapManifestPath));
-    
+
     // 2. Busca os cenários do DB, agora incluindo o ID do mapa
     const scenariosFromDb = db.prepare('SELECT id, name, map_asset_id FROM scenarios').all();
 
@@ -1120,7 +1156,7 @@ ipcMain.handle('get-scenario-list', async () => {
     const scenariosWithPreview = scenariosFromDb.map(scenario => {
       // Encontra o asset do mapa correspondente no manifest
       const mapAsset = mapsManifest.find(map => map.id === scenario.map_asset_id);
-      
+
       // Retorna um novo objeto com os dados do preview
       return {
         id: scenario.id,

@@ -9,11 +9,16 @@
     "start:watch": "npx electronmon .",
     "build": "electron-builder",
     "package": "electron-forge package",
-    "make": "electron-forge make"
+    "make": "electron-forge make",
+    "rebuild": "electron-rebuild",
+    "package-manual": "electron-packager . dMasters --overwrite --platform=win32 --arch=x64 --icon=icon.ico --prune=true --out=release-builds --version-string.CompanyName=CE --version-string.FileDescription=CE --version-string.ProductName=\"dMasters\""
   },
   "electronmon": {
     "patterns": [
-      "!**/chatHistory.json"
+      "!**/chatHistory.json",
+      "!**/characters.db",
+      "!**/maps.json",
+      "!**/tokens.json"
     ]
   },
   "keywords": [
@@ -43,16 +48,20 @@
   "license": "MIT",
   "dependencies": {
     "@aspnet/signalr": "^1.1.4",
+    "@jimp/plugin-resize": "^1.6.0",
     "@microsoft/signalr": "^8.0.7",
     "better-sqlite3": "^11.10.0",
     "electron-squirrel-startup": "^1.0.1",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
+    "jimp": "^1.6.0",
     "konva": "^9.3.20",
     "node-imgur": "^0.1.2",
     "react-konva": "^19.0.3",
     "react-router-dom": "^7.6.0",
     "sharp": "^0.34.2",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
     "ws": "^8.18.2"
   },
   "devDependencies": {
@@ -65,6 +74,7 @@
     "@electron-forge/plugin-fuses": "^7.8.1",
     "@electron/fuses": "^1.8.0",
     "electron": "^36.2.1",
+    "electron-packager": "^17.1.2",
     "electron-rebuild": "^3.2.9"
   }
 }

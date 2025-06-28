@@ -5,6 +5,8 @@ import { Outlet } from 'react-router-dom';
 import { Token } from '../types'; // Importe o tipo Token
 import { ChatProvider } from '../components/contexts/ChatContext';
 import { AudioProvider} from "./AUDIO/MusicPlayer";
+import { TurnProvider } from '../components/contexts/TurnContext'; // NEW: Import TurnProvider
+
 // Context API para o layout
 interface LayoutContextProps {
   addContentToLeft: (content: ReactNode) => void;
@@ -94,43 +96,42 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
 
   return (
     <ChatProvider USERID={currentUserId as number}>
+      <AudioProvider>
+        <TurnProvider> {/* NEW: Wrap with TurnProvider */}
+          <LayoutContext.Provider
+            value={{
+              addContentToLeft,
+              addContentToCenter,
+              addContentToRight,
+              clearContentFromLeft,
+              clearContentFromCenter,
+              clearContentFromRight,
+              selectedTokens,
+              setSelectedTokens,
+            }}
+          >
+            <header>
+              <Header />
+            </header>
 
-<AudioProvider>
+            <div className="layout-container">
 
+              <div className={`column left-column ${column === "left" ? "active" : ""}`}>
+                {leftContent}
+              </div>
 
-    <LayoutContext.Provider
-      value={{
-        addContentToLeft,
-        addContentToCenter,
-        addContentToRight,
-       clearContentFromLeft, // Exporta a nova função
-        clearContentFromCenter, // Exporta a nova função
-        clearContentFromRight,
-        selectedTokens, // Passa o estado dos tokens selecionados
-        setSelectedTokens, // Passa a função para atualizar os tokens selecionados
-      }}
-    >
-      <header>
-        <Header />
-      </header>
-      
-      <div className="layout-container">
-        
-        <div className={`column left-column ${column === "left" ? "active" : ""}`}>
-          {leftContent}
-        </div>
+              <div className={`column tavern center-column ${column === "center" ? "active" : ""}`}>
+                {children || <Outlet />}
+                {centerContent}
+              </div>
 
-        <div className={`column tavern center-column ${column === "center" ? "active" : ""}`}>
-          {children || <Outlet />}
-          {centerContent}
-        </div>
-
-        <div className={`column right-column ${column === "right" ? "active" : ""}`}>
-          {rightContent}
-        </div>
-      </div>
-    </LayoutContext.Provider>
-    </AudioProvider>
-        </ChatProvider>
+              <div className={`column right-column ${column === "right" ? "active" : ""}`}>
+                {rightContent}
+              </div>
+            </div>
+          </LayoutContext.Provider>
+        </TurnProvider> {/* NEW: Close TurnProvider */}
+      </AudioProvider>
+    </ChatProvider>
   );
 };

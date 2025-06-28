@@ -2,38 +2,36 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAudio } from '../components/AUDIO/MusicPlayer';
+import { useTurn } from '../components/contexts/TurnContext'; // NEW: Import useTurn
 
 import userProfileImagePlaceholder from '../img/localplayer/PlayerImage.png';
 
 function Header() {
-  const turnCount = 1;
+  // const turnCount = 1; // OLD: No longer needed here, will come from context
 
   // Usar o hook useAudio para acessar o contexto e as novas funções
   const { currentSongName, volume, setVolume, playMusic, pauseMusic, resumeMusic, isPlaying } = useAudio();
+  // NEW: Use useTurn hook to get turn information
+  const { currentTurnIndex, combatantsInTurnOrder, goToNextTurn } = useTurn();
+
+  // NEW: Calculate turnCount from currentTurnIndex
+  const turnCount = combatantsInTurnOrder.length > 0 ? currentTurnIndex + 1 : 0;
+
 
   const handleNextTurn = () => {
     console.log('Passar Turno clicado!');
+    goToNextTurn(); // NEW: Call goToNextTurn from TurnContext
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setVolume(parseFloat(e.target.value));
   };
 
-  // Funções para controlar a reprodução de música
   const handlePlayPause = () => {
     if (isPlaying) {
       pauseMusic();
     } else {
-      // Quando o usuário interage (clica no botão), podemos tentar reproduzir.
-      // Você pode querer passar a `defaultMusic` ou a `currentAudioFile` armazenada.
-      // Para simplificar, vou tentar retomar a música atual ou iniciar a padrão.
-      resumeMusic(); // Tenta retomar a música atual
-      // Se quiser garantir que uma música padrão toque ao primeiro clique:
-      // if (!currentSongName || currentSongName === "Nenhuma música tocando") {
-      //   playMusic(defaultMusic); // Importe defaultMusic se quiser usar aqui
-      // } else {
-      //   resumeMusic();
-      // }
+      resumeMusic();
     }
   };
 
@@ -52,26 +50,25 @@ function Header() {
           <div className="d-flex align-items-center me-3">
             <span className="text-light me-2 text-nowrap">Turno:</span>
             <span id="turn-counter" className="badge bg-secondary me-3" style={{ fontSize: '1rem' }}>
-              {turnCount}
+              {turnCount} {/* Displays current turn number based on currentTurnIndex */}
             </span>
             <button id="btn-next-turn" className="btn btn-primary btn-sm" onClick={handleNextTurn}>
               Passar Turno
             </button>
           </div>
 
-          {/* Interface de Controle de Volume e Play/Pause */}
           <div className="d-flex align-items-center bg-dark rounded-pill p-2 me-3 shadow-sm">
             <span className="text-light me-2 text-nowrap" style={{ fontSize: '0.85rem', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {currentSongName}
             </span>
             <button
-              className="btn btn-sm btn-link text-light p-0 me-2" // Removed bi-volume-up-fill from here
+              className="btn btn-sm btn-link text-light p-0 me-2"
               onClick={handlePlayPause}
               title={isPlaying ? "Pausar Música" : "Tocar Música"}
             >
               <i className={`bi ${isPlaying ? 'bi-pause-fill' : 'bi-play-fill'}`} style={{ fontSize: '1.2rem' }}></i>
             </button>
-            <i className="bi bi-volume-up-fill text-light me-1"></i> {/* Kept volume icon */}
+            <i className="bi bi-volume-up-fill text-light me-1"></i>
             <input
               type="range"
               min="0"

@@ -1,7 +1,13 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const os = require('os');
 contextBridge.exposeInMainWorld('electron',{
-
+  send: (channel, data) => { // This is what MainGrids.tsx tries to call
+    // Whitelist channels
+    let validChannels = ['add-tokens-to-initiative', 'request-token-move']; // Make sure 'request-token-move' is also here if used
+    if (validChannels.includes(channel)) {
+      ipcRenderer.send(channel, data);
+    }
+  },
     homeDir: ()=> os.homedir(),
 
  updateScenario: (scenarioId, tokens, map) =>
@@ -17,7 +23,7 @@ contextBridge.exposeInMainWorld('electron',{
 on: (channel, callback) => {
     // === LISTA DE CANAIS PERMITIDOS ===
     // Adicione AQUI todos os canais que seu renderer process OUVIRÁ (ex: 'SyncTokenPosition', 'chatMessage')
-    const validChannels = ['SyncTokenPosition', 'new-chat-message','send-message-ack','chat-history']; 
+    const validChannels = ['SyncTokenPosition', 'new-chat-message','send-message-ack','chat-history','syncActiveScenario','sendActiveScenarioToRequester','add-tokens-to-combat-tracker']; 
 
     if (validChannels.includes(channel)) {
       // Cria um wrapper para o callback para evitar que o objeto 'event' do Electron
@@ -35,7 +41,7 @@ on: (channel, callback) => {
   off: (channel, callback) => {
     // === LISTA DE CANAIS PERMITIDOS ===
     // Adicione AQUI todos os canais que seu renderer process REMOVERÁ listeners
-    const validChannels = ['SyncTokenPosition', 'new-chat-message','send-message-ack','chat-history']; 
+    const validChannels = ['SyncTokenPosition', 'new-chat-message','send-message-ack','chat-history','syncActiveScenario','sendActiveScenarioToRequester','add-tokens-to-combat-tracker']; 
 
     if (validChannels.includes(channel) && callback) {
       // ipcRenderer.off é um alias para ipcRenderer.removeListener.
@@ -61,9 +67,12 @@ on: (channel, callback) => {
       'get-userid',
       'manage-assets:get-pool',
       'manage-assets:add-image',
+      'MovePlayersToScenario',
       'request-chat-history',
       'login-check',
       'save-scenario',
+      'request-initial-scenario',
+    
       'update-grid-state',
       'update-character-bio',
       'update-character-essentials',

@@ -19,9 +19,9 @@ const Home: React.FC = () => {
     
     // O estado dos combatentes
     const [combatants, setCombatants] = useState<CombatTrackerToken[]>([
-        { id: '1', name: 'Herói Valente', portraitUrl: Img1, ac: 17, currentHp: 80, maxHp: 90, initiative: 20, type: 'ally', danoCausado: 25, danoSofrido: 10 },
-        { id: '2', name: 'Orc Brutal', portraitUrl: Img2, ac: 15, currentHp: 15, maxHp: 25, initiative: 18, type: 'enemy', danoCausado: 10, danoSofrido: 25 },
-        { id: '3', name: 'Maga Arcana', portraitUrl: Img3, ac: 12, currentHp: 50, maxHp: 50, initiative: 15, type: 'ally', danoCausado: 40, danoSofrido: 0 },
+        { id: 1, name: 'Herói Valente', portraitUrl: Img1, ac: 17, currentHp: 80, maxHp: 90, initiative: 20, type: 'ally', danoCausado: 25, danoSofrido: 10 },
+        { id: 2, name: 'Orc Brutal', portraitUrl: Img2, ac: 15, currentHp: 15, maxHp: 25, initiative: 18, type: 'enemy', danoCausado: 10, danoSofrido: 25 },
+        { id: 3, name: 'Maga Arcana', portraitUrl: Img3, ac: 12, currentHp: 50, maxHp: 50, initiative: 15, type: 'ally', danoCausado: 40, danoSofrido: 0 },
     ]);
 
     // Função para ser passada ao CombatTracker

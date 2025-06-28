@@ -1,0 +1,10 @@
+.context-menu-item {
+  padding: 0.25rem 1rem;
+  cursor: pointer;
+  /* Transição suave para o efeito de hover (opcional) */
+  transition: background-color 0.2s ease; 
+}
+
+.context-menu-item:hover {
+  background-color: #495057; /* Cor de hover desejada */
+}
