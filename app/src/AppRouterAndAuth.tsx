@@ -5,6 +5,7 @@ import { Route, Routes, HashRouter } from 'react-router-dom';
 // Importe seus componentes
 import { Layout } from './components/Layout';
 import { Inventory } from './components/Inventory/Inventory';
+import AudioMng  from './components/AUDIO/AudioControlTab';
 import { Actions } from './pages/Actions';
 import RPGGrid from './components/MainGrids'; // Adicionei este pois estava no seu index.tsx original
 import FullCharSheet from './components/CharacterSheet/CharacterSheetManager';
@@ -69,6 +70,7 @@ function AppRouterAndAuth() {
                             <Route path='/acoes' element={<Actions />} />
                             <Route path='/ficha' element={<Fichas />} />
                             <Route path='/inventario' element={<Inventory />} />
+                            <Route path='/audioMng' element={<AudioMng />} />
                             {/* Você pode adicionar outras rotas como o RPGGrid se ele for parte da aplicação logada */}
                             {/* <Route path='/grid' element={<RPGGrid />} /> */}
                         </Route>

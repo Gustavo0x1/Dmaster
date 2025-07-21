@@ -1,14 +1,6 @@
 [
   {
     "type": "chat-message",
-    "timestamp": "2025-06-23T17:57:07.485Z",
-    "message": "a",
-    "id": 33,
-    "senderName": "Você",
-    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
     "timestamp": "2025-06-23T17:57:07.645Z",
     "message": "a",
     "id": 33,
@@ -388,5 +380,13 @@
     "id": 1,
     "senderName": "Você",
     "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-07-21T05:59:21.794Z",
+    "message": "123",
+    "id": 17,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
   }
 ]

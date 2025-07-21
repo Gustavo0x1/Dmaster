@@ -1,24 +1,22 @@
-// main.js
-// const sharp = require('sharp'); // REMOVA esta linha
 
-const sharp = require('sharp'); // ADICIONE esta linha
-const { app, BrowserWindow, ipcMain, dialog, protocol, session,Notification  } = require("electron");
+const sharp = require('sharp');
+const { app, BrowserWindow, ipcMain, dialog, protocol, session, Notification } = require("electron");
 const helmet = require('helmet');
 const WebSocket = require("ws");
-const url = require('url')
+const url = require('url');
 const fs = require('fs');
 const express = require('express');
 const app2 = express();
 
-const path = require('path')
+const path = require('path');
 const Database = require('better-sqlite3');
 const DB_PATH = path.join(__dirname, 'characters.db');
 const MAX_MAP_DIMENSION = 2048;
 let MainWindow;
 let ws;
 let db;
-let USERID; // Este USERID é do Main Process, usado para identificar a janela atual ou o mestre.
-let loginPromiseResolve = null;
+let USERID; // <-- AGORA É UMA ÚNICA VARIÁVEL GLOBAL PARA O USERID NO MAIN PROCESS
+
 const assetsPath = path.join(__dirname, 'assets');
 if (!fs.existsSync(assetsPath)) {
   fs.mkdirSync(assetsPath, { recursive: true });
@@ -34,6 +32,7 @@ function initializeAssetManifest(assetType) {
 
 const tokenManifestPath = initializeAssetManifest('tokens');
 const mapManifestPath = initializeAssetManifest('maps');
+const audioManifestPath = initializeAssetManifest('audio'); // Manter esta linha
 
 // Mock database for demonstration. In a real app, this would be a database call.
 const defaultCharacterData = {
@@ -64,7 +63,7 @@ const defaultCharacterData = {
   CHARNAME: "Herói Desconhecido",
   // PLayer_ID: 1, // Definir um ID padrão para o personagem inicial se necessário no DB
                      // O valor real será preenchido dinamicamente na initializeDatabase
-  
+
   // Dados para a tabela 'character_attributes'
   myCharacterAttributes: [
     { id: 1, name: 'Força', value: 16, modifier: 3 }, // (16-10)/2 = 3
@@ -138,7 +137,7 @@ const defaultCharacterData = {
 function initializeDatabase() {
   try {
     db = new Database(DB_PATH, { verbose: console.log });
-    
+
 
     // Criação das tabelas se não existirem
     // A tabela 'characters' usa INTEGER PRIMARY KEY AUTOINCREMENT para o id
@@ -231,7 +230,7 @@ db.exec(`
       console.log('[Main Process] Banco de dados vazio. Inserindo personagem padrão "Herói Desconhecido".');
 
       // Garantir que o 'admin' exista com ID 1, para vincular o personagem padrão
-      let defaultPlayerId = 1; 
+      let defaultPlayerId = 1;
       const playerExists = db.prepare('SELECT id FROM players WHERE user = ?').get('admin');
       if (!playerExists) {
           const insertPlayer = db.prepare(`INSERT INTO players (user, password) VALUES (?, ?)`);
@@ -248,8 +247,8 @@ db.exec(`
       const insertCharacterStmt = db.prepare(`
         INSERT INTO characters (
           bioFields, essentialAttributes, MaxHp, CurrentHp, TempHp, Shield,
-          Race, Class, SubClass, Level, XP, PLayer_ID, CHARNAME
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          Race, Class, SubClass, Level, XP, PLayer_ID, Token_image, CHARNAME
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       const info = insertCharacterStmt.run(
         JSON.stringify(defaultCharacterData.bioFields),
@@ -281,16 +280,6 @@ db.exec(`
         insertSkill.run(defaultCharacterDbId, skill.name, skill.modifier);
       });
 
-      // REMOVER estes inserts duplicados de players, pois já foram tratados acima.
-      // const DePlayer = db.prepare(`INSERT INTO players ( user,password) VALUES (?, ?)`);
-      // defaultCharacterData.mySkills.forEach(skill => { // Isso está incorreto, skills não são players
-      //   DePlayer.run( 'admin', 'admin');
-      // });
-      // const DePlayer2 = db.prepare(`INSERT INTO players ( user,password) VALUES (?, ?)`);
-      // defaultCharacterData.mySkills.forEach(skill => { // Isso está incorreto
-      //   DePlayer2.run( 'admin2', 'admin2');
-      // });
-
       // Inserir ações
       const insertAction = db.prepare(`
         INSERT INTO character_actions (
@@ -320,9 +309,43 @@ db.exec(`
   }
 }
 
+// ... (startWebSocket, createMainWindow, app.whenReady, app.on('before-quit')) ...
 
 
-// IPC Handler para criar um personagem
+ipcMain.handle('get-connected-users', async () => {
+    return new Promise((resolve) => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            const tempListener = (message) => {
+                try {
+                    const parsedMessage = JSON.parse(message);
+                    if (parsedMessage.type === "connected-users-list") {
+                        ws.off("message", tempListener);
+                        // Convertendo os IDs de string para number para o frontend
+                        const connectedIdsAsNumbers = parsedMessage.data.map(id => parseInt(id, 10));
+                        resolve({ success: true, data: connectedIdsAsNumbers }); // Retorna numbers
+                    }
+                } catch (e) {
+                    console.error("Erro ao parsear mensagem na get-connected-users:", e);
+                }
+            };
+            ws.on("message", tempListener);
+            ws.send(JSON.stringify({ type: "request-connected-users" }));
+        } else {
+            resolve({ success: false, message: "WebSocket não conectado." });
+        }
+    });
+});
+ipcMain.handle('send-audio-command', async (event, commandType, audioData) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        let messagePayload = { type: commandType, data: audioData }; // targetUserId já é number
+        ws.send(JSON.stringify(messagePayload));
+        console.log(`[Main Process] Comando de áudio '${commandType}' enviado ao servidor WebSocket. Target: ${audioData.targetUserId}`);
+        return { success: true, message: "Comando de áudio enviado." };
+    } else {
+        console.error("[Main Process] WebSocket não está conectado. Comando de áudio não enviado.");
+        return { success: false, message: "WebSocket não conectado." };
+    }
+});
 ipcMain.handle('create-character', async (event, characterData) => {
   console.log(`[Main Process] Recebida requisição para criar personagem: ${characterData.CHARNAME} para Player ID: ${characterData.PLayer_ID}.`);
   try {
@@ -358,7 +381,7 @@ ipcMain.handle('create-character', async (event, characterData) => {
     const insertCharacterStmt = db.prepare(`
       INSERT INTO characters (
         bioFields, essentialAttributes, MaxHp, CurrentHp, TempHp, Shield,
-        Race, Class, SubClass, Level, XP, PLayer_ID, Token_image, CHARNAME -- Adicionado Token_image
+        Race, Class, SubClass, Level, XP, PLayer_ID, Token_image, CHARNAME
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -391,86 +414,124 @@ ipcMain.handle('create-character', async (event, characterData) => {
     return { success: false, message: `Erro ao criar personagem: ${error.message}` };
   }
 });
-function startWebSocket() {
-  ws = new WebSocket("ws://26.61.163.136:5000");
 
-ws.on("open", () => {
-    console.log("Conectado ao servidor WebSocket.");
+let loginPromiseResolve = null; // Variável para armazenar a função resolve da Promise de login
+
+function startWebSocket() {
+  ws = new WebSocket("ws://26.61.163.136:5000"); // Certifique-se de que este é o IP e porta CORRETOS do seu servidor!
+
+  ws.on("open", () => {
+    console.log("[Main Process] Conectado ao servidor WebSocket.");
     // Se houver uma requisição de login pendente no momento da conexão, envie-a
     if (loginPromiseResolve) {
-      // Isso é um cenário de reconexão. Pode ser que a requisição já tenha expirado ou falhado.
-      // Para simplificar, vamos focar no fluxo principal primeiro.
-      // Em produção, você precisaria de uma lógica mais robusta para requisições pendentes.
+      console.log("[Main Process] WebSocket reaberto, mas uma Promise de login já estava pendente. Isso pode indicar um problema de reconexão.");
+      // Em um cenário de reconexão, você pode querer tentar reenviar a requisição de login
+      // ou invalidar a Promise antiga para evitar que ela seja resolvida com dados antigos.
     }
   });
 
-ws.on("message", (message) => {
-  try {
-    const parsedMessage = JSON.parse(message); // Parseie a mensagem uma vez
-    const { type, data } = parsedMessage;
+  ws.on("message", (message) => {
+    try {
+      const parsedMessage = JSON.parse(message); // Parseie a mensagem uma vez
+      const { type, data } = parsedMessage;
 
-    if (!MainWindow) {
-      console.warn("MainWindow ainda não está pronta para enviar mensagens");
-      return;
-    }
+      console.log(`[Main Process] Mensagem WebSocket recebida: Tipo = ${type}, Dados =`, data);
+
+      if (!MainWindow) {
+        console.warn("[Main Process] MainWindow ainda não está pronta para enviar mensagens.");
+        // Continua processando mensagens que não dependem da MainWindow, como login-response
+      }
+
+      // Manipula a resposta de login do servidor
       if (type === "login-response") {
+        console.log("[Main Process] Recebida resposta de login do servidor:", parsedMessage.success);
+        if (parsedMessage.success) { // Se o login foi bem-sucedido
+            USERID = parsedMessage.userId; // Define o USERID no main process
+            if (MainWindow) {
+                // Envia o USERID para o processo de renderização
+                MainWindow.webContents.send('set-client-userid', USERID);
+            }
+        }
         if (loginPromiseResolve) {
-          loginPromiseResolve(data); // Resolve a Promise da IPC
+          console.log("[Main Process] Resolvendo Promise de login com dados:", parsedMessage.userId);
+          loginPromiseResolve(parsedMessage); // Resolve a Promise da IPC
           loginPromiseResolve = null; // Limpa a referência
+        } else {
+          console.warn("[Main Process] Resposta de login recebida, mas nenhuma Promise de login pendente.");
         }
         return; // Consome a mensagem de login
       }
-   if (type === "sendActiveScenarioToRequester") {
-            console.log("[Main Process] Recebido cenário ativo exclusivo do servidor:", data);
-            MainWindow.webContents.send("sendActiveScenarioToRequester", data); // Usa o mesmo nome
-            return; // Consome a mensagem
-        }
-        
-    if (type === "SyncTokenPosition") {
-      MainWindow.webContents.send("SyncTokenPosition", data);
-    }
-    if (type === "syncActiveScenario") {
-      console.log(data)
-      MainWindow.webContents.send("syncActiveScenario", data);
-    }
-  if (type === "chat-history") {
-    
+
+      if (type === "sendActiveScenarioToRequester") {
+        console.log("[Main Process] Recebido cenário ativo exclusivo do servidor:", data);
+        if (MainWindow) MainWindow.webContents.send("sendActiveScenarioToRequester", data);
+        return;
+      }
+      if (type === "SyncTokenPosition") {
+        if (MainWindow) MainWindow.webContents.send("SyncTokenPosition", data);
+      }
+      if (type === "syncActiveScenario") {
+        console.log("[Main Process] Cenário ativo sincronizado:", data);
+        if (MainWindow) MainWindow.webContents.send("syncActiveScenario", data);
+      }
+      if (type === "chat-history") {
         if (data && Array.isArray(data)) {
-          // Encaminha o histórico para o frontend
-          MainWindow.webContents.send("chat-history", data);
+          console.log("[Main Process] Histórico de chat recebido. Enviando para o frontend.");
+          if (MainWindow) MainWindow.webContents.send("chat-history", data);
         }
       }
-    // --- CÓDIGO CRÍTICO PARA O CHAT ---
-    // --- CÓDIGO CRÍTICO PARA O CHAT: CORREÇÃO ---
-if (type === "chat-message") {
-        if(parsedMessage.id == USERID){
-          return
+      // --- CÓDIGO CRÍTICO PARA O CHAT: CORREÇÃO ---
+      if (type === "chat-message") {
+        // Agora, para o chat, o 'id' na mensagem é o remetente.
+        // Se o remetente for o próprio usuário deste cliente, ignoramos o broadcast para evitar duplicidade.
+        if (parsedMessage.id == USERID) { // Compara com o USERID global do main process
+          console.log("[Main Process] Mensagem de chat própria, ignorando broadcast.");
+          return;
         }
         if (MainWindow && MainWindow.webContents) {
+          console.log("[Main Process] Nova mensagem de chat recebida. Enviando para o frontend.");
           MainWindow.webContents.send("new-chat-message", parsedMessage);
         } else {
-          console.warn("MainWindow ou webContents não está pronto.");
+          console.warn("[Main Process] MainWindow ou webContents não está pronto para mensagens de chat.");
         }
       }
 
-    if (type === "syncAll") {
-      MainWindow.webContents.send("sync-all", data);
+      if (type === "syncAll") {
+        console.log("[Main Process] Sincronização geral recebida. Enviando para o frontend.");
+        if (MainWindow) MainWindow.webContents.send("sync-all", data);
+      }
 
+      // NOVOS HANDLERS PARA ÁUDIO DO SERVIDOR PARA O FRONTEND
+if (type === "play-audio") { // Este é o tipo que o server.js envia para o cliente
+    console.log("[Main Process] Recebida instrução de áudio do servidor. Enviando para o frontend.");
+    if (MainWindow) MainWindow.webContents.send("play-audio-to-frontend", data);
+}
+if (type === "stop-audio") { // Este é o tipo que o server.js envia para o cliente
+    console.log("[Main Process] Recebida instrução para parar áudio do servidor. Enviando para o frontend.");
+    if (MainWindow) MainWindow.webContents.send("stop-audio-to-frontend", data);
+}
+if (type === "connected-users-list") {
+    console.log("[Main Process] Lista de usuários conectados recebida do servidor. Enviando para o frontend.");
+    // No main.js, é importante converter os IDs de string (que vêm do Map do servidor) para number
+    // antes de enviar para o frontend, para que correspondam ao tipo esperado pelo TSX.
+    const connectedIdsAsNumbers = data.map(id => parseInt(id, 10));
+    if (MainWindow) MainWindow.webContents.send("connected-users-list-updated", connectedIdsAsNumbers); // Envia numbers
+}
+
+
+    } catch (err) {
+      console.error("[Main Process] Erro ao processar mensagem do servidor:", err);
     }
-
-  } catch (err) {
-    console.error("Erro ao processar mensagem do servidor:", err);
-  }
-});
+  });
 
 
   ws.on("close", () => {
-    console.log("Conexão WebSocket encerrada. Tentando reconectar...");
+    console.log("[Main Process] Conexão WebSocket encerrada. Tentando reconectar em 5 segundos...");
     setTimeout(startWebSocket, 5000); // Reconnect após 5 segundos
   });
 
   ws.on("error", (error) => {
-    console.error("Erro no WebSocket:", error);
+    console.error("[Main Process] Erro no WebSocket:", error);
   });
 }
 function createMainWindow(){
@@ -485,7 +546,7 @@ function createMainWindow(){
         webPreferences:{
             contextIsolation:true,
             nodeIntegration:true, // Embora nodeIntegration seja true aqui, contextIsolation é true, então o preload é a maneira segura.
-              contentSecurityPolicy: "img-src 'self' data: asset:;",
+        
             preload: path.join(__dirname,'preload.js')
         }
     });
@@ -494,15 +555,19 @@ function createMainWindow(){
         pathname:path.join(__dirname,'./app/build/index.html'),
         protocol:'file'
     })
-    MainWindow.loadURL('http://localhost:3000/') // Certifique-se de que este é o URL correto do seu React App
+    MainWindow.loadURL(startUrl) // Certifique-se de que este é o URL correto do seu React App
 }
 
 app.whenReady().then(()=>{
+  
    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+const csp = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob: file:;";
+
+
         callback({
-            responseHeaders: {
+                responseHeaders: {
                 ...details.responseHeaders,
-                'Content-Security-Policy': ["img-src 'self' data: asset:"]
+    'Content-Security-Policy': [csp]
             }
         });
 
@@ -622,26 +687,32 @@ ipcMain.on("request-tokenMove", (event, data) => {
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(message);
-    console.log("MOVING")
-    console.log("Mensagem enviada ao servidor:", message);
+    console.log("[Main Process] Solicitando movimento de token ao servidor.");
   } else {
-    console.error("WebSocket não está conectado. Mensagem não enviada.");
+    console.error("[Main Process] WebSocket não está conectado. Mensagem de movimento de token não enviada.");
   }
 });
 
+// IPC handler para definir o USERID (o único) no main process
 ipcMain.handle('set-userid', async (event, userid) => {
-        USERID = userid
-        console.log("USER ID! : "+ userid)
+    USERID = userid; // Define o USERID globalmente no main process
+    console.log("[Main Process] USER ID definido para: " + userid);
+    // Opcional: Enviar o USERID para o processo de renderização também, se ele ainda não souber
+    if (MainWindow) {
+        MainWindow.webContents.send('set-client-userid', USERID);
+    }
 });
 ipcMain.handle('get-userid', async (event) => { // Removi userid do argumento, pois USERID é global
-        return USERID;
+        return USERID; // Retorna o USERID global do main process
 });
 
+
 ipcMain.handle('login-check', async (event, user, pass) => {
+  console.log(`[Main Process] IPC 'login-check' recebido para usuário: ${user}`);
   if (ws && ws.readyState === WebSocket.OPEN) {
-    // Retorna uma Promise que será resolvida quando a resposta do servidor chegar
+    console.log("[Main Process] WebSocket está ABERTO. Preparando para enviar requisição de login ao servidor.");
     return new Promise((resolve, reject) => {
-      loginPromiseResolve = resolve; // Armazena a função resolve
+      loginPromiseResolve = resolve; // Armazena a função resolve da Promise
 
       const message = JSON.stringify({
         type: "login-request",
@@ -650,9 +721,10 @@ ipcMain.handle('login-check', async (event, user, pass) => {
       ws.send(message);
       console.log("[Main Process] Requisição de login enviada ao servidor.");
 
-      // Opcional: Adicionar um timeout para a Promise
+      // Adiciona um timeout para a Promise, caso o servidor não responda
       setTimeout(() => {
         if (loginPromiseResolve) {
+          console.warn("[Main Process] Tempo limite da requisição de login esgotado. Resolvendo com falha.");
           loginPromiseResolve({ success: false, message: "Tempo limite da requisição de login esgotado." });
           loginPromiseResolve = null;
         }
@@ -663,7 +735,8 @@ ipcMain.handle('login-check', async (event, user, pass) => {
     return { success: false, message: "Não foi possível conectar ao servidor de autenticação." };
   }
 });
-ipcMain.handle('update-character-main-fields', async (event, characterId, fieldsToUpdate) => {
+ipcMain.handle('update-character-main-fields', async (event, fieldsToUpdate) => { // Removi characterId, já que é passado em fieldsToUpdate.id
+  const characterId = fieldsToUpdate.id; // Pegar o ID do objeto fieldsToUpdate
   console.log(`[Main Process] Atualizando campos principais do personagem ${characterId}:`, fieldsToUpdate);
   if (!characterId) {
     return { success: false, message: "ID do personagem é obrigatório para atualização de campos." };
@@ -674,7 +747,7 @@ ipcMain.handle('update-character-main-fields', async (event, characterId, fields
   const values = [];
 
   for (const field in fieldsToUpdate) {
-    if (Object.prototype.hasOwnProperty.call(fieldsToUpdate, field)) {
+    if (Object.prototype.hasOwnProperty.call(fieldsToUpdate, field) && field !== 'id') { // Ignorar o 'id' ao construir o SET
       setParts.push(`${field} = ?`);
       // Lógica para Token_image (BLOB)
       if (field === 'Token_image' && fieldsToUpdate[field] && fieldsToUpdate[field].startsWith('data:')) {
@@ -958,7 +1031,7 @@ ipcMain.handle('save-character-data', async (event, characterData) => {
 
       return { success: true, message: "Dados salvos com sucesso no SQLite!", newCharacterId: characterId };
     })();
-
+    
     return { success: true, message: "Dados salvos com sucesso no SQLite!" };
   } catch (error) {
     console.error(`[Main Process] Erro ao salvar dados no SQLite:`, error);
@@ -1120,65 +1193,61 @@ ipcMain.handle('manage-assets:get-pool', async (event, assetType) => {
   return JSON.parse(data);
 });
 
+// NOVO: IPC para carregar a lista de assets de áudio
+ipcMain.handle('manage-assets:get-audio-pool', async (event) => {
+  const assetFolder = path.join(assetsPath, `audios`);
+  if (!fs.existsSync(assetFolder)) {
+      fs.mkdirSync(assetFolder, { recursive: true });
+  }
+  const data = fs.readFileSync(audioManifestPath, 'utf8');
+  return JSON.parse(data);
+});
 
-ipcMain.handle('manage-assets:add-image', async (event, assetType) => {
-  const manifestPath = assetType === 'token' ? tokenManifestPath : mapManifestPath;
-
+// NOVO: IPC para adicionar um arquivo de áudio
+ipcMain.handle('manage-assets:add-audio', async (event) => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
-    title: `Adicionar Novo ${assetType === 'token' ? 'Token' : 'Mapa'}`,
-    properties: ['openFile'],
-    filters: [{ name: 'Imagens', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+      title: 'Adicionar Novo Arquivo de Áudio',
+      properties: ['openFile'],
+      filters: [{ name: 'Áudios', extensions: ['mp3', 'wav', 'ogg'] }] // Tipos de áudio comuns
   });
 
   if (canceled || filePaths.length === 0) {
-    return null;
+      return null;
   }
-  
+
   const originalPath = filePaths[0];
+  const manifestData = JSON.parse(fs.readFileSync(audioManifestPath, 'utf8'));
 
-  let newAsset;
-  const manifestData = JSON.parse(fs.readFileSync(manifestPath));
-  
-  // Inicia o pipeline de processamento com sharp para ambos os casos
-  let imagePipeline = sharp(originalPath);
-  
-  // Pega os metadados para obter dimensões e formato
-  const metadata = await imagePipeline.metadata();
-  
-  // SE FOR UM MAPA, APLICA O REDIMENSIONAMENTO SE NECESSÁRIO
-  if (assetType === 'map') {
-    if (metadata.width > MAX_MAP_DIMENSION || metadata.height > MAX_MAP_DIMENSION) {
-      console.log(`[Main Process] Mapa grande detectado (${metadata.width}x${metadata.height}). Redimensionando...`);
-      imagePipeline.resize({
-        width: MAX_MAP_DIMENSION,
-        height: MAX_MAP_DIMENSION,
-        fit: 'inside',
-        withoutEnlargement: true
-      });
-    }
+  // A pasta de destino dentro de 'assets'
+  const audioAssetsDir = path.join(assetsPath, 'audios');
+  if (!fs.existsSync(audioAssetsDir)) {
+      fs.mkdirSync(audioAssetsDir, { recursive: true });
   }
 
-  // CONVERTE O RESULTADO (REDIMENSIONADO OU NÃO) PARA BASE64
-  // O método .toBuffer() obtém a imagem processada
-  const processedImageBuffer = await imagePipeline.toBuffer();
-  const base64Data = processedImageBuffer.toString('base64');
-  
-  // O formato é pego dos metadados para maior precisão
-  const mimeType = `image/${metadata.format}`;
+  const fileName = path.basename(originalPath);
+  const destinationPath = path.join(audioAssetsDir, fileName);
 
-  // Cria o objeto do asset. Agora mapas e tokens têm a MESMA ESTRUTURA.
-  newAsset = {
-    id: Date.now(),
-    name: path.basename(originalPath),
-    type: mimeType,
-    data: base64Data
+  // Copia o arquivo para a pasta de assets
+  fs.copyFileSync(originalPath, destinationPath);
+
+  // Agora, leia o arquivo copiado para obter o base64
+  const audioBuffer = fs.readFileSync(destinationPath);
+  const base64Data = audioBuffer.toString('base64');
+  const mimeType = `audio/${path.extname(originalPath).substring(1)}`;
+
+  const newAsset = {
+      id: Date.now(),
+      name: fileName,
+      type: mimeType,
+      data: base64Data
   };
-  
+
   manifestData.push(newAsset);
-  fs.writeFileSync(manifestPath, JSON.stringify(manifestData, null, 2));
+  fs.writeFileSync(audioManifestPath, JSON.stringify(manifestData, null, 2), 'utf8');
 
   return manifestData;
 });
+
 ipcMain.on('add-tokens-to-initiative', (event, tokens) => {
   if (MainWindow) {
     MainWindow.webContents.send('add-tokens-to-combat-tracker', tokens);
@@ -1200,10 +1269,10 @@ ipcMain.on('add-tokens-to-initiative', (event, tokens) => {
 
 ipcMain.handle('save-scenario', async (event, scenarioData, scenarioName) => {
   if(ws){
-    console.log("CONSOLE")
+    console.log("[Main Process] Enviando sinal de sincronização de cenário para null.")
     ws.send(JSON.stringify({ type: "sync-scenario", data: null }))
   }else{
-    console.log("NOggers")
+    console.log("[Main Process] WebSocket não está conectado. Não foi possível enviar sinal de sincronização.")
   }
   console.log('[Main Process] Recebida requisição para salvar cenário.');
 
@@ -1275,7 +1344,7 @@ ipcMain.handle('save-scenario', async (event, scenarioData, scenarioName) => {
 ipcMain.handle('MovePlayersToScenario', async (event, scenarioId) => {
 
   if(ws){
-    console.log("Teste")
+    console.log("[Main Process] Solicitando movimento de jogadores para o cenário ID: " + scenarioId);
     ws.send(JSON.stringify({ type: "sync-scenario", data: scenarioId }))
     return { success:true}
   }
@@ -1311,7 +1380,7 @@ ipcMain.handle('load-scenario', async (event,scenarioId) => {
       // Recria o objeto completo que o frontend espera
       return {
         ...savedToken, // x, y, width, height
-       
+
         name: tokenAsset.name,
         image: `data:${tokenAsset.type};base64,${tokenAsset.data}`,
         portraitUrl: `data:${tokenAsset.type};base64,${tokenAsset.data}`,
@@ -1367,3 +1436,4 @@ ipcMain.handle('get-scenario-list', async () => {
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
+

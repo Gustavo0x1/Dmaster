@@ -122,12 +122,35 @@ loadChatHistory();
 initializeDatabaseServer();
 
 // Lista de conexões WebSocket
-const connections = new Set();
+const connections = new Map(); // NOVO: Mapeia userId para a conexão WebSocket
+const ipToUserMap = new Map();
+// ADICIONE ESTAS FUNÇÕES:
+async function sendToUser(targetUserId, message) {
+    const wsClient = connections.get(targetUserId); // connections map é string para ws
+    if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+        console.log(`[Server] Enviando mensagem para o usuário ${targetUserId}:`, message);
+        wsClient.send(JSON.stringify(message));
+        return true;
+    } else {
+        console.warn(`[Server] Usuário ${targetUserId} não encontrado ou não conectado para enviar mensagem.`);
+        return false;
+    }
+}
+
+function getConnectedUsers() {
+ 
+    return Array.from(connections.keys());
+}
+async function broadcastConnectedUsers() {
+    const connectedUserIds = getConnectedUsers();
+    console.log("[Server] Broadcastando lista de usuários conectados:", connectedUserIds);
+    // Use a função broadcast existente para enviar para todos
+    broadcast({ type: "connected-users-list", data: connectedUserIds });
+}
 
 // Quando um cliente se conecta via WebSocket
 wss.on("connection", async (ws) => { // Tornar a função assíncrona se for usar await
   console.log("Novo cliente conectado.");
-  connections.add(ws);
 
   // Enviar o cenário ativo atual para o cliente recém-conectado
   if (activeScenario) {
@@ -148,27 +171,65 @@ wss.on("connection", async (ws) => { // Tornar a função assíncrona se for usa
           console.log(`Mensagem adicionada ao histórico. Total: ${chatHistory.length}`);
           broadcast(data); // Continua fazendo broadcast de novas mensagens
       }
-      if (type === "login-request") {
-      const { username, password } = data;
-      console.log(`[Server] Tentativa de login para usuário: ${username}`);
+if (type === "login-request") {
+        const { username, password } = data;
+        console.log(`[Server] Tentativa de login para usuário: ${username}`);
 
-      try {
-        // Verifica as credenciais no banco de dados do servidor
-        const player = await db.get('SELECT id FROM players WHERE user = ? AND password = ?', [username, password]);
+        // Obtém o endereço IP da conexão.
+        // ws._socket.remoteAddress pode retornar IPv6 com prefixo, então normalizamos para IPv4 se necessário.
+        const remoteAddress = ws._socket.remoteAddress.replace('::ffff:', '');
+        ws.remoteAddress = remoteAddress; // Armazena o IP na própria conexão WebSocket
 
-        if (player) {
-          console.log(`[Server] Login bem-sucedido para o usuário ${username}, ID: ${player.id}`);
-          // Envia a resposta de sucesso de volta APENAS para o cliente que solicitou
-          ws.send(JSON.stringify({ type: "login-response", success: true, userId: player.id }));
-        } else {
-          console.log(`[Server] Falha no login para o usuário: ${username}`);
-          ws.send(JSON.stringify({ type: "login-response", success: false, message: "Nome de usuário ou senha inválidos." }));
+        try {
+            const player = await db.get('SELECT id FROM players WHERE user = ? AND password = ?', [username, password]);
+
+            if (player) {
+                const newUserId = player.id;
+
+                // NOVO: Lógica para verificar e sobrescrever IP
+                const existingUserIdForIp = ipToUserMap.get(remoteAddress);
+
+                if (existingUserIdForIp && existingUserIdForIp !== newUserId) {
+                    // Se o IP já está mapeado para um usuário DIFERENTE
+                    console.log(`[Server] IP ${remoteAddress} já está em uso pelo Usuário ID ${existingUserIdForIp}. Desconectando o usuário anterior.`);
+
+                    const existingWs = connections.get(existingUserIdForIp);
+                    if (existingWs && existingWs.readyState === WebSocket.OPEN) {
+                        existingWs.send(JSON.stringify({ type: "force-disconnect", message: "Outro usuário logou com o mesmo IP." }));
+                        existingWs.close(1000, "IP em uso por outra sessão."); // Fecha a conexão anterior
+                    }
+                    connections.delete(existingUserIdForIp); // Remove o usuário anterior do mapa de conexões
+                    // Não precisamos remover do ipToUserMap aqui, pois ele será sobrescrito logo abaixo
+                } else if (existingUserIdForIp === newUserId) {
+                    // Se o mesmo usuário está tentando logar do mesmo IP novamente
+                    console.log(`[Server] Usuário ${newUserId} logou novamente do mesmo IP ${remoteAddress}.`);
+                    const existingWs = connections.get(newUserId);
+                    if (existingWs && existingWs.readyState === WebSocket.OPEN && existingWs !== ws) {
+                        // Se houver uma conexão anterior para o MESMO usuário no MESMO IP (e não é a mesma WS)
+                        existingWs.send(JSON.stringify({ type: "force-disconnect", message: "Nova sessão iniciada para sua conta." }));
+                        existingWs.close(1000, "Nova sessão iniciada.");
+                    }
+                    connections.delete(newUserId); // Remove a conexão antiga do mesmo usuário
+                }
+
+                // Associa o novo usuário ao IP e à conexão WebSocket
+                ipToUserMap.set(remoteAddress, newUserId);
+                ws.userId = newUserId; // Armazena o userId na própria conexão WebSocket
+                connections.set(newUserId, ws); // Mapeia userId para a conexão WebSocket
+
+                console.log(`[Server] Login bem-sucedido para o usuário ${username}, ID: ${newUserId}. Conexão mapeada.`);
+                ws.send(JSON.stringify({ type: "login-response", success: true, userId: newUserId }));
+                broadcastConnectedUsers(); // Broadcasta a lista atualizada de usuários conectados
+
+            } else {
+                console.log(`[Server] Falha no login para o usuário: ${username}`);
+                ws.send(JSON.stringify({ type: "login-response", success: false, message: "Nome de usuário ou senha inválidos." }));
+            }
+        } catch (error) {
+            console.error("[Server] Erro ao verificar credenciais no DB:", error);
+            ws.send(JSON.stringify({ type: "login-response", success: false, message: "Erro interno do servidor ao tentar login." }));
         }
-      } catch (error) {
-        console.error("[Server] Erro ao verificar credenciais no DB:", error);
-        ws.send(JSON.stringify({ type: "login-response", success: false, message: "Erro interno do servidor ao tentar login." }));
       }
-    }
       if (type === "sync-scenario") {
         activeScenario = await loadScenarioFromServer(data)
      
@@ -180,8 +241,46 @@ wss.on("connection", async (ws) => { // Tornar a função assíncrona se for usa
         })
     
           }
-      
-      // Manipula a requisição de histórico de um cliente específico
+if (type === "play-audio-command") { // Tipo unificado para play
+    const { audioUrl, volume, loop, targetUserId } = data; // targetUserId já é number
+
+    console.log(`[Server] Recebida requisição para tocar áudio. URL: ${audioUrl}, Target: ${targetUserId}`);
+
+    // Cria o payload a ser enviado para os clientes
+    const audioPayload = {
+        audioUrl,
+        volume,
+        loop,
+        targetUserId // Já é o número correto (-1 ou ID do jogador)
+    };
+
+    if (targetUserId === -1) { // -1 significa "all"
+        broadcast({ type: "play-audio", data: audioPayload }); // Envia o comando "play-audio" para o frontend de TODOS os clientes
+    } else {
+        sendToUser(targetUserId, { type: "play-audio", data: audioPayload }); // Envia para o frontend do CLIENTE ESPECÍFICO
+    }
+}
+if (type === "stop-audio-command") { // Tipo unificado para stop
+    const { targetUserId } = data; // targetUserId já é number
+
+    console.log(`[Server] Recebida requisição para parar áudio. Target: ${targetUserId}`);
+
+    const stopPayload = {
+        targetUserId // Já é o número correto (-1 ou ID do jogador)
+    };
+
+    if (targetUserId === -1) { // -1 significa "all"
+        broadcast({ type: "stop-audio", data: stopPayload });
+    } else {
+        sendToUser(targetUserId, { type: "stop-audio", data: stopPayload });
+    }
+}
+
+
+  if (type === "request-connected-users") {
+        console.log("[Server] Requisição de lista de usuários conectados recebida.");
+        ws.send(JSON.stringify({ type: "connected-users-list", data: getConnectedUsers() }));
+    }
       if (type === "request-chat-history") {
         console.log("Requisição de histórico de chat recebida do cliente. Enviando para o cliente solicitante.");
         if (chatHistory.length > 0) {
@@ -285,27 +384,25 @@ if (type === "requestActiveScenario") {
     }
   });
 
-  ws.on("close", () => {
-    console.log("Cliente desconectado.");
-    connections.delete(ws);
-    // MUDANÇA: Fechar o DB ao fechar o servidor, se for necessário.
-    // Normalmente, você fecharia o DB quando o processo 'server.js' é encerrado.
-    // if (db) {
-    //   db.close();
-    //   console.log('[Server Process] Banco de dados SQLite fechado.');
-    // }
-  });
+ ws.on("close", () => {
+        console.log("Cliente desconectado.");
+        if (ws.userId) { // Verifica se o userId foi definido (ou seja, se o usuário estava logado)
+            connections.delete(ws.userId); // Remove a conexão do Map
+            console.log(`[Server] Usuário ${ws.userId} removido das conexões ativas.`);
+            broadcastConnectedUsers(); // NOVO: Broadcasta a lista atualizada de usuários conectados
+        }
+    });
 });
 
 async function broadcast(message) {
-  console.log("Broadcasting!")
-  for (const ws of connections) {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(message));
+    console.log("Broadcasting!");
+    // Itera sobre os valores (conexões WebSocket) do Map
+    for (const wsClient of connections.values()) {
+        if (wsClient.readyState === WebSocket.OPEN) {
+            wsClient.send(JSON.stringify(message));
+        }
     }
-  }
 }
-
 // Servidor Express ouvindo na porta 5000
 const PORT = 5000;
 server.listen(PORT, () => {

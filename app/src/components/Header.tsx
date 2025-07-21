@@ -45,6 +45,7 @@ function Header() {
             <Link to="/ficha" id="btn-ficha" className="nav-link px-2 link-light">Ficha</Link>
             <Link to="/acoes" id="btn-act" className="nav-link px-2 link-light">Ações</Link>
             <Link to="/inventario" id="btn-inv" className="nav-link px-2 link-light">Inventário</Link>
+            <Link to="/audioMng" id="btn-inv" className="nav-link px-2 link-light">Inventário</Link>
           </ul>
 
           <div className="d-flex align-items-center me-3">

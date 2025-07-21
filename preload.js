@@ -9,7 +9,16 @@ contextBridge.exposeInMainWorld('electron',{
     }
   },
     homeDir: ()=> os.homedir(),
-
+    
+    
+    sendAudioCommand: (commandType, audioData) => ipcRenderer.invoke('send-audio-command', commandType, audioData),
+    getAudioPool: () => ipcRenderer.invoke('manage-assets:get-audio-pool'),
+    addAudio: () => ipcRenderer.invoke('manage-assets:add-audio'),
+   getConnectedUsers: () => ipcRenderer.invoke('get-connected-users'),
+ onPlayAudio: (callback) => ipcRenderer.on('play-audio-to-frontend', (event, args) => callback(args)),
+    onStopAudio: (callback) => ipcRenderer.on('stop-audio-to-frontend', (event, args) => callback(args)),
+   getUserId: () => ipcRenderer.invoke('get-userid'),
+  onSetClientUserId: (callback) => ipcRenderer.on('set-client-userid', (event, userId) => callback(userId)),
  updateScenario: (scenarioId, tokens, map) =>
     ipcRenderer.send("update-scenario", { scenarioId, tokens, map }),
   requestTokenMove: (tokenId, posX, posY,sceneId) =>

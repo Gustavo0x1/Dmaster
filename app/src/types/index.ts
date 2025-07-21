@@ -114,6 +114,32 @@ export interface Token {
   width: number; // Largura do token no grid
   height: number; // Altura do token no grid
 }
+export interface AudioFile {
+    id: number;
+    name: string;
+    type: string; // Ex: 'audio/mp3', 'audio/wav'
+    data: string; // Base64 encoded
+    url: string;  // Object URL for browser playback
+}
+export interface ConnectedUser {
+    userId: number; // Agora é um número
+    username?: string;
+}
+export interface AudioCommandData {
+    audioUrl: string;
+    volume: number;
+    loop: boolean;
+    targetUserId: number; // Alterado para number (use -1 para all)
+}
+export interface StopAudioCommandData {
+    targetUserId: number; // Alterado para number (use -1 para all)
+}
+
+// Para as mensagens que vêm do servidor
+export interface ServerAudioMessage {
+    type: 'play-audio' | 'stop-audio';
+    data: AudioCommandData | StopAudioCommandData;
+}
 export interface CombatTrackerToken {
   id: number;
   name: string;
