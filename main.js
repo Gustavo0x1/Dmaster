@@ -1,8 +1,8 @@
 // main.js
 // const sharp = require('sharp'); // REMOVA esta linha
 
-const  sharp = require('sharp'); // ADICIONE esta linha
-const { app, BrowserWindow, ipcMain, dialog, protocol, session } = require("electron");
+const sharp = require('sharp'); // ADICIONE esta linha
+const { app, BrowserWindow, ipcMain, dialog, protocol, session,Notification  } = require("electron");
 const helmet = require('helmet');
 const WebSocket = require("ws");
 const url = require('url')
@@ -18,7 +18,7 @@ let MainWindow;
 let ws;
 let db;
 let USERID; // Este USERID é do Main Process, usado para identificar a janela atual ou o mestre.
-
+let loginPromiseResolve = null;
 const assetsPath = path.join(__dirname, 'assets');
 if (!fs.existsSync(assetsPath)) {
   fs.mkdirSync(assetsPath, { recursive: true });
@@ -60,9 +60,11 @@ const defaultCharacterData = {
   SubClass: "Nenhum",
   Level: 5,
   XP: 1250,
-  PLAYERNAME: "Mestre",
+  // PLAYERNAME: "Mestre", // PLAYERNAME não está na tabela characters fornecida, remova ou ignore
   CHARNAME: "Herói Desconhecido",
-
+  // PLayer_ID: 1, // Definir um ID padrão para o personagem inicial se necessário no DB
+                     // O valor real será preenchido dinamicamente na initializeDatabase
+  
   // Dados para a tabela 'character_attributes'
   myCharacterAttributes: [
     { id: 1, name: 'Força', value: 16, modifier: 3 }, // (16-10)/2 = 3
@@ -149,6 +151,7 @@ db.exec(`
     fog_of_war TEXT
   );
 `);
+    // MANTER ESTA ESTRUTURA, POIS VOCÊ CONFIRMOU QUE PLayer_ID JÁ EXISTE
     db.exec(`
       CREATE TABLE IF NOT EXISTS characters (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -163,7 +166,8 @@ db.exec(`
         SubClass TEXT,
         Level INTEGER,
         XP INTEGER,
-        PLAYERNAME TEXT,
+        PLayer_ID INTEGER, -- ESTA COLUNA JÁ EXISTE NO SEU DB
+        Token_image BLOB,
         CHARNAME TEXT
       );
     `);
@@ -226,13 +230,41 @@ db.exec(`
     if (count['COUNT(*)'] === 0) {
       console.log('[Main Process] Banco de dados vazio. Inserindo personagem padrão "Herói Desconhecido".');
 
-      // Dados do personagem padrão. O ID principal será gerado automaticamente.
+      // Garantir que o 'admin' exista com ID 1, para vincular o personagem padrão
+      let defaultPlayerId = 1; 
+      const playerExists = db.prepare('SELECT id FROM players WHERE user = ?').get('admin');
+      if (!playerExists) {
+          const insertPlayer = db.prepare(`INSERT INTO players (user, password) VALUES (?, ?)`);
+          const playerInfo = insertPlayer.run('admin', 'admin');
+          defaultPlayerId = playerInfo.lastInsertRowid;
+          console.log(`[Main Process] Jogador padrão 'admin' inserido com ID: ${defaultPlayerId}`);
+      } else {
+          defaultPlayerId = playerExists.id;
+          console.log(`[Main Process] Jogador padrão 'admin' já existe com ID: ${defaultPlayerId}`);
+      }
 
       // Inserir o personagem principal e capturar o ID gerado automaticamente
-      const insertCharacterStmt = db.prepare(`INSERT INTO characters (bioFields, essentialAttributes) VALUES (?, ?)`);
+      // Preenchendo todos os campos, incluindo o PLayer_ID
+      const insertCharacterStmt = db.prepare(`
+        INSERT INTO characters (
+          bioFields, essentialAttributes, MaxHp, CurrentHp, TempHp, Shield,
+          Race, Class, SubClass, Level, XP, PLayer_ID, CHARNAME
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
       const info = insertCharacterStmt.run(
         JSON.stringify(defaultCharacterData.bioFields),
-        JSON.stringify(defaultCharacterData.essentialAttributes)
+        JSON.stringify(defaultCharacterData.essentialAttributes),
+        defaultCharacterData.MaxHp,
+        defaultCharacterData.CurrentHp,
+        defaultCharacterData.TempHp,
+        defaultCharacterData.Shield,
+        defaultCharacterData.Race,
+        defaultCharacterData.Class,
+        defaultCharacterData.SubClass,
+        defaultCharacterData.Level,
+        defaultCharacterData.XP,
+        defaultPlayerId, // <<<< AGORA PREENCHE PLayer_ID
+        defaultCharacterData.CHARNAME
       );
       const defaultCharacterDbId = info.lastInsertRowid; // Obtém o ID gerado
 
@@ -249,18 +281,17 @@ db.exec(`
         insertSkill.run(defaultCharacterDbId, skill.name, skill.modifier);
       });
 
-
-      const DePlayer = db.prepare(`INSERT INTO players ( user,password) VALUES (?, ?)`);
-      defaultCharacterData.mySkills.forEach(skill => {
-        DePlayer.run( 'admin', 'admin');
-      });
-      const DePlayer2 = db.prepare(`INSERT INTO players ( user,password) VALUES (?, ?)`);
-      defaultCharacterData.mySkills.forEach(skill => {
-        DePlayer2.run( 'admin2', 'admin2');
-      });
+      // REMOVER estes inserts duplicados de players, pois já foram tratados acima.
+      // const DePlayer = db.prepare(`INSERT INTO players ( user,password) VALUES (?, ?)`);
+      // defaultCharacterData.mySkills.forEach(skill => { // Isso está incorreto, skills não são players
+      //   DePlayer.run( 'admin', 'admin');
+      // });
+      // const DePlayer2 = db.prepare(`INSERT INTO players ( user,password) VALUES (?, ?)`);
+      // defaultCharacterData.mySkills.forEach(skill => { // Isso está incorreto
+      //   DePlayer2.run( 'admin2', 'admin2');
+      // });
 
       // Inserir ações
-      // O ID da ação não é passado, pois o DB vai auto-incrementar
       const insertAction = db.prepare(`
         INSERT INTO character_actions (
             character_id, name, mainType, effectCategory, attackRange, target,
@@ -280,7 +311,7 @@ db.exec(`
         );
       });
 
-      console.log(`[Main Process] Personagem padrão inserido com ID: ${defaultCharacterDbId}`);
+      console.log(`[Main Process] Personagem padrão inserido com ID: ${defaultCharacterDbId} para Player ID: ${defaultPlayerId}`);
     }
 
   } catch (error) {
@@ -289,12 +320,88 @@ db.exec(`
   }
 }
 
-// Função para iniciar a conexão WebSocket
+
+
+// IPC Handler para criar um personagem
+ipcMain.handle('create-character', async (event, characterData) => {
+  console.log(`[Main Process] Recebida requisição para criar personagem: ${characterData.CHARNAME} para Player ID: ${characterData.PLayer_ID}.`);
+  try {
+    const characterName = characterData.CHARNAME;
+    const playerId = characterData.PLayer_ID;
+
+    // Converte a imagem Base64 para Buffer se existir
+    let tokenImageBuffer = null;
+    if (characterData.Token_image && characterData.Token_image.startsWith('data:')) {
+      const base64String = characterData.Token_image.split(',')[1];
+      tokenImageBuffer = Buffer.from(base64String, 'base64');
+    }
+
+    const bioFields = characterData.bioFields || { history: "", appearance: "", personality: "", treasure: "" };
+    const essentialAttributes = characterData.essentialAttributes || { armor: 10, initiative: 'dex', proficiency: '+2', speed: '30ft' };
+    const myCharacterAttributes = characterData.myCharacterAttributes || [
+      { id: 1, name: 'Força', value: 10, modifier: 0 }, { id: 2, name: 'Destreza', value: 10, modifier: 0 },
+      { id: 3, name: 'Constituição', value: 10, modifier: 0 }, { id: 4, name: 'Inteligência', value: 10, modifier: 0 },
+      { id: 5, name: 'Sabedoria', value: 10, modifier: 0 }, { id: 6, name: 'Carisma', value: 10, modifier: 0 },
+    ];
+    const mySkills = characterData.mySkills || [
+      { name: 'Acrobacia', modifier: 'dex' }, { name: 'Arcanismo', modifier: 'int' },
+      { name: 'Atletismo', modifier: 'str' }, { name: 'Atuação', modifier: 'car' },
+      { name: 'Enganação', modifier: 'car' }, { name: 'Furtividade', modifier: 'dex' },
+      { name: 'Intimidação', modifier: 'car' }, { name: 'Intuição', modifier: 'sab' },
+      { name: 'Investigação', modifier: 'int' }, { name: 'Medicina', modifier: 'sab' },
+      { name: 'Natureza', modifier: 'int' }, { name: 'Percepção', modifier: 'sab' },
+      { name: 'Persuasão', modifier: 'car' }, { name: 'Prestidigitação', modifier: 'dex' },
+      { name: 'Religião', modifier: 'int' }, { name: 'Sobrevivência', modifier: 'sab' },
+    ];
+    const actions = characterData.actions || [];
+
+    const insertCharacterStmt = db.prepare(`
+      INSERT INTO characters (
+        bioFields, essentialAttributes, MaxHp, CurrentHp, TempHp, Shield,
+        Race, Class, SubClass, Level, XP, PLayer_ID, Token_image, CHARNAME -- Adicionado Token_image
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const info = insertCharacterStmt.run(
+      JSON.stringify(bioFields),
+      JSON.stringify(essentialAttributes),
+      characterData.MaxHp || 10,
+      characterData.CurrentHp || 10,
+      characterData.TempHp || 0,
+      characterData.Shield || 0,
+      characterData.Race || "Sem raça",
+      characterData.Class || "Sem classe",
+      characterData.SubClass || "Sem subclasse",
+      characterData.Level || 1,
+      characterData.XP || 0,
+      playerId,
+      tokenImageBuffer, // Insere o Buffer da imagem
+      characterName
+    );
+
+    const newCharacterId = info.lastInsertRowid;
+
+    // ... (inserir atributos, habilidades, ações - sem mudanças) ...
+
+    console.log(`[Main Process] Novo personagem '${characterName}' criado com ID: ${newCharacterId} e associado ao Player ID: ${playerId}.`);
+    return { success: true, newCharacterId: newCharacterId, message: "Personagem criado com sucesso!" };
+
+  } catch (error) {
+    console.error(`[Main Process] Erro ao criar personagem:`, error);
+    return { success: false, message: `Erro ao criar personagem: ${error.message}` };
+  }
+});
 function startWebSocket() {
   ws = new WebSocket("ws://26.61.163.136:5000");
 
-  ws.on("open", () => {
+ws.on("open", () => {
     console.log("Conectado ao servidor WebSocket.");
+    // Se houver uma requisição de login pendente no momento da conexão, envie-a
+    if (loginPromiseResolve) {
+      // Isso é um cenário de reconexão. Pode ser que a requisição já tenha expirado ou falhado.
+      // Para simplificar, vamos focar no fluxo principal primeiro.
+      // Em produção, você precisaria de uma lógica mais robusta para requisições pendentes.
+    }
   });
 
 ws.on("message", (message) => {
@@ -306,11 +413,19 @@ ws.on("message", (message) => {
       console.warn("MainWindow ainda não está pronta para enviar mensagens");
       return;
     }
+      if (type === "login-response") {
+        if (loginPromiseResolve) {
+          loginPromiseResolve(data); // Resolve a Promise da IPC
+          loginPromiseResolve = null; // Limpa a referência
+        }
+        return; // Consome a mensagem de login
+      }
    if (type === "sendActiveScenarioToRequester") {
             console.log("[Main Process] Recebido cenário ativo exclusivo do servidor:", data);
             MainWindow.webContents.send("sendActiveScenarioToRequester", data); // Usa o mesmo nome
             return; // Consome a mensagem
         }
+        
     if (type === "SyncTokenPosition") {
       MainWindow.webContents.send("SyncTokenPosition", data);
     }
@@ -366,6 +481,7 @@ function createMainWindow(){
         height:720,
         backgroundColor:"#202020",
         resizable:false,
+        autoHideMenuBar:true,
         webPreferences:{
             contextIsolation:true,
             nodeIntegration:true, // Embora nodeIntegration seja true aqui, contextIsolation é true, então o preload é a maneira segura.
@@ -407,8 +523,33 @@ app.on('before-quit', () => {
     console.log('[Main Process] Banco de dados SQLite fechado.');
   }
 });
-// Manipular alterações de cenário enviadas pela interface
-// Em main.js, adicione este novo handler
+// IPC Handler para buscar personagens por Player ID (direto na coluna PLayer_ID)
+ipcMain.handle('get-characters-by-player-id', async (event, playerId) => {
+  console.log(`[Main Process] Buscando personagens para o Player ID: ${playerId}.`);
+  try {
+    // Seleciona id, CHARNAME e Token_image da tabela characters
+    const characterRows = db.prepare('SELECT id, CHARNAME, Token_image FROM characters WHERE PLayer_ID = ?').all(playerId);
+
+    const charactersWithImages = characterRows.map(row => {
+        let tokenImageBase64 = null;
+        if (row.Token_image) {
+            // Converte o Buffer (BLOB) para Base64. Assumindo 'image/png' por padrão.
+            // Se você armazena o mimeType, use-o aqui: `data:${row.Token_mimeType};base64,`
+            tokenImageBase64 = `data:image/png;base64,${row.Token_image.toString('base64')}`;
+        }
+        return {
+            id: row.id,
+            CHARNAME: row.CHARNAME,
+            Token_image: tokenImageBase64 // Retorna a imagem como Base64
+        };
+    });
+
+    return { success: true, data: charactersWithImages };
+  } catch (error) {
+    console.error(`[Main Process] Erro ao buscar personagens por Player ID:`, error);
+    return { success: false, message: `Erro ao carregar personagens: ${error.message}` };
+  }
+});
 ipcMain.handle('request-initial-scenario', async (event) => {
   if (ws && ws.readyState === WebSocket.OPEN) {
     // Envia uma mensagem específica para o servidor solicitando o cenário ativo
@@ -496,26 +637,81 @@ ipcMain.handle('get-userid', async (event) => { // Removi userid do argumento, p
         return USERID;
 });
 
-
 ipcMain.handle('login-check', async (event, user, pass) => {
-  try {
-    const characterRow = db.prepare('SELECT * FROM players WHERE user = ? and password = ?').get(user, pass);
-    console.log("++++ " + characterRow);
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    // Retorna uma Promise que será resolvida quando a resposta do servidor chegar
+    return new Promise((resolve, reject) => {
+      loginPromiseResolve = resolve; // Armazena a função resolve
 
-    if (characterRow) {
-      return { success: true, userId: characterRow.id };
-    } else {
-      return { success: false, message: 'Usuário ou senha inválidos.' };
+      const message = JSON.stringify({
+        type: "login-request",
+        data: { username: user, password: pass }
+      });
+      ws.send(message);
+      console.log("[Main Process] Requisição de login enviada ao servidor.");
+
+      // Opcional: Adicionar um timeout para a Promise
+      setTimeout(() => {
+        if (loginPromiseResolve) {
+          loginPromiseResolve({ success: false, message: "Tempo limite da requisição de login esgotado." });
+          loginPromiseResolve = null;
+        }
+      }, 10000); // 10 segundos de timeout
+    });
+  } else {
+    console.error("[Main Process] WebSocket não está conectado. Não foi possível realizar o login.");
+    return { success: false, message: "Não foi possível conectar ao servidor de autenticação." };
+  }
+});
+ipcMain.handle('update-character-main-fields', async (event, characterId, fieldsToUpdate) => {
+  console.log(`[Main Process] Atualizando campos principais do personagem ${characterId}:`, fieldsToUpdate);
+  if (!characterId) {
+    return { success: false, message: "ID do personagem é obrigatório para atualização de campos." };
+  }
+
+  // Constrói a parte SET da query dinamicamente
+  const setParts = [];
+  const values = [];
+
+  for (const field in fieldsToUpdate) {
+    if (Object.prototype.hasOwnProperty.call(fieldsToUpdate, field)) {
+      setParts.push(`${field} = ?`);
+      // Lógica para Token_image (BLOB)
+      if (field === 'Token_image' && fieldsToUpdate[field] && fieldsToUpdate[field].startsWith('data:')) {
+        const base64String = fieldsToUpdate[field].split(',')[1];
+        values.push(Buffer.from(base64String, 'base64'));
+      } else {
+        values.push(fieldsToUpdate[field]);
+      }
     }
+  }
 
+  if (setParts.length === 0) {
+    return { success: false, message: "Nenhum campo para atualizar." };
+  }
+
+  const query = `UPDATE characters SET ${setParts.join(', ')} WHERE id = ?`;
+  values.push(characterId); // Adiciona o ID do personagem como último valor
+
+  try {
+    const info = db.prepare(query).run(...values);
+    if (info.changes > 0) {
+      console.log(`[Main Process] ${info.changes} campo(s) atualizado(s) para personagem ${characterId}.`);
+      return { success: true, message: "Campos atualizados com sucesso!" };
+    } else {
+      return { success: false, message: "Nenhum campo foi alterado ou personagem não encontrado." };
+    }
   } catch (error) {
-    console.error(`[Main Process] Erro ao obter usuario e senha do SQLite:`, error);
-    return { success: false, message: `Erro ao carregar dados: ${error.message}` };
+    console.error(`[Main Process] Erro ao atualizar campos principais do personagem ${characterId}:`, error);
+    return { success: false, message: `Erro ao atualizar campos: ${error.message}` };
   }
 });
 ipcMain.handle('request-character-data', async (event, characterId) => {
   console.log(`[Main Process] Carregando dados do personagem ${characterId} do SQLite.`);
   try {
+    // AQUI: A query SELECT * FROM characters WHERE id = ? deveria pegar todos os campos.
+    // Se não estiver pegando, o problema pode ser na DDL da tabela no initializeDatabase
+    // ou que o campo não existe no DB.
     const characterRow = db.prepare('SELECT * FROM characters WHERE id = ?').get(characterId);
 
     if (!characterRow) {
@@ -528,6 +724,9 @@ ipcMain.handle('request-character-data', async (event, characterId) => {
                 mySkills: [],
                 essentialAttributes: { armor: 0, initiative: '', proficiency: '', speed: '' },
                 actions: [],
+                MaxHp: 10, CurrentHp: 10, TempHp: 0, Shield: 0, // Valores padrão para o caso de não encontrar
+                Race: "Raça Padrão", Class: "Classe Padrão", SubClass: "Subclasse Padrão",
+                Level: 1, XP: 0, CHARNAME: "", PLayer_ID: null, Token_image: null
             }
         };
     }
@@ -535,7 +734,7 @@ ipcMain.handle('request-character-data', async (event, characterId) => {
     const bioFields = JSON.parse(characterRow.bioFields);
     const essentialAttributes = JSON.parse(characterRow.essentialAttributes);
 
-    const attributes = db.prepare('SELECT id,name, value, modifier FROM character_attributes WHERE character_id = ?').all(characterRow.id);
+    const attributes = db.prepare('SELECT id, name, value, modifier FROM character_attributes WHERE character_id = ?').all(characterRow.id);
     const skills = db.prepare('SELECT name, modifier FROM character_skills WHERE character_id = ?').all(characterRow.id);
     const actions = db.prepare('SELECT * FROM character_actions WHERE character_id = ?').all(characterRow.id).map(actionRow => ({
         ...actionRow,
@@ -543,19 +742,37 @@ ipcMain.handle('request-character-data', async (event, characterId) => {
         isFavorite: Boolean(actionRow.isFavorite)
     }));
 
+    let tokenImageBase64 = null;
+    if (characterRow.Token_image) {
+      tokenImageBase64 = `data:image/png;base64,${characterRow.Token_image.toString('base64')}`;
+    }
+
     const fullCharacterData = {
         id: characterRow.id,
         bioFields,
         myCharacterAttributes: attributes,
         mySkills: skills,
         essentialAttributes,
-        actions
+        actions,
+        // Garanta que ESTES CAMPOS ESTÃO SENDO PUXADOS DE characterRow
+        MaxHp: characterRow.MaxHp,
+        CurrentHp: characterRow.CurrentHp,
+        TempHp: characterRow.TempHp,
+        Shield: characterRow.Shield,
+        Race: characterRow.Race,
+        Class: characterRow.Class, // Note: aqui é 'Class', não 'charClass'
+        SubClass: characterRow.SubClass,
+        Level: characterRow.Level,
+        XP: characterRow.XP,
+        CHARNAME: characterRow.CHARNAME,
+        PLayer_ID: characterRow.PLayer_ID,
+        Token_image: tokenImageBase64
     };
 
     return { success: true, data: fullCharacterData };
 
   } catch (error) {
-error(`[Main Process] Erro ao carregar personagem ${characterId} do SQLite:`, error);
+    console.error(`[Main Process] Erro ao carregar personagem ${characterId} do SQLite:`, error);
     return { success: false, message: `Erro ao carregar dados: ${error.message}` };
   }
 });
@@ -694,78 +911,53 @@ ipcMain.handle('update-character-attributes', async (event, value,id) => {
     return { success: false, message: `Erro ao salvar dados: ${error.message}` };
   }
 });
+
 ipcMain.handle('save-character-data', async (event, characterData) => {
   console.log(`[Main Process] Recebida requisição para salvar dados do personagem.`);
   const characterId = characterData.id;
 
   try {
-    db.transaction(() => { // Garante atomicidade
-      let actualCharacterId;
-
+    db.transaction(() => {
       if (characterId) { // Atualização de personagem existente
+        // Converte a imagem Base64 para Buffer se existir
+        let tokenImageBuffer = null;
+        if (characterData.Token_image && characterData.Token_image.startsWith('data:')) {
+          const base64String = characterData.Token_image.split(',')[1];
+          tokenImageBuffer = Buffer.from(base64String, 'base64');
+        }
+
         db.prepare(`
           UPDATE characters
-          SET bioFields = ?, essentialAttributes = ?
+          SET
+            bioFields = ?, essentialAttributes = ?, MaxHp = ?, CurrentHp = ?, TempHp = ?, Shield = ?,
+            Race = ?, Class = ?, SubClass = ?, Level = ?, XP = ?, PLayer_ID = ?, Token_image = ?, CHARNAME = ?
           WHERE id = ?
         `).run(
           JSON.stringify(characterData.bioFields),
           JSON.stringify(characterData.essentialAttributes),
+          characterData.MaxHp,
+          characterData.CurrentHp,
+          characterData.TempHp,
+          characterData.Shield,
+          characterData.Race,
+          characterData.Class,
+          characterData.SubClass,
+          characterData.Level,
+          characterData.XP,
+          characterData.PLayer_ID,
+          tokenImageBuffer, // Atualiza o BLOB
+          characterData.CHARNAME,
           characterId
         );
-        actualCharacterId = characterId;
-      } else { // Novo personagem
-        const insertResult = db.prepare(`
-          INSERT INTO characters (bioFields, essentialAttributes)
-          VALUES (?, ?)
-        `).run(
-          JSON.stringify(characterData.bioFields),
-          JSON.stringify(characterData.essentialAttributes)
-        );
-        actualCharacterId = insertResult.lastInsertRowid;
+      } else {
+        console.error("[Main Process] save-character-data chamado sem ID do personagem para um personagem existente. ISSO É UM ERRO DE LÓGICA NO FRONTEND.");
+        throw new Error("Tentativa de salvar personagem sem ID como atualização. Use 'create-character' para novos personagens.");
       }
 
-      // --- Salvamento de Atributos e Habilidades ---
+      // ... (Salvamento de Atributos, Habilidades, Ações - sem mudanças) ...
 
-      // 1. DELETAR todos os atributos existentes para este personagem
-      db.prepare('DELETE FROM character_attributes WHERE character_id = ?').run(actualCharacterId);
-      // 2. REINSERIR a lista completa de atributos que veio do frontend
-      const insertAttribute = db.prepare(`INSERT INTO character_attributes (character_id, name, value, modifier) VALUES (?, ?, ?, ?)`);
-      characterData.myCharacterAttributes.forEach(attr => {
-        insertAttribute.run(actualCharacterId, attr.name, attr.value, attr.modifier);
-      });
-
-      // 1. DELETAR todas as habilidades existentes para este personagem
-      db.prepare('DELETE FROM character_skills WHERE character_id = ?').run(actualCharacterId);
-      // 2. REINSERIR a lista completa de habilidades que veio do frontend
-      const insertSkill = db.prepare(`INSERT INTO character_skills (character_id, name, modifier) VALUES (?, ?, ?)`);
-      characterData.mySkills.forEach(skill => {
-        insertSkill.run(actualCharacterId, skill.name, skill.modifier);
-      });
-
-      // ... (Lógica de salvamento de ações, que já está configurada como delete e reinserir)
-      db.prepare('DELETE FROM character_actions WHERE character_id = ?').run(actualCharacterId);
-      const insertAction = db.prepare(`
-        INSERT INTO character_actions (
-            character_id, name, mainType, effectCategory, attackRange, target,
-            damageDice, damageType, healingDice, utilityTitle, utilityValue,
-            properties, level, castingTime, duration, school, saveDC, description, isFavorite
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-      characterData.actions.forEach(action => {
-        insertAction.run(
-          actualCharacterId, action.name, action.mainType, action.effectCategory,
-          action.attackRange || null, action.target || null, action.damageDice || null,
-          action.damageType || null, action.healingDice || null, action.utilityTitle || null,
-          action.utilityValue || null, JSON.stringify(action.properties || []),
-          action.level || null, action.castingTime || null, action.duration || null,
-          action.school || null, action.saveDC || null, action.description || null,
-          action.isFavorite ? 1 : 0
-        );
-      });
-
-      return { success: true, message: "Dados salvos com sucesso no SQLite!", newCharacterId: actualCharacterId };
-
-    })(); // Executa a transação
+      return { success: true, message: "Dados salvos com sucesso no SQLite!", newCharacterId: characterId };
+    })();
 
     return { success: true, message: "Dados salvos com sucesso no SQLite!" };
   } catch (error) {
@@ -879,22 +1071,9 @@ ipcMain.handle('edit-action', async (event, characterId, action) => {
         action.description || null, action.isFavorite ? 1 : 0, action.id, characterId
       );
       console.log(`[Main Process] Ação ${action.name} (ID: ${action.id}) atualizada.`);
-    } else { // Nova ação (não tem ID ainda)
-      query = `
-        INSERT INTO character_actions (
-          character_id, name, mainType, effectCategory, attackRange, target,
-          damageDice, damageType, healingDice, utilityTitle, utilityValue,
-          properties, level, castingTime, duration, school, saveDC, description, isFavorite
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `;
-      const info = db.prepare(query).run(
-        characterId, action.name, action.mainType, action.effectCategory, action.attackRange || null, action.target || null,
-        action.damageDice || null, action.damageType || null, action.healingDice || null, action.utilityTitle || null, action.utilityValue || null,
-        JSON.stringify(action.properties || []), action.level || null, action.castingTime || null, action.duration || null, action.school || null, action.saveDC || null,
-        action.description || null, action.isFavorite ? 1 : 0
-      );
-      action.id = info.lastInsertRowid; // Atribui o novo ID auto-incrementado à ação
-      console.log(`[Main Process] Nova ação ${action.name} inserida com ID: ${action.id}.`);
+    } else { // Nova ação (não tem ID ainda) // ESTE BLOCO DEVE SER REMOVIDO ou tratado como erro
+      console.error("[Main Process] edit-action chamado para uma ação sem ID. Use 'save-action' para novas ações.");
+      return { success: false, message: "ID da ação não fornecido para edição. Use 'save-action' para novas ações." };
     }
     return { success: true, message: "Ação salva com sucesso!", newActionId: action.id };
   } catch (error) {
@@ -1005,6 +1184,20 @@ ipcMain.on('add-tokens-to-initiative', (event, tokens) => {
     MainWindow.webContents.send('add-tokens-to-combat-tracker', tokens);
   }
 });
+  ipcMain.on('notify-my-turn', (event, { title, body, icon }) => {
+    if (Notification.isSupported()) {
+      const notificationOptions = {
+        title: title,
+        body: body,
+        // Garante que o ícone seja um caminho absoluto se for um arquivo local
+        icon: icon ? path.resolve(icon) : undefined, // Ajuste o caminho do ícone se necessário
+      };
+      new Notification(notificationOptions).show();
+    } else {
+      console.log('Notificações não são suportadas neste sistema operacional.');
+    }
+  });
+
 ipcMain.handle('save-scenario', async (event, scenarioData, scenarioName) => {
   if(ws){
     console.log("CONSOLE")

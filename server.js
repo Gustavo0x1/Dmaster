@@ -148,7 +148,27 @@ wss.on("connection", async (ws) => { // Tornar a função assíncrona se for usa
           console.log(`Mensagem adicionada ao histórico. Total: ${chatHistory.length}`);
           broadcast(data); // Continua fazendo broadcast de novas mensagens
       }
-      
+      if (type === "login-request") {
+      const { username, password } = data;
+      console.log(`[Server] Tentativa de login para usuário: ${username}`);
+
+      try {
+        // Verifica as credenciais no banco de dados do servidor
+        const player = await db.get('SELECT id FROM players WHERE user = ? AND password = ?', [username, password]);
+
+        if (player) {
+          console.log(`[Server] Login bem-sucedido para o usuário ${username}, ID: ${player.id}`);
+          // Envia a resposta de sucesso de volta APENAS para o cliente que solicitou
+          ws.send(JSON.stringify({ type: "login-response", success: true, userId: player.id }));
+        } else {
+          console.log(`[Server] Falha no login para o usuário: ${username}`);
+          ws.send(JSON.stringify({ type: "login-response", success: false, message: "Nome de usuário ou senha inválidos." }));
+        }
+      } catch (error) {
+        console.error("[Server] Erro ao verificar credenciais no DB:", error);
+        ws.send(JSON.stringify({ type: "login-response", success: false, message: "Erro interno do servidor ao tentar login." }));
+      }
+    }
       if (type === "sync-scenario") {
         activeScenario = await loadScenarioFromServer(data)
      

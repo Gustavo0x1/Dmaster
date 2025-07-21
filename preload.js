@@ -72,13 +72,14 @@ on: (channel, callback) => {
       'login-check',
       'save-scenario',
       'request-initial-scenario',
-    
+     'get-characters-by-player-id',
       'update-grid-state',
       'update-character-bio',
       'update-character-essentials',
       'update-character-skills',
       'save-character-data', // Exemplo: se você for salvar dados
       'delete-character',     // Exemplo: se você for deletar um personagem
+      'create-character',     // Exemplo: se você for deletar um personagem
     ];
 
     if (validInvokeChannels.includes(channel)) {

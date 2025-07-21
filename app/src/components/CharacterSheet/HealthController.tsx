@@ -153,14 +153,7 @@ const HealthController: React.FC<HealthControllerProps> = ({
         </button>
       </div>
 
-      {/* Botão de Edição de Vida Máxima */}
-      <button
-        className="btn btn-sm btn-warning mt-3"
-        onClick={handleToggleEditMaxHealth}
-        title="Editar Pontos de Vida Máximos"
-      >
-        <i className="bi bi-pencil me-1"></i> Editar Max PV
-      </button>
+
 
       {/* Seção de Edição de Vida Máxima (expansível) */}
       {isEditingMaxHealth && (

@@ -17,6 +17,7 @@ import 'bootstrap/dist/js/bootstrap.min.js';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './css/CharSheet/CharSheet.css';
 import './index.css'; // Mantenha este se ele tiver estilos globais para o aplicativo
+import Fichas from './pages/Fichas';
 
 // Define a interface para o objeto electron exposto no window
 // Isso é crucial para a tipagem segura do ipcRenderer
@@ -66,7 +67,7 @@ function AppRouterAndAuth() {
                             {/* Define a rota padrão após o login, ou seja, / */}
                             <Route index element={<Home />} />
                             <Route path='/acoes' element={<Actions />} />
-                            <Route path='/ficha' element={<FullCharSheet />} />
+                            <Route path='/ficha' element={<Fichas />} />
                             <Route path='/inventario' element={<Inventory />} />
                             {/* Você pode adicionar outras rotas como o RPGGrid se ele for parte da aplicação logada */}
                             {/* <Route path='/grid' element={<RPGGrid />} /> */}

@@ -1,95 +1,123 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FullCharSheet from './FullCharSheet'; // Importa o componente da ficha completa
 
 // Defina uma interface para os dados básicos de cada personagem/ficha
-interface CharacterData {
-  id: number; // Um ID único para a ficha (ex: "ficha-guerreira", "ficha-mago")
-  name: string; // Nome do personagem para o rótulo da aba
-  // No futuro, aqui você adicionaria todos os dados reais que o FullCharSheet precisaria
-  // Ex: attributes: BasicAttribute[]; skills: Skill[]; health: { current: number, max: number };
+// Esta interface deve corresponder ao que 'get-characters-by-player-id' retorna
+interface CharacterListItem {
+  id: number;
+  CHARNAME: string; // Nome do personagem
 }
 
 const CharacterSheetManager: React.FC = () => {
-  // Dados mockados de múltiplas fichas de personagem.
-  // No futuro, isso viria de um banco de dados ou de um estado global.
-  const [characters, setCharacters] = useState<CharacterData[]>([
-    { id: 1, name: 'Aella (Guerreira)' },
-    { id: 2, name: 'Elara (Maga)' },
-    { id: 3, name: 'Grom (Bárbaro)' },
-    // Adicione mais personagens conforme necessário
-  ]);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  // selectedCharacterId será null para criar um novo, ou o ID de um personagem existente para editar
+  const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
+  // characterList é a lista de personagens do usuário logado, vinda do DB
+  const [characterList, setCharacterList] = useState<CharacterListItem[]>([]);
 
-  // Estado para controlar qual ficha (personagem) está ativa.
-  // Inicializa com o ID do primeiro personagem, se houver.
-  const [activeCharacterId, setActiveCharacterId] = useState<number>(characters[0]?.id || 0);
+  const electron = (window as any).electron;
 
-  // Mensagem caso não haja personagens
-  if (characters.length === 0) {
+  // Função para carregar a lista de personagens do usuário logado
+  const loadCharactersForUser = async (userId: number) => {
+    if (electron && electron.invoke) {
+      try {
+        const response = await electron.invoke('get-characters-by-player-id', userId);
+        if (response.success) {
+          setCharacterList(response.data);
+          // Se não houver nenhum personagem selecionado e existirem personagens, selecione o primeiro
+          if (response.data.length > 0 && selectedCharacterId === null) {
+            setSelectedCharacterId(response.data[0].id);
+          } else if (response.data.length === 0) {
+            // Se não houver personagens, deselecione qualquer um e prepare para criação
+            setSelectedCharacterId(null); 
+          }
+        } else {
+          console.error("Erro ao carregar lista de personagens:", response.message);
+          // Opcional: exibir um alerta para o usuário
+        }
+      } catch (err) {
+        console.error('Erro IPC ao carregar personagens:', err);
+        // Opcional: exibir um alerta para o usuário
+      }
+    }
+  };
+
+  useEffect(() => {
+    // Obter o ID do usuário logado ao iniciar
+    if (electron && electron.invoke) {
+      electron.invoke('get-userid').then((id: number | null) => {
+        setCurrentUserId(id);
+        if (id !== null) {
+          loadCharactersForUser(id); // Carrega personagens para o usuário logado
+        }
+      });
+    }
+  }, []); // Executa apenas uma vez ao montar
+
+  // Callback para quando um novo personagem é criado na FullCharSheet
+  const handleCharacterCreated = (newCharacterId: number) => {
+    // Após a criação, selecione o novo personagem e recarregue a lista
+    setSelectedCharacterId(newCharacterId); 
+    if (currentUserId !== null) {
+      loadCharactersForUser(currentUserId);
+    }
+  };
+
+  // Se o usuário não estiver logado
+  if (currentUserId === null) {
     return (
       <div className="p-4 text-white text-center">
-        <h3>Nenhum personagem disponível.</h3>
-        <p>Crie um novo personagem para começar!</p>
-        <button className="btn btn-warning mt-3" onClick={() => alert('Abrir modal de criação de personagem!')}>
-          Criar Novo Personagem
-        </button>
+        <h3>Por favor, faça login para gerenciar personagens.</h3>
+        {/* Aqui você pode adicionar um botão para ir para a tela de login, se tiver uma */}
       </div>
     );
   }
 
+  // Se o usuário está logado, mas não há personagens ou nenhum selecionado
+  // Renderiza a FullCharSheet com characterId=null para criar um novo
+  // OU, se tiver personagens, exibe a lista e a ficha selecionada
   return (
-    <div className="d-flex flex-column h-100 w-100 p-3"> {/* Use h-100 para ocupar a altura total disponível */}
-      <h3 className="text-warning text-center mb-3">Fichas de Personagem</h3>
+    <div className="d-flex h-100 w-100">
+      {/* Coluna de navegação e lista de personagens */}
+      <div className="p-3 bg-dark text-white border-end border-secondary" style={{ minWidth: '250px', flexShrink: 0 }}>
+        <h4 className="text-highlight-warning mb-4">Meus Personagens</h4>
+        
+        {/* Botão para Criar Novo Personagem */}
+        <button
+          className="btn btn-info mb-3 w-100" // Cor de destaque para "Novo"
+          onClick={() => setSelectedCharacterId(null)} // Define null para entrar no modo de criação na FullCharSheet
+        >
+          <i className="bi bi-plus-circle me-2"></i>Criar Novo Personagem
+        </button>
 
-      {/* Navegação por Abas (similar ao ActionManager) */}
-      <ul className="nav nav-tabs nav-justified mb-3 w-100 justify-content-center" role="tablist">
-        {characters.map((char) => (
-          <li className="nav-item" key={char.id}>
-            <button
-              className={`nav-link ${activeCharacterId === char.id ? 'active' : ''} text-white`}
-              onClick={() => setActiveCharacterId(char.id)}
-              type="button"
-              role="tab"
-              aria-controls={`${char.id}-tab-pane`}
-              aria-selected={activeCharacterId === char.id}
-            >
-              {char.name}
-            </button>
-          </li>
-        ))}
-        {/* Botão para adicionar nova ficha, similar ao "Criar Ação" */}
-        <li className="nav-item">
-          <button
-            className="nav-link text-info" // Usando text-info para contraste
-            onClick={() => alert('Funcionalidade para adicionar nova ficha!')}
-            type="button"
-          >
-            + Nova Ficha
-          </button>
-        </li>
-      </ul>
+        {/* Lista de personagens */}
+        {characterList.length === 0 ? (
+          <p className="text-muted">Você ainda não tem personagens. Crie um!</p>
+        ) : (
+          <ul className="list-group custom-scroll" style={{ maxHeight: 'calc(100% - 120px)', overflowY: 'auto' }}>
+            {characterList.map((char) => (
+              <li
+                key={char.id}
+                // Adiciona 'active' e 'text-white' para o item selecionado
+                className={`list-group-item bg-secondary border-secondary text-white-base ${selectedCharacterId === char.id ? 'active fw-bold' : ''}`}
+                onClick={() => setSelectedCharacterId(char.id)}
+                style={{ cursor: 'pointer' }}
+              >
+                {char.CHARNAME}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
-      {/* Conteúdo das Abas (cada aba renderiza uma FullCharSheet) */}
-      <div className="tab-content flex-grow-1 h-100">
-        {characters.map((char) => (
-          activeCharacterId === char.id && (
-            <div
-              key={char.id} // Key aqui novamente é importante
-              className="tab-pane fade show active h-100"
-              id={`${char.id}-tab-pane`}
-              role="tabpanel"
-              aria-labelledby={`${char.id}-tab`}
-            >
-              {/*
-                IMPORTANTE: Atualmente, seu FullCharSheet usa dados mockados internamente.
-                Para que cada ficha seja de fato diferente, você precisaria modificar FullCharSheet
-                para aceitar props (ex: characterData: CharacterData) e então passar os dados
-                específicos da ficha selecionada para ele.
-                Ex: <FullCharSheet characterData={char.fullData} />
-              */}
-              <FullCharSheet characterId={char.id} />
-            </div>
-          )
-        ))}
+      {/* Área da Ficha de Personagem (sempre uma única instância) */}
+      <div className="flex-grow-1 h-100 p-3">
+        {/* Renderiza FullCharSheet, passando o ID do personagem selecionado (ou null para novo) */}
+        <FullCharSheet
+          characterId={selectedCharacterId} 
+          currentUserId={currentUserId}
+          onCharacterCreated={handleCharacterCreated}
+        />
       </div>
     </div>
   );

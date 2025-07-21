@@ -226,9 +226,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode; USERID: number;
       console.log("Removendo listeners de chat do ChatContext.");
       if (unsubscribeNewMessage) unsubscribeNewMessage();
       if (unsubscribeChatHistory) unsubscribeChatHistory();
-      if (electron.removeListener) {
-          electron.removeListener("new-chat-message", handleReceiveChatMessage);
-          electron.removeListener("chat-history", handleReceiveChatHistory);
+      if (electron.DoremoveListener) {
+          electron.DoremoveListener("new-chat-message", handleReceiveChatMessage);
+          electron.DoremoveListener("chat-history", handleReceiveChatHistory);
       } else if ((electron as any).off) {
           (electron as any).off("new-chat-message", handleReceiveChatMessage);
           (electron as any).off("chat-history", handleReceiveChatHistory);

@@ -118,12 +118,30 @@ export interface CombatTrackerToken {
   id: number;
   name: string;
   portraitUrl: string;
-  ac: number;
+  initiative: number;
   currentHp: number;
   maxHp: number;
-  initiative: number; // Essencial para a ordenação
-  type: 'ally' | 'enemy'| 'neutral';
-  danoCausado: number,
-  danoSofrido: number,
-
+  ac: number;
+  danoCausado: number;
+  danoSofrido: number;
+  type: 'ally' | 'enemy' | 'neutral'; // Você pode ter outros tipos
+  playerId: number | null; // Adicione esta linha
 }
+export interface AppToken {
+  id: number;
+  x: number;
+  y: number;
+  image: string;
+  width: number;
+  height: number;
+  name: string;
+  portraitUrl: string;
+  currentHp: number;
+  maxHp: number;
+  ac: number;
+  damageDealt: string;
+  playerId?: number | null; // Adicione esta linha
+}
+
+// Em MainGrids.tsx, GridToken estende AppToken
+interface GridToken extends AppToken { id: number; } 

@@ -1,9 +1,8 @@
-// src/components/CharacterSheet/CharacterSheet.tsx
+// src/components/CharacterSheet/FullCharSheet.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import AttributesSection, { calculateModifier } from './Atributos'; // Importe calculateModifier
+import AttributesSection, { calculateModifier } from './Atributos';
 import CharacterPortraitAndHealth from './CharPortrait';
 import SkillsSection from './Skills';
-import token from '../../img/0.png';
 import { BasicAttribute, EssentialAttributes, Skill, CharacterAction, Token } from '../../types';
 import ActionCreator from '../Actions/ActionCreator';
 import ConfirmationModal from '../modals/ConfirmationModal';
@@ -16,11 +15,22 @@ interface CharacterActionWithId extends CharacterAction {
 
 interface CharacterSheetProps {
   onSaveActionForCombat?: (action: CharacterAction) => void;
-  characterId: number;
+  characterId: number | null;
+  currentUserId: number | null;
+  onCharacterCreated?: (newCharacterId: number) => void;
 }
 
-const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat, characterId }) => {
+const FullCharSheet: React.FC<CharacterSheetProps> = ({
+  onSaveActionForCombat,
+  characterId,
+  currentUserId,
+  onCharacterCreated
+}) => {
     const electron = (window as any).electron;
+
+  const [isCreatingNewCharacter, setIsCreatingNewCharacter] = useState<boolean>(false);
+  const [characterName, setCharacterName] = useState<string>("");
+  const [characterSavedOnce, setCharacterSavedOnce] = useState<boolean>(false);
 
   const [activeSide, setActiveSide] = useState<'character' | 'bio' | 'actions'>('character');
   const [actions, setActions] = useState<CharacterAction[]>([]);
@@ -45,113 +55,272 @@ const FullCharSheet: React.FC<CharacterSheetProps> = ({ onSaveActionForCombat, c
   });
 
   const [myCharacterAttributes, setMyCharacterAttributes] = useState<BasicAttribute[]>([]);
-
   const [mySkills, setMySkills] = useState<Skill[]>([]);
+  const [essentialAttributes, setEssentialAttributes] = useState<EssentialAttributes>({ armor: 0, initiative: '', proficiency: '', speed: '', });
 
-  const [essentialAttributes, setEssentialAttributes] = useState<EssentialAttributes>({
-    armor: 0, initiative: '', proficiency: '', speed: '',
-  });
+  const [maxHp, setMaxHp] = useState<number>(10);
+  const [currentHp, setCurrentHp] = useState<number>(10);
+  const [tempHp, setTempHp] = useState<number>(0);
+  const [shield, setShield] = useState<number>(0);
+  const [race, setRace] = useState<string>("Raça Padrão");
+  const [charClass, setCharClass] = useState<string>("Classe Padrão");
+  const [subClass, setSubClass] = useState<string>("Subclasse Padrão");
+  const [level, setLevel] = useState<number>(1);
+  const [xp, setXp] = useState<number>(0);
 
-  // Estado temporário para o valor do atributo essencial que está sendo editado
+  const [tokenImage, setTokenImage] = useState<string | null>(null);
+
   const [tempEssentialValue, setTempEssentialValue] = useState<string | number>('');
   const [editingEssentialAttribute, setEditingEssentialAttribute] = useState<keyof EssentialAttributes | null>(null);
+  
+  // Tipagem unificada para todos os campos editáveis por clique
+  type EditableField = keyof EssentialAttributes | 'maxHp' | 'currentHp' | 'race' | 'charClass' | 'level' | 'xp';
+  const [editingField, setEditingField] = useState<EditableField | null>(null);
+  const [tempValue, setTempValue] = useState<string | number>(''); // Usar 'tempValue' para ambos os tipos de campos
 
-  // Estado para controlar qual campo da bio está sendo editado
   const [editingBioField, setEditingBioField] = useState<keyof typeof bioFields | null>(null);
 
+  // Efeito para Carregar ou Inicializar Dados do Personagem
   useEffect(() => {
-        if (characterId) {
-                electron.invoke('request-character-data', characterId)
-                .then((response: any ) => {
-                    if (response.success && response.data) {
-                        const data = response.data;
-                        // Ajuste para desserializar bioFields
-                        let loadedBioFields = { history: "", appearance: "", personality: "", treasure: "" };
-                        if (data.bioFields && typeof data.bioFields === 'string') {
-                            try {
-                                const parsedBio = JSON.parse(data.bioFields);
-                                if (parsedBio && typeof parsedBio === 'object' &&
-                                    'history' in parsedBio && 'appearance' in parsedBio &&
-                                    'personality' in parsedBio && 'treasure' in parsedBio) {
-                                    loadedBioFields = parsedBio;
-                                } else {
-                                    console.warn("Dados de bioFields carregados não estão no formato esperado (JSON válido mas estrutura diferente), usando valores padrão.");
-                                }
-                            } catch (e) {
-                                console.error("Erro ao fazer parse da string JSON de bioFields do DB:", e);
-                            }
-                        } else if (data.bioFields && typeof data.bioFields === 'object') {
-                            loadedBioFields = data.bioFields;
-                        }
+    if (characterId === null) {
+      setIsCreatingNewCharacter(true);
+      setCharacterName("");
+      setBioFields({ history: "", appearance: "", personality: "", treasure: "" });
+      setMyCharacterAttributes([
+        { id: 1, name: 'Força', value: 10, modifier: 0 }, { id: 2, name: 'Destreza', value: 10, modifier: 0 },
+        { id: 3, name: 'Constituição', value: 10, modifier: 0 }, { id: 4, name: 'Inteligência', value: 10, modifier: 0 },
+        { id: 5, name: 'Sabedoria', value: 10, modifier: 0 }, { id: 6, name: 'Carisma', value: 10, modifier: 0 },
+      ]);
+      setMySkills([
+        { name: 'Acrobacia', modifier: 'dex' }, { name: 'Arcanismo', modifier: 'int' },
+        { name: 'Atletismo', modifier: 'str' }, { name: 'Atuação', modifier: 'car' },
+        { name: 'Enganação', modifier: 'car' }, { name: 'Furtividade', modifier: 'dex' },
+        { name: 'Intimidação', modifier: 'car' }, { name: 'Intuição', modifier: 'sab' },
+        { name: 'Investigação', modifier: 'int' }, { name: 'Medicina', modifier: 'sab' },
+        { name: 'Natureza', modifier: 'int' }, { name: 'Percepção', modifier: 'sab' },
+        { name: 'Persuasão', modifier: 'car' }, { name: 'Prestidigitação', modifier: 'dex' },
+        { name: 'Religião', modifier: 'int' }, { name: 'Sobrevivência', modifier: 'sab' },
+      ]);
+      setEssentialAttributes({ armor: 10, initiative: 'dex', proficiency: '+2', speed: '30ft' });
+      setActions([]);
+      setCharacterSavedOnce(false);
 
-                        // --- Início da correção para modificadores de atributo na inicialização ---
-                        const loadedAttributes: BasicAttribute[] = data.myCharacterAttributes || [];
-                        const attributesWithCorrectedModifiers = loadedAttributes.map(attr => ({
-                            ...attr,
-                            modifier: calculateModifier(attr.value) // Recalcular o modificador
-                        }));
-                        // --- Fim da correção ---
+      setMaxHp(10); setCurrentHp(10); setTempHp(0); setShield(0);
+      setRace("Raça Padrão"); setCharClass("Classe Padrão"); setSubClass("Subclasse Padrão");
+      setLevel(1); setXp(0);
+      setTokenImage(null);
 
-                        setBioFields(loadedBioFields);
-                        setMyCharacterAttributes(attributesWithCorrectedModifiers); // Use os atributos corrigidos
-                        setMySkills(data.mySkills || []);
-                        setEssentialAttributes(data.essentialAttributes || { armor: 0, initiative: '', proficiency: '', speed: '' });
-                        setActions(data.actions || []);
-                        console.log("Dados do personagem carregados:", data);
-                        console.log("Atributos carregados e modificadores recalculados:", attributesWithCorrectedModifiers);
-                    } else {
-                        console.error("Erro ao carregar dados do personagem:", response.message);
-                        openAlertModal("Erro de Carregamento", response.message || "Não foi possível carregar os dados do personagem.");
-                    }
-                })
-                .catch((error: unknown) => {
-                    console.error("Erro na comunicação IPC ao carregar dados do personagem:", error);
-                    openAlertModal("Erro de Comunicação", "Não foi possível comunicar com o processo principal para carregar os dados.");
-                });
-        }
-    }, [characterId]); //
+    } else {
+      setIsCreatingNewCharacter(false);
+      setCharacterSavedOnce(true);
+      if (characterId) {
+        electron.invoke('request-character-data', characterId)
+          .then((response: any) => {
+            if (response.success && response.data) {
+              const data = response.data;
+              let loadedBioFields = { history: "", appearance: "", personality: "", treasure: "" };
+              if (data.bioFields && typeof data.bioFields === 'string') {
+                try {
+                  const parsedBio = JSON.parse(data.bioFields);
+                  if (parsedBio && typeof parsedBio === 'object' &&
+                    'history' in parsedBio && 'appearance' in parsedBio &&
+                    'personality' in parsedBio && 'treasure' in parsedBio) {
+                    loadedBioFields = parsedBio;
+                  } else {
+                    console.warn("Dados de bioFields carregados não estão no formato esperado (JSON válido mas estrutura diferente), usando valores padrão.");
+                  }
+                } catch (e) {
+                  console.error("Erro ao fazer parse da string JSON de bioFields do DB:", e);
+                }
+              } else if (data.bioFields && typeof data.bioFields === 'object') {
+                loadedBioFields = data.bioFields;
+              }
 
+              const loadedAttributes: BasicAttribute[] = data.myCharacterAttributes || [];
+              const attributesWithCorrectedModifiers = loadedAttributes.map(attr => ({ ...attr, modifier: calculateModifier(attr.value) }));
+
+              setBioFields(loadedBioFields);
+              setMyCharacterAttributes(attributesWithCorrectedModifiers);
+              setMySkills(data.mySkills || []);
+              setEssentialAttributes(data.essentialAttributes || { armor: 0, initiative: '', proficiency: '', speed: '' });
+              setActions(data.actions || []);
+              setCharacterName(data.CHARNAME || "");
+
+              setMaxHp(data.MaxHp || 10); setCurrentHp(data.CurrentHp || 10); setTempHp(data.TempHp || 0); setShield(data.Shield || 0);
+              setRace(data.Race || "Raça Padrão"); setCharClass(data.Class || "Classe Padrão"); setSubClass(data.SubClass || "Subclasse Padrão");
+              setLevel(data.Level || 1); setXp(data.XP || 0);
+              setTokenImage(data.Token_image || null);
+
+              console.log("Dados do personagem carregados:", data);
+            } else {
+              console.error("Erro ao carregar dados do personagem:", response.message);
+              openAlertModal("Erro de Carregamento", response.message || "Não foi possível carregar os dados do personagem.");
+            }
+          })
+          .catch((error: unknown) => {
+            console.error("Erro na comunicação IPC ao carregar dados do personagem:", error);
+            openAlertModal("Erro de Comunicação", "Não foi possível comunicar com o processo principal para carregar os dados.");
+          });
+      }
+    }
+  }, [characterId]);
+
+  // Funções para Modais (Alerta e Confirmação)
   const openAlertModal = (title: string, message: string | React.ReactNode) => {
-    setAlertModalTitle(title);
-    setAlertModalMessage(message);
-    setShowAlertModal(true);
+    setAlertModalTitle(title); setAlertModalMessage(message); setShowAlertModal(true);
   };
-
   const closeAlertModal = () => {
-    setShowAlertModal(false);
-    setAlertModalTitle('');
-    setAlertModalMessage('');
+    setShowAlertModal(false); setAlertModalTitle(''); setAlertModalMessage('');
   };
-  const openConfirmModal = (
-    title: string,
-    message: string | React.ReactNode,
-    onConfirm: (() => void) | undefined
-  ) => {
-    setConfirmModalTitle(title);
-    setConfirmModalMessage(message);
-    setConfirmModalOnConfirm(() => onConfirm);
-    setShowConfirmModal(true);
+  const openConfirmModal = (title: string, message: string | React.ReactNode, onConfirm: (() => void) | undefined) => {
+    setConfirmModalTitle(title); setConfirmModalMessage(message); setConfirmModalOnConfirm(() => onConfirm); setShowConfirmModal(true);
   };
-
   const closeConfirmModal = () => {
-    setShowConfirmModal(false);
-    setConfirmModalTitle('');
-    setConfirmModalMessage('');
-    setConfirmModalOnConfirm(undefined);
+    setShowConfirmModal(false); setConfirmModalTitle(''); setConfirmModalMessage(''); setConfirmModalOnConfirm(undefined);
   };
 
-   const handleSaveAction = async (actionToProcess: CharacterActionWithId) => {
+  // Funções de Tratamento de Imagem do Token
+  const handleTokenImageChange = (imageDataURL: string | null) => {
+    setTokenImage(imageDataURL);
+  };
+
+  // Funções para Edição Inline de TODOS os Dados Essenciais e Adicionais
+  const handleEditField = (field: EditableField) => {
+    if (!characterId) {
+      openAlertModal("Aviso", "Você precisa salvar o personagem primeiro para editar atributos.");
+      return;
+    }
+    setEditingField(field);
+    // Define o valor temporário com base no campo selecionado
+    if (field in essentialAttributes) { // Se for um atributo essencial
+      setTempValue(essentialAttributes[field as keyof EssentialAttributes]);
+    } else { // Se for um campo adicional
+      switch (field) {
+        case 'maxHp': setTempValue(maxHp); break;
+        case 'currentHp': setTempValue(currentHp); break;
+        case 'race': setTempValue(race); break;
+        case 'charClass': setTempValue(charClass); break;
+        case 'level': setTempValue(level); break;
+        case 'xp': setTempValue(xp); break;
+        default: setTempValue(''); break;
+      }
+    }
+  };
+
+  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>, field: EditableField) => {
+    const value = (field === 'armor' || field === 'maxHp' || field === 'currentHp' || field === 'level' || field === 'xp') 
+                  ? parseInt(e.target.value, 10) || 0 // Garante que é um número para campos numéricos
+                  : e.target.value;
+    setTempValue(value);
+  };
+
+  const handleSaveField = async (field: EditableField) => {
+    if (!characterId) return;
+
+    // Atualiza o estado local primeiro
+    if (field in essentialAttributes) {
+      setEssentialAttributes(prev => ({ ...prev, [field]: tempValue }));
+    } else {
+      switch (field) {
+        case 'maxHp': setMaxHp(tempValue as number); break;
+        case 'currentHp': setCurrentHp(tempValue as number); break;
+        case 'race': setRace(tempValue as string); break;
+        case 'charClass': setCharClass(tempValue as string); break;
+        case 'level': setLevel(tempValue as number); break;
+        case 'xp': setXp(tempValue as number); break;
+        default: break;
+      }
+    }
+    setEditingField(null);
+    setTempValue('');
+
+    // Chama a função de salvar personagem completo para persistir no DB
+    await handleSaveCharacter();
+  };
+
+  const handleCancelFieldEdit = (field: EditableField) => {
+    setEditingField(null);
+    setTempValue('');
+    // Para reverter o valor original no estado, você precisaria armazená-lo antes de editar.
+    // Atualmente, apenas cancelamos a edição do input sem desfazer a mudança no estado se já digitou.
+  };
+
+  const handleKeyPressField = (e: React.KeyboardEvent<HTMLInputElement>, field: EditableField) => {
+    if (e.key === 'Enter') {
+      handleSaveField(field);
+    } else if (e.key === 'Escape') {
+      // Reverter para o valor original se necessário. Como não armazenamos o original, apenas cancelamos a edição.
+      handleCancelFieldEdit(field);
+    }
+  };
+
+
+  // Função Principal para Salvar/Criar o Personagem
+  const handleSaveCharacter = async () => {
+    if (isCreatingNewCharacter && !characterName.trim()) {
+      openAlertModal("Erro de Criação", "O nome do personagem é obrigatório para um novo personagem."); return;
+    }
+    if (currentUserId === null) {
+      openAlertModal("Erro de Autenticação", "Não foi possível salvar. ID do jogador não disponível."); return;
+    }
+
+    const characterDataToSave = {
+      id: characterId,
+      CHARNAME: characterName,
+      bioFields: bioFields,
+      myCharacterAttributes: myCharacterAttributes,
+      mySkills: mySkills,
+      essentialAttributes: essentialAttributes,
+      actions: actions,
+      PLayer_ID: currentUserId,
+      MaxHp: maxHp, CurrentHp: currentHp, TempHp: tempHp, Shield: shield,
+      Race: race, Class: charClass, SubClass: subClass, Level: level, XP: xp,
+      Token_image: tokenImage
+    };
+
+    try {
+      let response;
+      if (isCreatingNewCharacter) {
+        response = await electron.invoke('create-character', characterDataToSave);
+      } else {
+        response = await electron.invoke('save-character-data', characterDataToSave);
+      }
+
+      if (response.success) {
+        openAlertModal("Sucesso!", response.message);
+        if (isCreatingNewCharacter && onCharacterCreated) {
+          onCharacterCreated(response.newCharacterId);
+          setIsCreatingNewCharacter(false);
+          setCharacterSavedOnce(true);
+        }
+      } else {
+        openAlertModal("Erro!", response.message || "Não foi possível salvar o personagem.");
+      }
+    } catch (error) {
+      console.error("Erro ao salvar personagem via IPC:", error);
+      openAlertModal("Erro de Comunicação", "Não foi possível comunicar com o processo principal para salvar o personagem.");
+    }
+  };
+
+  // Funções para Gerenciamento de Ações (Magias/Habilidades)
+  const handleSaveAction = async (actionToProcess: CharacterActionWithId) => {
+        if (!characterId && !characterSavedOnce) {
+            openAlertModal("Aviso", "Por favor, salve o personagem primeiro antes de adicionar ações.");
+            return;
+        }
+        const currentCharacterId = characterId || 0; 
+
         try {
-            const response = await electron.invoke('save-action', characterId, actionToProcess);
+            const response = await electron.invoke('save-action', currentCharacterId, actionToProcess);
 
             if (response.success) {
                 setActions(prevActions => {
                     if (actionToProcess.id !== undefined && prevActions.some(a => a.id === actionToProcess.id)) {
                         return prevActions.map(a =>
-                            a.id === actionToProcess.id ? { ...actionToProcess, id: response.data.id || actionToProcess.id } : a
+                            a.id === actionToProcess.id ? { ...actionToProcess, id: response.newActionId || actionToProcess.id } : a
                         );
                     } else {
-                        const newActionId = response.data?.id || Math.floor(Math.random() * 1000000);
+                        const newActionId = response.newActionId || Math.floor(Math.random() * 1000000);
                         return [...prevActions, { ...actionToProcess, id: newActionId }];
                     }
                 });
@@ -177,6 +346,10 @@ const handleEditAction = (action: CharacterActionWithId) => {
 };
 
 const handleUpdateActionInDb = async (action: CharacterActionWithId) => {
+    if (!characterId) {
+        openAlertModal("Erro", "ID do personagem não disponível para atualizar ações.");
+        return;
+    }
     try {
         const response = await electron.invoke('edit-action', characterId, action);
         if (response.success) {
@@ -196,10 +369,9 @@ const handleUpdateActionInDb = async (action: CharacterActionWithId) => {
     }
 };
 
-
-    const handleDeleteAction = (actionId?: number) => {
-        if(actionId==undefined)
-        {
+const handleDeleteAction = (actionId?: number) => {
+        if(actionId==undefined || characterId === null) {
+          openAlertModal("Erro", "Não foi possível identificar a ação ou o personagem para exclusão.");
           return;
         }
         openConfirmModal(
@@ -237,17 +409,19 @@ const handleUpdateActionInDb = async (action: CharacterActionWithId) => {
   };
 
   const handleShowInChat = (action: CharacterAction) => {
-
     console.log("Ação para exibir no chat:", action);
   };
 
 const handleToggleExpandAction = (actionIdParam?: number) => {
-    const finalActionId: number | null = actionIdParam === undefined ? null : actionIdParam; // Changed 1 to null for safety
-
+    const finalActionId: number | null = actionIdParam === undefined ? null : actionIdParam;
     setExpandedActionId(prevId => (prevId === finalActionId ? null : finalActionId));
 };
 
   const handleOpenActionCreatorModal = () => {
+    if (!characterId && !characterSavedOnce) {
+        openAlertModal("Aviso", "Você precisa salvar o personagem primeiro para gerenciar ações.");
+        return;
+    }
     setActionToEdit(null);
     setShowActionCreatorModal(true);
   };
@@ -257,11 +431,11 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
     setShowActionCreatorModal(false);
   };
 
-  // Funções para a seção BIO
-  // Função para salvar o objeto bioFields completo no banco de dados via IPC
-  const saveBioFieldsToDatabase = async (updatedBio: typeof bioFields) => { // Aceita updatedBio como parâmetro
+  // Funções para Gerenciamento de Bio
+  const saveBioFieldsToDatabase = async (updatedBio: typeof bioFields) => {
+      if (!characterId) return;
       try {
-          const bioFieldsAsString = JSON.stringify(updatedBio); // Usa o valor atualizado
+          const bioFieldsAsString = JSON.stringify(updatedBio);
           console.log("Salvando BioFields completo no DB:", bioFieldsAsString);
 
           const response = await electron.invoke('update-character-bio', bioFieldsAsString, characterId);
@@ -277,34 +451,35 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
       }
   };
 
-  // Função para iniciar a edição do campo da bio
   const handleEditBioField = (field: keyof typeof bioFields) => {
+      if (!characterId) {
+        openAlertModal("Aviso", "Você precisa salvar o personagem primeiro para editar a bio.");
+        return;
+      }
       setEditingBioField(field);
   };
 
-  // Função para lidar com a mudança temporária no textarea
   const handleBioFieldChange = (field: keyof typeof bioFields, value: string) => {
       setBioFields(prev => ({ ...prev, [field]: value }));
   };
 
-  // Função para finalizar a edição e salvar (dispara o salvamento no DB)
   const handleSaveBioField = (field: keyof typeof bioFields, value: string) => {
       setBioFields(prev => {
           const updatedBio = { ...prev, [field]: value };
-          saveBioFieldsToDatabase(updatedBio); // Passa o objeto atualizado
+          if (characterId) { 
+            saveBioFieldsToDatabase(updatedBio);
+          }
           return updatedBio;
       });
-      setEditingBioField(null); // Sai do modo de edição
-      console.log(`Bio field '${field}' editado. Salvando todos os dados da Bio.`);
+      setEditingBioField(null);
+      console.log(`Bio field '${field}' editado.`);
   };
 
-  // Função para cancelar a edição do campo da bio (reverter para o valor anterior se necessário)
   const handleCancelBioFieldEdit = (field: keyof typeof bioFields, originalValue: string) => {
-      setBioFields(prev => ({ ...prev, [field]: originalValue })); // Reverte o valor
+      setBioFields(prev => ({ ...prev, [field]: originalValue }));
       setEditingBioField(null);
   };
 
-  // Função para lidar com teclas (Enter/Escape) na edição da bio
   const handleKeyPressBioField = (e: React.KeyboardEvent<HTMLTextAreaElement>, field: keyof typeof bioFields, currentValue: string, originalValue: string) => {
       if (e.key === 'Enter') {
           e.preventDefault();
@@ -314,7 +489,7 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
       }
   };
 
-
+  // Funções para Gerenciamento de Atributos Básicos
   const handleUpdateBasicAttribute = (id: number, newValue: number, newModifier: number) => {
     setMyCharacterAttributes(prevAttributes =>
       prevAttributes.map(attr =>
@@ -323,12 +498,12 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
     );
   };
   useEffect(() => {
-    if (myCharacterAttributes.length > 0) {
-      console.log("MyCharacterAttributes updated:", myCharacterAttributes);
+    if (myCharacterAttributes.length > 0 && characterId) { 
+      // Lógica de salvamento automático aqui (se desejado)
     }
-  }, [myCharacterAttributes]);
+  }, [myCharacterAttributes, characterId]);
 
-
+  // Funções para Gerenciamento de Habilidades
   const handleUpdateSkill = (name: string, newModifier: string) => {
     setMySkills(prevSkills =>
       prevSkills.map(skill =>
@@ -337,30 +512,31 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
     );
   };
 
-  // --- Funções para EssentialAttributes ---
-  // NOVO: Função para iniciar a edição do atributo essencial
+  // Funções para Gerenciamento de Atributos Essenciais
   const handleEditEssentialAttribute = (key: keyof EssentialAttributes) => {
+      if (!characterId) {
+        openAlertModal("Aviso", "Você precisa salvar o personagem primeiro para editar atributos essenciais.");
+        return;
+      }
       setEditingEssentialAttribute(key);
-      setTempEssentialValue(essentialAttributes[key]); // Copia o valor atual para o estado temporário
+      setTempEssentialValue(essentialAttributes[key]);
   };
 
-  // NOVO: Função para lidar com a mudança do input temporariamente
   const handleEssentialValueChange = (e: React.ChangeEvent<HTMLInputElement>, key: keyof EssentialAttributes) => {
-      // Para 'armor', converta para número; para outros, mantenha como string
       const value = key === 'armor' ? parseInt(e.target.value, 10) : e.target.value;
-      setTempEssentialValue(value); // Atualiza o valor temporário
+      setTempEssentialValue(value);
   };
 
-  // NOVO: Função para salvar o atributo essencial (disparado no blur ou enter)
   const handleSaveEssentialAttribute = async (key: keyof EssentialAttributes) => {
-      // Cria um novo objeto com o atributo atualizado
+      if (!characterId) return;
+
       const updatedEssentialAttributes = { ...essentialAttributes, [key]: tempEssentialValue };
-      setEssentialAttributes(updatedEssentialAttributes); // Atualiza o estado principal
-      setEditingEssentialAttribute(null); // Sai do modo de edição
-      setTempEssentialValue(''); // Limpa o valor temporário
+      setEssentialAttributes(updatedEssentialAttributes);
+      setEditingEssentialAttribute(null);
+      setTempEssentialValue('');
 
       try {
-          const essentialAttributesAsString = JSON.stringify(updatedEssentialAttributes); // Stringify the updated object
+          const essentialAttributesAsString = JSON.stringify(updatedEssentialAttributes);
           console.log(`Atributo essencial '${key}' salvo com novo valor: '${tempEssentialValue}'. Salvando no DB:`, essentialAttributesAsString);
 
           const response = await electron.invoke('update-character-essentials', essentialAttributesAsString, characterId);
@@ -376,13 +552,11 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
       }
   };
 
-  // NOVO: Função para cancelar a edição do atributo essencial
   const handleCancelEssentialAttributeEdit = () => {
       setEditingEssentialAttribute(null);
-      setTempEssentialValue(''); // Limpa o valor temporário
+      setTempEssentialValue('');
   };
 
-  // NOVO: Função para lidar com teclas (Enter/Escape) para atributos essenciais
   const handleKeyPressEssentialAttribute = (e: React.KeyboardEvent<HTMLInputElement>, key: keyof EssentialAttributes) => {
       if (e.key === 'Enter') {
           handleSaveEssentialAttribute(key);
@@ -391,9 +565,7 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
       }
   };
 
-  // --- Fim das Funções para EssentialAttributes ---
-
-
+  // Mock para seleção de Token (pode ser removido se não for usado)
   const availableTokensMock: Token[] = [];
   const handleTokenSelectedMock = (token: Token | null) => { /* console.log('Token selecionado:', token); */ };
 
@@ -453,40 +625,67 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
           {activeSide === 'character' && (
             <div className="tab-page-active fade show active flex-grow-1" id="character-tab-page" role="tabpanel" aria-labelledby="character-tab">
               <div className="row flex-grow-1">
+                {/* Coluna da esquerda (Atributos) */}
                 <div className="col-md-3 d-flex flex-column align-items-center justify-content-start py-3 overflow-y-auto">
                   <AttributesSection
                     attributes={myCharacterAttributes}
                     onUpdateAttribute={handleUpdateBasicAttribute}
                   />
                 </div>
+                {/* Coluna do meio (Habilidades) */}
                 <div className="col-md-5 d-flex flex-column py-3 overflow-y-auto">
                   <SkillsSection
-                    CharacterID={characterId}
+                    CharacterID={characterId || 0}
                     skills={mySkills}
                     onUpdateSkill={handleUpdateSkill}
                     characterAttributes={myCharacterAttributes}
                   />
                 </div>
+                {/* Coluna da direita (Retrato, Nome, e Dados Essenciais) */}
                 <div className="col-md-4 d-flex flex-column align-items-center justify-content-start py-3 overflow-y-auto">
-                  <CharacterPortraitAndHealth
+                  
+                  {/* Portrait e Health Controller */}
+                  <div className="d-flex flex-column align-items-center mb-3">
+                      <CharacterPortraitAndHealth
+                          currentHealth={currentHp}
+                          maxHealth={maxHp}
+                          tokenImage={tokenImage}
+                          onTokenImageChange={handleTokenImageChange}
+                      />
+                      {/* Nome do Personagem - MOVIDO PARA AQUI, ABAIXO DA FOTO */}
+                      <div className="text-center mt-2">
+                        <h3 className="text-highlight-warning mb-0">Nome:</h3>
+                        <input
+                            type="text"
+                            className="form-control bg-dark text-light-base border-secondary text-center"
+                            placeholder="Nome do seu personagem"
+                            value={characterName}
+                            onChange={(e) => setCharacterName(e.target.value)}
+                            style={{ maxWidth: '200px' }}
+                            required={isCreatingNewCharacter}
+                        />
+                      </div>
+                      {/* Botão de Salvar - MANTIDO AQUI para fácil acesso com o nome */}
+                      <button className="btn btn-success mt-3" onClick={handleSaveCharacter}>
+                        <i className="bi bi-save me-2"></i>{isCreatingNewCharacter ? "Criar e Salvar" : "Salvar Alterações"}
+                      </button>
+                  </div>
 
-                    currentHealth={20}
-                    maxHealth={100}
-                  />
+                  {/* Dados Essenciais com novos campos integrados */}
                   <div className="mt-4 text-center character-essential-attributes">
                     <h5 className="text-highlight-warning section-title">Dados Essenciais</h5>
                     <div className="essential-attributes-grid">
-                      {/* ARMADURA */}
-                      <div className="essential-attribute-square" onClick={() => handleEditEssentialAttribute('armor')} style={{ cursor: 'pointer' }}>
+                      {/* Armadura */}
+                      <div className="essential-attribute-square" onClick={() => handleEditField('armor')} style={{ cursor: 'pointer' }}>
                           <h6 className="attribute-summary-label">Armadura</h6>
-                          {editingEssentialAttribute === 'armor' ? (
+                          {editingField === 'armor' ? (
                               <input
                                   type="number"
                                   className="essential-attribute-input"
-                                  value={tempEssentialValue as number}
-                                  onChange={(e) => handleEssentialValueChange(e, 'armor')}
-                                  onBlur={() => handleSaveEssentialAttribute('armor')}
-                                  onKeyDown={(e) => handleKeyPressEssentialAttribute(e, 'armor')}
+                                  value={tempValue as number}
+                                  onChange={(e) => handleValueChange(e, 'armor')}
+                                  onBlur={() => handleSaveField('armor')}
+                                  onKeyDown={(e) => handleKeyPressField(e, 'armor')}
                                   autoFocus
                               />
                           ) : (
@@ -494,17 +693,17 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
                           )}
                       </div>
 
-                      {/* INICIATIVA */}
-                      <div className="essential-attribute-square" onClick={() => handleEditEssentialAttribute('initiative')} style={{ cursor: 'pointer' }}>
+                      {/* Iniciativa */}
+                      <div className="essential-attribute-square" onClick={() => handleEditField('initiative')} style={{ cursor: 'pointer' }}>
                           <h6 className="attribute-summary-label">Iniciativa</h6>
-                          {editingEssentialAttribute === 'initiative' ? (
+                          {editingField === 'initiative' ? (
                               <input
                                   type="text"
                                   className="essential-attribute-input"
-                                  value={tempEssentialValue as string}
-                                  onChange={(e) => handleEssentialValueChange(e, 'initiative')}
-                                  onBlur={() => handleSaveEssentialAttribute('initiative')}
-                                  onKeyDown={(e) => handleKeyPressEssentialAttribute(e, 'initiative')}
+                                  value={tempValue as string}
+                                  onChange={(e) => handleValueChange(e, 'initiative')}
+                                  onBlur={() => handleSaveField('initiative')}
+                                  onKeyDown={(e) => handleKeyPressField(e, 'initiative')}
                                   autoFocus
                               />
                           ) : (
@@ -512,17 +711,17 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
                           )}
                       </div>
 
-                      {/* PROFICIÊNCIA */}
-                      <div className="essential-attribute-square" onClick={() => handleEditEssentialAttribute('proficiency')} style={{ cursor: 'pointer' }}>
+                      {/* Proeficiência */}
+                      <div className="essential-attribute-square" onClick={() => handleEditField('proficiency')} style={{ cursor: 'pointer' }}>
                           <h6 className="attribute-summary-label">Proeficiência</h6>
-                          {editingEssentialAttribute === 'proficiency' ? (
+                          {editingField === 'proficiency' ? (
                               <input
                                   type="text"
                                   className="essential-attribute-input"
-                                  value={tempEssentialValue as string}
-                                  onChange={(e) => handleEssentialValueChange(e, 'proficiency')}
-                                  onBlur={() => handleSaveEssentialAttribute('proficiency')}
-                                  onKeyDown={(e) => handleKeyPressEssentialAttribute(e, 'proficiency')}
+                                  value={tempValue as string}
+                                  onChange={(e) => handleValueChange(e, 'proficiency')}
+                                  onBlur={() => handleSaveField('proficiency')}
+                                  onKeyDown={(e) => handleKeyPressField(e, 'proficiency')}
                                   autoFocus
                               />
                           ) : (
@@ -530,21 +729,129 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
                           )}
                       </div>
 
-                      {/* VELOCIDADE */}
-                      <div className="essential-attribute-square" onClick={() => handleEditEssentialAttribute('speed')} style={{ cursor: 'pointer' }}>
+                      {/* Velocidade */}
+                      <div className="essential-attribute-square" onClick={() => handleEditField('speed')} style={{ cursor: 'pointer' }}>
                           <h6 className="attribute-summary-label">Velocidade</h6>
-                          {editingEssentialAttribute === 'speed' ? (
+                          {editingField === 'speed' ? (
                               <input
                                   type="text"
                                   className="essential-attribute-input"
-                                  value={tempEssentialValue as string}
-                                  onChange={(e) => handleEssentialValueChange(e, 'speed')}
-                                  onBlur={() => handleSaveEssentialAttribute('speed')}
-                                  onKeyDown={(e) => handleKeyPressEssentialAttribute(e, 'speed')}
+                                  value={tempValue as string}
+                                  onChange={(e) => handleValueChange(e, 'speed')}
+                                  onBlur={() => handleSaveField('speed')}
+                                  onKeyDown={(e) => handleKeyPressField(e, 'speed')}
                                   autoFocus
                               />
                           ) : (
                               <div className="attribute-summary-value">{essentialAttributes.speed}</div>
+                          )}
+                      </div>
+
+                      {/* NOVO: HP Máximo */}
+                      <div className="essential-attribute-square" onClick={() => handleEditField('maxHp')} style={{ cursor: 'pointer' }}>
+                          <h6 className="attribute-summary-label">HP Máximo</h6>
+                          {editingField === 'maxHp' ? (
+                              <input
+                                  type="number"
+                                  className="essential-attribute-input"
+                                  value={tempValue as number}
+                                  onChange={(e) => handleValueChange(e, 'maxHp')}
+                                  onBlur={() => handleSaveField('maxHp')}
+                                  onKeyDown={(e) => handleKeyPressField(e, 'maxHp')}
+                                  autoFocus
+                              />
+                          ) : (
+                              <div className="attribute-summary-value">{maxHp}</div>
+                          )}
+                      </div>
+
+                      {/* NOVO: HP Atual */}
+                      <div className="essential-attribute-square" onClick={() => handleEditField('currentHp')} style={{ cursor: 'pointer' }}>
+                          <h6 className="attribute-summary-label">HP Atual</h6>
+                          {editingField === 'currentHp' ? (
+                              <input
+                                  type="number"
+                                  className="essential-attribute-input"
+                                  value={tempValue as number}
+                                  onChange={(e) => handleValueChange(e, 'currentHp')}
+                                  onBlur={() => handleSaveField('currentHp')}
+                                  onKeyDown={(e) => handleKeyPressField(e, 'currentHp')}
+                                  autoFocus
+                              />
+                          ) : (
+                              <div className="attribute-summary-value">{currentHp}</div>
+                          )}
+                      </div>
+
+                      {/* NOVO: Raça */}
+                      <div className="essential-attribute-square" onClick={() => handleEditField('race')} style={{ cursor: 'pointer' }}>
+                          <h6 className="attribute-summary-label">Raça</h6>
+                          {editingField === 'race' ? (
+                              <input
+                                  type="text"
+                                  className="essential-attribute-input"
+                                  value={tempValue as string}
+                                  onChange={(e) => handleValueChange(e, 'race')}
+                                  onBlur={() => handleSaveField('race')}
+                                  onKeyDown={(e) => handleKeyPressField(e, 'race')}
+                                  autoFocus
+                              />
+                          ) : (
+                              <div className="attribute-summary-value">{race}</div>
+                          )}
+                      </div>
+
+                      {/* NOVO: Classe */}
+                      <div className="essential-attribute-square" onClick={() => handleEditField('charClass')} style={{ cursor: 'pointer' }}>
+                          <h6 className="attribute-summary-label">Classe</h6>
+                          {editingField === 'charClass' ? (
+                              <input
+                                  type="text"
+                                  className="essential-attribute-input"
+                                  value={tempValue as string}
+                                  onChange={(e) => handleValueChange(e, 'charClass')}
+                                  onBlur={() => handleSaveField('charClass')}
+                                  onKeyDown={(e) => handleKeyPressField(e, 'charClass')}
+                                  autoFocus
+                              />
+                          ) : (
+                              <div className="attribute-summary-value">{charClass}</div>
+                          )}
+                      </div>
+
+                      {/* NOVO: Nível */}
+                      <div className="essential-attribute-square" onClick={() => handleEditField('level')} style={{ cursor: 'pointer' }}>
+                          <h6 className="attribute-summary-label">Nível</h6>
+                          {editingField === 'level' ? (
+                              <input
+                                  type="number"
+                                  className="essential-attribute-input"
+                                  value={tempValue as number}
+                                  onChange={(e) => handleValueChange(e, 'level')}
+                                  onBlur={() => handleSaveField('level')}
+                                  onKeyDown={(e) => handleKeyPressField(e, 'level')}
+                                  autoFocus
+                              />
+                          ) : (
+                              <div className="attribute-summary-value">{level}</div>
+                          )}
+                      </div>
+
+                      {/* NOVO: XP */}
+                      <div className="essential-attribute-square" onClick={() => handleEditField('xp')} style={{ cursor: 'pointer' }}>
+                          <h6 className="attribute-summary-label">XP</h6>
+                          {editingField === 'xp' ? (
+                              <input
+                                  type="number"
+                                  className="essential-attribute-input"
+                                  value={tempValue as number}
+                                  onChange={(e) => handleValueChange(e, 'xp')}
+                                  onBlur={() => handleSaveField('xp')}
+                                  onKeyDown={(e) => handleKeyPressField(e, 'xp')}
+                                  autoFocus
+                              />
+                          ) : (
+                              <div className="attribute-summary-value">{xp}</div>
                           )}
                       </div>
                     </div>
@@ -775,7 +1082,6 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
         </div>
       </div>
 
-      {/* Modal para ActionCreator */}
       {showActionCreatorModal && (
         <div className="modal fade show d-block" tabIndex={-1} role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-dialog-centered modal-lg" role="document">
@@ -786,7 +1092,7 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
               </div>
               <div className="modal-body custom-card-scrollable-body" style={{ maxHeight: '70vh' }}>
            <ActionCreator
-            characterId={characterId}
+            characterId={characterId || 0}
             onSaveAction={handleSaveAction}
             onEditAction={handleUpdateActionInDb}
             actionToEdit={actionToEdit}
@@ -798,7 +1104,6 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
         </div>
       )}
 
-      {/* Modal de Confirmação Genérico (para exclusão) */}
       <ConfirmationModal
         show={showConfirmModal}
         title={confirmModalTitle}
@@ -809,7 +1114,6 @@ const handleToggleExpandAction = (actionIdParam?: number) => {
         confirmButtonText="Confirmar"
       />
 
-      {/* Modal de Alerta Simples */}
       <SimpleAlertModal
         show={showAlertModal}
         title={alertModalTitle}

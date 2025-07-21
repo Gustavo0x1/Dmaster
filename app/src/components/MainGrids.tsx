@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import initialMapImage from '../img/3.jpeg';
-import token1 from '../img/0.png';
-import token2 from '../img/15.png';
+
 import { useLayout } from "./Layout";
 import { Token as AppToken } from '../types';
 import { Modal, Button, Form } from 'react-bootstrap';
@@ -12,7 +11,7 @@ import { ScenarioPool } from './ScenarioPool';
 import '../css/MainGrid/MainGrid.css';
 
 interface Position { x: number; y: number; }
-interface GridToken extends AppToken { id: number; }
+interface GridToken extends AppToken { id: number; playerId?: number | null; } // Modificado
 type ToolMode = 'cursor' | 'paint' | 'erase' | 'fog-area';
 
 interface RPGGridProps {
@@ -48,10 +47,9 @@ const RPGGrid: React.FC<RPGGridProps> = ({ currentUserId }) => {
   const { setSelectedTokens } = useLayout();
 
   const [scenario, setScenario] = useState<Scenario>({
-    mapImageUrl: initialMapImage,
+    mapImageUrl: "",
     tokens: [
-      { id: 1, x: 0, y: 0, image: token1, width: 1, height: 1, name: "Herói", portraitUrl: token1, currentHp: 20, maxHp: 20, ac: 18, damageDealt: "1d8+4" },
-      { id: 2, x: 3, y: 3, image: token2, width: 1, height: 1, name: "Goblin", portraitUrl: token2, currentHp: 7, maxHp: 7, ac: 15, damageDealt: "1d6+2" },
+
     ],
     fogGrid: []
   });
@@ -126,13 +124,14 @@ const RPGGrid: React.FC<RPGGridProps> = ({ currentUserId }) => {
     setShowScenarioPool(false);
   };
 
-  const onTokenSelected = (tokenPath: string) => {
-    let TokenID = Date.now()
-    console.log("ADDING TOKEN ON ID: " + TokenID)
+const onTokenSelected = (tokenPath: string) => {
+    let TokenID = Date.now();
+    console.log("ADDING TOKEN ON ID: " + TokenID);
 
     const newToken: GridToken = {
       id: TokenID, x: 0, y: 0, image: tokenPath, portraitUrl: tokenPath,
-      width: 1, height: 1, name: "Novo Token", currentHp: 10, maxHp: 10, ac: 10, damageDealt: "1d4"
+      width: 1, height: 1, name: "Novo Token", currentHp: 10, maxHp: 10, ac: 10, damageDealt: "1d4",
+      playerId: null // Define como nulo por padrão ao adicionar um novo token
     };
 
     const img = new Image();
@@ -166,7 +165,7 @@ const RPGGrid: React.FC<RPGGridProps> = ({ currentUserId }) => {
     };
     electron.on("SyncTokenPosition", handleSyncTokenPosition);
     return () => {
-      electron.removeListener("SyncTokenPosition", handleSyncTokenPosition);
+      electron.DoremoveListener("SyncTokenPosition", handleSyncTokenPosition);
     };
   }, [moveToken]);
 
@@ -195,8 +194,8 @@ const RPGGrid: React.FC<RPGGridProps> = ({ currentUserId }) => {
     };
     electron.on("syncActiveScenario", handleSyncScenarioBroadcast);
     return () => {
-      electron.removeListener("sendActiveScenarioToRequester", handleExclusiveScenario);
-      electron.removeListener("syncActiveScenario", handleSyncScenarioBroadcast);
+      electron.DoremoveListener("sendActiveScenarioToRequester", handleExclusiveScenario);
+      electron.DoremoveListener("syncActiveScenario", handleSyncScenarioBroadcast);
     };
   }, []);
 
@@ -293,7 +292,7 @@ const RPGGrid: React.FC<RPGGridProps> = ({ currentUserId }) => {
       const img = tokenImages.current[addingToken.id];
       if (img && img.complete) {
         ctx.globalAlpha = 0.5;
-        ctx.drawImage(img, addingToken.x * GRID_SIZE, addingToken.y * GRID_SIZE, addingToken.width * GRID_SIZE, addingToken.y * GRID_SIZE); // Fixed typo here
+        ctx.drawImage(img, addingToken.x * GRID_SIZE, addingToken.y * GRID_SIZE, addingToken.width * GRID_SIZE, addingToken.height * GRID_SIZE);
         ctx.globalAlpha = 1.0;
       } else {
         ctx.globalAlpha = 0.5;
@@ -656,7 +655,6 @@ const RPGGrid: React.FC<RPGGridProps> = ({ currentUserId }) => {
       return;
     }
 
-    // Filter the scenario tokens to get the ones currently selected
     const tokensToAdd = scenario.tokens
       .filter(token => selectedGridTokenIds.includes(token.id))
       .map(token => ({
@@ -667,19 +665,19 @@ const RPGGrid: React.FC<RPGGridProps> = ({ currentUserId }) => {
         currentHp: token.currentHp,
         maxHp: token.maxHp,
         ac: token.ac,
-        danoCausado: 0, // Default for new entry in tracker
-        danoSofrido: 0, // Default for new entry in tracker
-        type: 'ally' // You might want to determine this dynamically
+        danoCausado: 0,
+        danoSofrido: 0,
+        type: 'ally', // Você pode determinar isso dinamicamente ou deixar como 'ally'
+        playerId: token.playerId || null // Adicione esta linha: Usa o playerId do token, ou null se não definido
       }));
 
     if (tokensToAdd.length > 0) {
       electron.send('add-tokens-to-initiative', tokensToAdd);
-      setContextMenu({ visible: false, x: 0, y: 0, tokens: [] }); // Hide context menu
-      setSelectedGridTokenIds([]); // Deselect tokens after adding to initiative
-      requestDraw(); // Redraw to clear selection
+      setContextMenu({ visible: false, x: 0, y: 0, tokens: [] });
+      setSelectedGridTokenIds([]);
+      requestDraw();
     }
   }, [selectedGridTokenIds, scenario.tokens, requestDraw]);
-
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
 
