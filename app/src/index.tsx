@@ -24,7 +24,7 @@ import AppRouterAndAuth from './AppRouterAndAuth';
   root.render(
     
     <>
-      <meta httpEquiv="Content-Security-Policy" content="default-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"></meta>
+
       <AppRouterAndAuth></AppRouterAndAuth>
 
 

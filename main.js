@@ -546,7 +546,7 @@ function createMainWindow(){
         webPreferences:{
             contextIsolation:true,
             nodeIntegration:true, // Embora nodeIntegration seja true aqui, contextIsolation é true, então o preload é a maneira segura.
-        
+      
             preload: path.join(__dirname,'preload.js')
         }
     });
@@ -561,9 +561,12 @@ function createMainWindow(){
 app.whenReady().then(()=>{
   
    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-const csp = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob: file:;";
-
-
+  const csp = "default-src 'self'; " +
+                "script-src 'self' 'unsafe-eval'; " +
+                "style-src 'self' 'unsafe-inline'; " +
+                "img-src 'self' data: file: asset:; " +
+                "media-src 'self' data: blob: file:; " + // ESSENCIAL: Permite blob: e file:
+                "connect-src 'self' ws://26.61.163.136:5000;";
         callback({
                 responseHeaders: {
                 ...details.responseHeaders,
