@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
@@ -7,13 +8,13 @@ const path = require('path');
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 
-// NOVO: Adicione as referências aos manifestos de assets, pois o servidor precisará delas
-// Assumindo que os manifestos estão no mesmo diretório do server.js ou em um local acessível
+// Adicione as referências aos manifestos de assets
 const tokenManifestPath = path.join(__dirname, 'tokens.json');
 const mapManifestPath = path.join(__dirname, 'maps.json');
+const audioManifestPath = path.join(__dirname, 'audio.json'); // NOVO: Caminho para o manifesto de áudio
+const ASSETS_AUDIO_PATH = path.join(__dirname, 'assets', 'audios'); // NOVO: Caminho para a pasta de arquivos de áudio
 
 // Banco de dados em memória para armazenar o CENÁRIO ATIVO.
-// server.js agora também terá uma conexão com o DB.
 let activeScenario = null;
 let db; // Objeto do banco de dados para o server.js
 
@@ -49,26 +50,19 @@ function saveChatHistory() {
 }
 
 // Função para inicializar o banco de dados no servidor
-// MUDANÇA: Agora usa sqlite3 e open para Promises
 async function initializeDatabaseServer() {
   try {
     db = await open({
-      filename: path.join(__dirname, 'characters.db'), // Assumindo que o DB está na mesma pasta do server.js
+      filename: path.join(__dirname, 'characters.db'),
       driver: sqlite3.Database
     });
     console.log('[Server Process] Banco de dados SQLite conectado.');
-
-    // Opcional: Carregar um cenário padrão/ativo do DB ao iniciar o servidor
-    // Para simplificar, não faremos isso aqui, o main.js ainda enviará o cenário ativo.
-    // Mas esta função estaria disponível se o server precisasse buscar dados.
-
   } catch (error) {
     console.error("[Server Process] Erro ao inicializar o banco de dados no servidor:", error);
-    // Não saímos, mas o DB não estará disponível
   }
 }
 
-// NOVO: Função para carregar um cenário diretamente pelo server
+// Função para carregar um cenário diretamente pelo server
 async function loadScenarioFromServer(scenarioId) {
   if (!db) {
     console.error("[Server Process] Banco de dados não está conectado para carregar cenário.");
@@ -90,11 +84,9 @@ async function loadScenarioFromServer(scenarioId) {
       if (!tokenAsset) return null;
       return {
         ...savedToken,
-
         name: tokenAsset.name,
         image: `data:${tokenAsset.type};base64,${tokenAsset.data}`,
         portraitUrl: `data:${tokenAsset.type};base64,${tokenAsset.data}`
-       
       };
     }).filter(t => t !== null);
 
@@ -110,11 +102,43 @@ async function loadScenarioFromServer(scenarioId) {
   }
 }
 
-
 // Inicializar o aplicativo Express
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
+
+// NOVO: Rota para servir arquivos de áudio
+// Isso expõe a pasta assets/audios via HTTP
+app.use('/audio-assets', express.static(ASSETS_AUDIO_PATH));
+
+// Opcional: Rota mais controlada para servir áudios pelo ID do asset
+app.get('/audio/:assetId', (req, res) => {
+    const assetId = parseInt(req.params.assetId, 10);
+    try {
+        const audioManifest = JSON.parse(fs.readFileSync(audioManifestPath, 'utf8'));
+        const audioAsset = audioManifest.find(a => a.id === assetId);
+
+        if (audioAsset) {
+            const filePath = path.join(ASSETS_AUDIO_PATH, audioAsset.name); // audioAsset.name deve ser o nome original do arquivo
+            if (fs.existsSync(filePath)) {
+                res.setHeader('Content-Type', audioAsset.type);
+                res.sendFile(filePath);
+            } else {
+                console.warn(`[Server] Arquivo de áudio não encontrado no disco para asset ID ${assetId}: ${filePath}`);
+                // Fallback: decodificar do base64 se o arquivo não estiver no disco (menos eficiente)
+                const audioBuffer = Buffer.from(audioAsset.data, 'base64');
+                res.setHeader('Content-Type', audioAsset.type);
+                res.send(audioBuffer);
+            }
+        } else {
+            res.status(404).send('Audio asset not found in manifest');
+        }
+    } catch (error) {
+        console.error(`[Server] Erro ao servir arquivo de áudio para asset ID ${assetId}:`, error);
+        res.status(500).send('Internal server error');
+    }
+});
+
 
 // Carregar o histórico ao iniciar o servidor
 loadChatHistory();
@@ -122,11 +146,11 @@ loadChatHistory();
 initializeDatabaseServer();
 
 // Lista de conexões WebSocket
-const connections = new Map(); // NOVO: Mapeia userId para a conexão WebSocket
+const connections = new Map();
 const ipToUserMap = new Map();
-// ADICIONE ESTAS FUNÇÕES:
+
 async function sendToUser(targetUserId, message) {
-    const wsClient = connections.get(targetUserId); // connections map é string para ws
+    const wsClient = connections.get(targetUserId);
     if (wsClient && wsClient.readyState === WebSocket.OPEN) {
         console.log(`[Server] Enviando mensagem para o usuário ${targetUserId}:`, message);
         wsClient.send(JSON.stringify(message));
@@ -138,18 +162,17 @@ async function sendToUser(targetUserId, message) {
 }
 
 function getConnectedUsers() {
- 
     return Array.from(connections.keys());
 }
+
 async function broadcastConnectedUsers() {
     const connectedUserIds = getConnectedUsers();
     console.log("[Server] Broadcastando lista de usuários conectados:", connectedUserIds);
-    // Use a função broadcast existente para enviar para todos
     broadcast({ type: "connected-users-list", data: connectedUserIds });
 }
 
 // Quando um cliente se conecta via WebSocket
-wss.on("connection", async (ws) => { // Tornar a função assíncrona se for usar await
+wss.on("connection", async (ws) => {
   console.log("Novo cliente conectado.");
 
   // Enviar o cenário ativo atual para o cliente recém-conectado
@@ -158,27 +181,25 @@ wss.on("connection", async (ws) => { // Tornar a função assíncrona se for usa
       console.log("Cenário ativo enviado para o novo cliente.");
   }
 
-  ws.on("message", async (message) => { // Tornar a função assíncrona
+  ws.on("message", async (message) => {
     try {
       const { type, data } = JSON.parse(message);
-      
+
       if (type === "send-message") {
           chatHistory.push(data);
           if (chatHistory.length > MAX_CHAT_HISTORY) {
               chatHistory.shift();
           }
-          saveChatHistory(); // Salva o histórico após adicionar uma nova mensagem
+          saveChatHistory();
           console.log(`Mensagem adicionada ao histórico. Total: ${chatHistory.length}`);
-          broadcast(data); // Continua fazendo broadcast de novas mensagens
+          broadcast(data);
       }
-if (type === "login-request") {
+      if (type === "login-request") {
         const { username, password } = data;
         console.log(`[Server] Tentativa de login para usuário: ${username}`);
 
-        // Obtém o endereço IP da conexão.
-        // ws._socket.remoteAddress pode retornar IPv6 com prefixo, então normalizamos para IPv4 se necessário.
         const remoteAddress = ws._socket.remoteAddress.replace('::ffff:', '');
-        ws.remoteAddress = remoteAddress; // Armazena o IP na própria conexão WebSocket
+        ws.remoteAddress = remoteAddress;
 
         try {
             const player = await db.get('SELECT id FROM players WHERE user = ? AND password = ?', [username, password]);
@@ -186,40 +207,33 @@ if (type === "login-request") {
             if (player) {
                 const newUserId = player.id;
 
-                // NOVO: Lógica para verificar e sobrescrever IP
                 const existingUserIdForIp = ipToUserMap.get(remoteAddress);
 
                 if (existingUserIdForIp && existingUserIdForIp !== newUserId) {
-                    // Se o IP já está mapeado para um usuário DIFERENTE
                     console.log(`[Server] IP ${remoteAddress} já está em uso pelo Usuário ID ${existingUserIdForIp}. Desconectando o usuário anterior.`);
-
                     const existingWs = connections.get(existingUserIdForIp);
                     if (existingWs && existingWs.readyState === WebSocket.OPEN) {
                         existingWs.send(JSON.stringify({ type: "force-disconnect", message: "Outro usuário logou com o mesmo IP." }));
-                        existingWs.close(1000, "IP em uso por outra sessão."); // Fecha a conexão anterior
+                        existingWs.close(1000, "IP em uso por outra sessão.");
                     }
-                    connections.delete(existingUserIdForIp); // Remove o usuário anterior do mapa de conexões
-                    // Não precisamos remover do ipToUserMap aqui, pois ele será sobrescrito logo abaixo
+                    connections.delete(existingUserIdForIp);
                 } else if (existingUserIdForIp === newUserId) {
-                    // Se o mesmo usuário está tentando logar do mesmo IP novamente
                     console.log(`[Server] Usuário ${newUserId} logou novamente do mesmo IP ${remoteAddress}.`);
                     const existingWs = connections.get(newUserId);
                     if (existingWs && existingWs.readyState === WebSocket.OPEN && existingWs !== ws) {
-                        // Se houver uma conexão anterior para o MESMO usuário no MESMO IP (e não é a mesma WS)
                         existingWs.send(JSON.stringify({ type: "force-disconnect", message: "Nova sessão iniciada para sua conta." }));
                         existingWs.close(1000, "Nova sessão iniciada.");
                     }
-                    connections.delete(newUserId); // Remove a conexão antiga do mesmo usuário
+                    connections.delete(newUserId);
                 }
 
-                // Associa o novo usuário ao IP e à conexão WebSocket
                 ipToUserMap.set(remoteAddress, newUserId);
-                ws.userId = newUserId; // Armazena o userId na própria conexão WebSocket
-                connections.set(newUserId, ws); // Mapeia userId para a conexão WebSocket
+                ws.userId = newUserId;
+                connections.set(newUserId, ws);
 
                 console.log(`[Server] Login bem-sucedido para o usuário ${username}, ID: ${newUserId}. Conexão mapeada.`);
                 ws.send(JSON.stringify({ type: "login-response", success: true, userId: newUserId }));
-                broadcastConnectedUsers(); // Broadcasta a lista atualizada de usuários conectados
+                broadcastConnectedUsers();
 
             } else {
                 console.log(`[Server] Falha no login para o usuário: ${username}`);
@@ -232,59 +246,57 @@ if (type === "login-request") {
       }
       if (type === "sync-scenario") {
         activeScenario = await loadScenarioFromServer(data)
-     
-                console.log("SCENARIO: "+activeScenario)
         console.log("Cenário ativo recebido do main.js e atualizado no servidor.");
-              broadcast({
+        broadcast({
           type: "syncActiveScenario",
           data: activeScenario,
         })
-    
+      }
+      if (type === "play-audio-command") {
+          // NOVO: Agora, data deve conter audioId em vez de audioUrl
+          const { audioId, volume, loop, targetUserId } = data; // Espera 'audioId'
+          console.log(`[Server] Recebida requisição para tocar áudio. ID: ${audioId}, Target: ${targetUserId}`);
+
+          // Constrói a URL que os clientes usarão para baixar o áudio do servidor
+          const serverIp = "26.37.35.114"; // Substitua pelo IP REAL do seu servidor
+          const audioDownloadUrl = `http://${serverIp}:5000/audio/${audioId}`;
+
+          const audioPayload = {
+              audioUrl: audioDownloadUrl, // Envia a URL do servidor
+              volume,
+              loop,
+              targetUserId
+          };
+
+          if (targetUserId === -1) { // -1 significa "all"
+              broadcast({ type: "play-audio", data: audioPayload });
+          } else {
+              sendToUser(targetUserId, { type: "play-audio", data: audioPayload });
           }
-if (type === "play-audio-command") { // Tipo unificado para play
-    const { audioUrl, volume, loop, targetUserId } = data; // targetUserId já é number
+      }
+      if (type === "stop-audio-command") {
+          const { targetUserId } = data;
 
-    console.log(`[Server] Recebida requisição para tocar áudio. URL: ${audioUrl}, Target: ${targetUserId}`);
+          console.log(`[Server] Recebida requisição para parar áudio. Target: ${targetUserId}`);
 
-    // Cria o payload a ser enviado para os clientes
-    const audioPayload = {
-        audioUrl,
-        volume,
-        loop,
-        targetUserId // Já é o número correto (-1 ou ID do jogador)
-    };
+          const stopPayload = {
+              targetUserId
+          };
 
-    if (targetUserId === -1) { // -1 significa "all"
-        broadcast({ type: "play-audio", data: audioPayload }); // Envia o comando "play-audio" para o frontend de TODOS os clientes
-    } else {
-        sendToUser(targetUserId, { type: "play-audio", data: audioPayload }); // Envia para o frontend do CLIENTE ESPECÍFICO
-    }
-}
-if (type === "stop-audio-command") { // Tipo unificado para stop
-    const { targetUserId } = data; // targetUserId já é number
-
-    console.log(`[Server] Recebida requisição para parar áudio. Target: ${targetUserId}`);
-
-    const stopPayload = {
-        targetUserId // Já é o número correto (-1 ou ID do jogador)
-    };
-
-    if (targetUserId === -1) { // -1 significa "all"
-        broadcast({ type: "stop-audio", data: stopPayload });
-    } else {
-        sendToUser(targetUserId, { type: "stop-audio", data: stopPayload });
-    }
-}
-
-
-  if (type === "request-connected-users") {
+          if (targetUserId === -1) {
+              broadcast({ type: "stop-audio", data: stopPayload });
+          } else {
+              sendToUser(targetUserId, { type: "stop-audio", data: stopPayload });
+          }
+      }
+      if (type === "request-connected-users") {
         console.log("[Server] Requisição de lista de usuários conectados recebida.");
         ws.send(JSON.stringify({ type: "connected-users-list", data: getConnectedUsers() }));
-    }
+      }
       if (type === "request-chat-history") {
         console.log("Requisição de histórico de chat recebida do cliente. Enviando para o cliente solicitante.");
         if (chatHistory.length > 0) {
-          ws.send(JSON.stringify({ // Envia APENAS para o 'ws' que fez a requisição
+          ws.send(JSON.stringify({
             type: "chat-history",
             data: chatHistory.map(msg => ({
               message: msg.message,
@@ -295,24 +307,16 @@ if (type === "stop-audio-command") { // Tipo unificado para stop
             }))
           }));
         } else {
-          // Opcional: Enviar uma mensagem vazia ou de "histórico vazio"
           ws.send(JSON.stringify({ type: "chat-history", data: [] }));
         }
       }
-
-      // NOVO: Recebe o cenário completo do main.js (ainda a forma preferencial)
       if (type === "setActiveScenario") {
-        activeScenario = data; // Armazena o cenário recebido
-
-        // Broadcast o cenário completo para todos os clientes
+        activeScenario = data;
         broadcast({
           type: "syncActiveScenario",
           data: activeScenario,
         });
       }
-      
-      // NOVO: Exemplo de como o SERVER poderia ser instruído a carregar um cenário do seu DB
-      // Isso seria acionado, por exemplo, por um botão "Carregar Cenário no Servidor" no GM.
       if (type === "serverLoadScenario") {
         const { scenarioId } = data;
         console.log(`[Server] Recebida requisição para carregar cenário ID: ${scenarioId}`);
@@ -326,23 +330,17 @@ if (type === "stop-audio-command") { // Tipo unificado para stop
           console.log(`[Server] Cenário ${scenarioId} carregado e broadcastado.`);
         } else {
           console.warn(`[Server] Falha ao carregar cenário ${scenarioId}.`);
-          // Opcional: Enviar feedback ao cliente que requisitou
         }
       }
-
-
-      // Modificado: Atualiza apenas a posição do token no cenário ativo em memória
       if (type === "request-tokenMove") {
-        const { tokenId, posX, posY, sceneId } = data; // sceneId pode ser ignorado se só tivermos 1 cenário ativo
+        const { tokenId, posX, posY, sceneId } = data;
         console.log("All tokens: "+activeScenario.tokens)
         if (activeScenario && activeScenario.tokens) {
           const tokenIndex = activeScenario.tokens.findIndex(token => token.id === tokenId);
           if (tokenIndex !== -1) {
-            activeScenario.tokens[tokenIndex].x = posX; // Assumindo 'x' e 'y' para posição
+            activeScenario.tokens[tokenIndex].x = posX;
             activeScenario.tokens[tokenIndex].y = posY;
-            
             console.log(`Token ${tokenId} movido para (${posX}, ${posY}) no cenário ativo.`);
-            // Broadcast a atualização de posição específica
             broadcast({
               type: "SyncTokenPosition",
               data: {
@@ -358,25 +356,22 @@ if (type === "stop-audio-command") { // Tipo unificado para stop
           console.warn(`Nenhum cenário ativo ou tokens no cenário para mover.`);
         }
       }
-    
-if (type === "requestActiveScenario") {
-    console.log("[Server] Recebida requisição de cenário ativo de um cliente.");
-    if (activeScenario) {
-        // Envia o cenário ativo APENAS para o 'ws' que fez a requisição
-        ws.send(JSON.stringify({ type: "sendActiveScenarioToRequester", data: activeScenario }));
-        console.log("[Server] Cenário ativo enviado exclusivamente para o cliente requisitante.");
-    } else {
-        // Opcional: Enviar uma mensagem de que não há cenário ativo
-        ws.send(JSON.stringify({ type: "sendActiveScenarioToRequester", data: null }));
-        console.log("[Server] NENHUM cenário ativo para enviar ao cliente requisitante.");
-    }
-}
+      if (type === "requestActiveScenario") {
+          console.log("[Server] Recebida requisição de cenário ativo de um cliente.");
+          if (activeScenario) {
+              ws.send(JSON.stringify({ type: "sendActiveScenarioToRequester", data: activeScenario }));
+              console.log("[Server] Cenário ativo enviado exclusivamente para o cliente requisitante.");
+          } else {
+              ws.send(JSON.stringify({ type: "sendActiveScenarioToRequester", data: null }));
+              console.log("[Server] NENHUM cenário ativo para enviar ao cliente requisitante.");
+          }
+      }
       if (type === "requestRefresh") {
         if (activeScenario) {
           ws.send(JSON.stringify({ type: "syncActiveScenario", data: activeScenario }));
           console.log("Cenário ativo enviado para o cliente solicitante (refresh).");
         } else {
-          ws.send(JSON.stringify({ type: "syncActiveScenario", data: null })); // Ou um cenário vazio
+          ws.send(JSON.stringify({ type: "syncActiveScenario", data: null }));
         }
       }
     } catch (err) {
@@ -384,19 +379,18 @@ if (type === "requestActiveScenario") {
     }
   });
 
- ws.on("close", () => {
+  ws.on("close", () => {
         console.log("Cliente desconectado.");
-        if (ws.userId) { // Verifica se o userId foi definido (ou seja, se o usuário estava logado)
-            connections.delete(ws.userId); // Remove a conexão do Map
+        if (ws.userId) {
+            connections.delete(ws.userId);
             console.log(`[Server] Usuário ${ws.userId} removido das conexões ativas.`);
-            broadcastConnectedUsers(); // NOVO: Broadcasta a lista atualizada de usuários conectados
+            broadcastConnectedUsers();
         }
     });
 });
 
 async function broadcast(message) {
     console.log("Broadcasting!");
-    // Itera sobre os valores (conexões WebSocket) do Map
     for (const wsClient of connections.values()) {
         if (wsClient.readyState === WebSocket.OPEN) {
             wsClient.send(JSON.stringify(message));

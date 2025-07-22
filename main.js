@@ -337,7 +337,10 @@ ipcMain.handle('get-connected-users', async () => {
 });
 ipcMain.handle('send-audio-command', async (event, commandType, audioData) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
-        let messagePayload = { type: commandType, data: audioData }; // targetUserId já é number
+        // audioData agora deve conter apenas o ID do áudio selecionado, não a URL completa
+        // O frontend deve enviar apenas o ID do asset para cá.
+        // Ex: audioData = { audioId: selectedAudio.id, volume: volume, loop: isMusic && loopMusic, targetUserId: targetUser }
+        let messagePayload = { type: commandType, data: audioData };
         ws.send(JSON.stringify(messagePayload));
         console.log(`[Main Process] Comando de áudio '${commandType}' enviado ao servidor WebSocket. Target: ${audioData.targetUserId}`);
         return { success: true, message: "Comando de áudio enviado." };

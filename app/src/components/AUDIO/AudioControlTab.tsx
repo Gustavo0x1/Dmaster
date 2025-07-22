@@ -16,18 +16,17 @@ const AudioControlTab: React.FC = () => {
     const fxPlayerRef = useRef<HTMLAudioElement>(new Audio());
 
     // Ref para armazenar as Blob URLs criadas, para revogação e lookup
-    const blobUrlsRef = useRef<Record<number, string>>({}); // Mapeia AudioFile.id para a Blob URL
+    // Mantido para a pré-visualização local e para carregar a lista de arquivos
+    const blobUrlsRef = useRef<Record<number, string>>({});
 
     // Função para criar a Blob URL a partir dos dados Base64
-    const createBlobUrl = useCallback((base64Data: string, mimeType: string): string | null => { // Retorna string | null
+    const createBlobUrl = useCallback((base64Data: string, mimeType: string): string | null => {
         if (!base64Data || !mimeType) {
             console.error("Missing base64Data or mimeType for Blob URL creation.");
-            return null; // Retorna null em caso de dados ausentes
+            return null;
         }
         try {
-            // Verifica se a string Base64 possui o prefixo esperado e remove se presente
             const cleanBase64Data = base64Data.startsWith('data:') ? base64Data.split(',')[1] : base64Data;
-            
             const byteCharacters = atob(cleanBase64Data);
             const byteNumbers = new Array(byteCharacters.length);
             for (let i = 0; i < byteCharacters.length; i++) {
@@ -41,7 +40,7 @@ const AudioControlTab: React.FC = () => {
         } catch (e) {
             console.error("Error creating Blob URL:", e);
             console.error("Problematic base64 data (first 100 chars):", base64Data.substring(0, 100));
-            return null; // Retorna null em caso de erro
+            return null;
         }
     }, []);
 
@@ -49,6 +48,7 @@ const AudioControlTab: React.FC = () => {
     const loadAudioFiles = useCallback(async () => {
         const result = await electron.getAudioPool();
         if (result) {
+            // Revoga URLs antigas antes de criar novas
             Object.values(blobUrlsRef.current).forEach(url => URL.revokeObjectURL(url));
             blobUrlsRef.current = {};
 
@@ -59,7 +59,7 @@ const AudioControlTab: React.FC = () => {
                 }
                 return {
                     ...file,
-                    url: blobUrl || '' // Atribui a Blob URL, ou string vazia se for null (para compatibilidade com `url: string`)
+                    url: blobUrl || '' // Atribui a Blob URL, ou string vazia se for null
                 };
             });
             setAudioFiles(filesWithUrls);
@@ -97,9 +97,9 @@ const AudioControlTab: React.FC = () => {
 
             if (data.targetUserId === -1 || data.targetUserId === parsedCurrentUserId) {
                 console.log(`[AudioControlTab] Play audio command received. URL: ${data.audioUrl}, Target: ${data.targetUserId}`);
-                
+
                 const player = data.loop ? musicPlayerRef.current : fxPlayerRef.current;
-                
+
                 if (player) {
                     if (player.src !== data.audioUrl) {
                         player.src = data.audioUrl;
@@ -153,7 +153,7 @@ const AudioControlTab: React.FC = () => {
                 }
                 return {
                     ...file,
-                    url: blobUrl || '' // Atribui a Blob URL, ou string vazia se for null (para compatibilidade com `url: string`)
+                    url: blobUrl || ''
                 };
             });
             setAudioFiles(filesWithUrls);
@@ -165,14 +165,13 @@ const AudioControlTab: React.FC = () => {
             alert("Selecione um arquivo de áudio primeiro!");
             return;
         }
-        // Verifica se a URL do áudio selecionado é válida antes de enviar
-        if (!selectedAudio.url) {
-            alert("O áudio selecionado não pôde ser carregado. Tente adicionar novamente.");
-            return;
-        }
-
+        // NOVO: Não precisamos mais do selectedAudio.url para enviar ao servidor.
+        // O servidor construirá sua própria URL HTTP. Enviamos apenas o ID.
+        // Embora o tipo AudioCommandData ainda inclua audioUrl, o valor que estamos enviando
+        // será o ID do áudio, e o servidor o usará para construir a URL completa.
         const data: AudioCommandData = {
-            audioUrl: selectedAudio.url,
+            audioId: selectedAudio.id, // Envie o ID do asset
+            audioUrl: '', // Pode ser vazio, o servidor vai gerar o real
             volume: parseFloat(volume.toString()),
             loop: isMusic && loopMusic,
             targetUserId: targetUser
@@ -189,7 +188,7 @@ const AudioControlTab: React.FC = () => {
         const data: StopAudioCommandData = {
             targetUserId: targetUser
         };
-        
+
         const result = await electron.sendAudioCommand("stop-audio-command", data);
         if (!result.success) {
             console.error("Falha ao enviar comando de parada de áudio:", result.message);
@@ -206,7 +205,7 @@ const AudioControlTab: React.FC = () => {
                 <select onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedAudio(audioFiles.find(f => f.id === parseInt(e.target.value)) || null)}>
                     <option value="">Selecione um Áudio</option>
                     {audioFiles.map(file => (
-                        <option key={file.id} value={file.id} disabled={!file.url}>{file.name}{!file.url && " (Erro ao carregar)"}</option> // Desabilita se URL for inválida
+                        <option key={file.id} value={file.id}>{file.name}</option>
                     ))}
                 </select>
                 <button onClick={handleAddAudio}>Adicionar Áudio</button>
@@ -251,7 +250,7 @@ const AudioControlTab: React.FC = () => {
                 <button onClick={() => handleSendAudioCommand(false)}>Tocar Efeito Sonoro</button>
                 <button onClick={handleSendStopCommand}>Parar Áudio</button>
             </div>
-            
+
             <audio ref={musicPlayerRef} style={{ display: 'none' }} />
             <audio ref={fxPlayerRef} style={{ display: 'none' }} />
         </div>

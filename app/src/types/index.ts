@@ -126,6 +126,7 @@ export interface ConnectedUser {
     username?: string;
 }
 export interface AudioCommandData {
+  audioId: number;
     audioUrl: string;
     volume: number;
     loop: boolean;
