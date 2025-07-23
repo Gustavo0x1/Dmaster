@@ -564,12 +564,12 @@ function createMainWindow(){
 app.whenReady().then(()=>{
   
    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-  const csp = "default-src 'self'; " +
-                "script-src 'self' 'unsafe-eval'; " +
-                "style-src 'self' 'unsafe-inline'; " +
-                "img-src 'self' data: file: asset:; " +
-                "media-src 'self' data: blob: file:; " + // ESSENCIAL: Permite blob: e file:
-                "connect-src 'self' ws://26.61.163.136:5000;";
+const csp = "default-src 'self'; " +
+            "script-src 'self' 'unsafe-eval'; " +
+            "style-src 'self' 'unsafe-inline'; " +
+            "img-src 'self' data: file: asset:; " +
+            "media-src 'self' data: blob: file: http://26.61.163.136:5000; " + // ALTERADO AQUI!
+            "connect-src 'self' ws://26.61.163.136:5000;";
         callback({
                 responseHeaders: {
                 ...details.responseHeaders,

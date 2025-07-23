@@ -161,22 +161,19 @@ const AudioControlTab: React.FC = () => {
     };
 
     const handleSendAudioCommand = async (isMusic: boolean) => {
-        if (!selectedAudio) {
+        if (!selectedAudio) { // Verifica se selectedAudio não é null
             alert("Selecione um arquivo de áudio primeiro!");
             return;
         }
-        // NOVO: Não precisamos mais do selectedAudio.url para enviar ao servidor.
-        // O servidor construirá sua própria URL HTTP. Enviamos apenas o ID.
-        // Embora o tipo AudioCommandData ainda inclua audioUrl, o valor que estamos enviando
-        // será o ID do áudio, e o servidor o usará para construir a URL completa.
+        // selectedAudio.id só será acessado se selectedAudio não for null
         const data: AudioCommandData = {
-            audioId: selectedAudio.id, // Envie o ID do asset
-            audioUrl: '', // Pode ser vazio, o servidor vai gerar o real
+            audioId: selectedAudio.id, // <-- Aqui!
+            audioUrl: '',
             volume: parseFloat(volume.toString()),
             loop: isMusic && loopMusic,
             targetUserId: targetUser
         };
-
+        console.log("sending data with id: "+selectedAudio.id)
         const result = await electron.sendAudioCommand("play-audio-command", data);
         if (!result.success) {
             console.error("Falha ao enviar comando de áudio:", result.message);

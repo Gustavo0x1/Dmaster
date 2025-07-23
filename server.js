@@ -258,7 +258,7 @@ wss.on("connection", async (ws) => {
           console.log(`[Server] Recebida requisição para tocar áudio. ID: ${audioId}, Target: ${targetUserId}`);
 
           // Constrói a URL que os clientes usarão para baixar o áudio do servidor
-          const serverIp = "26.37.35.114"; // Substitua pelo IP REAL do seu servidor
+          const serverIp = "26.61.163.136"; // Substitua pelo IP REAL do seu servidor
           const audioDownloadUrl = `http://${serverIp}:5000/audio/${audioId}`;
 
           const audioPayload = {
