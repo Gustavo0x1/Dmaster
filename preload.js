@@ -32,7 +32,8 @@ addAudio: (newAudioName, newAudioType) => ipcRenderer.invoke('manage-assets:add-
 on: (channel, callback) => {
     // === LISTA DE CANAIS PERMITIDOS ===
     // Adicione AQUI todos os canais que seu renderer process OUVIRÁ (ex: 'SyncTokenPosition', 'chatMessage')
-    const validChannels = ['SyncTokenPosition', 'new-chat-message','send-message-ack','chat-history','syncActiveScenario','sendActiveScenarioToRequester','add-tokens-to-combat-tracker']; 
+    const validChannels = ['SyncTokenPosition',
+      'initiative-sync-from-server', 'new-chat-message','send-message-ack','chat-history','syncActiveScenario','sendActiveScenarioToRequester','add-tokens-to-combat-tracker']; 
 
     if (validChannels.includes(channel)) {
       // Cria um wrapper para o callback para evitar que o objeto 'event' do Electron
@@ -50,7 +51,7 @@ on: (channel, callback) => {
   off: (channel, callback) => {
     // === LISTA DE CANAIS PERMITIDOS ===
     // Adicione AQUI todos os canais que seu renderer process REMOVERÁ listeners
-    const validChannels = ['SyncTokenPosition', 'new-chat-message','send-message-ack','chat-history','syncActiveScenario','sendActiveScenarioToRequester','add-tokens-to-combat-tracker']; 
+    const validChannels = ['SyncTokenPosition','initiative-sync-from-server', 'new-chat-message','send-message-ack','chat-history','syncActiveScenario','sendActiveScenarioToRequester','add-tokens-to-combat-tracker']; 
 
     if (validChannels.includes(channel) && callback) {
       // ipcRenderer.off é um alias para ipcRenderer.removeListener.
@@ -90,6 +91,9 @@ on: (channel, callback) => {
       'save-character-data', // Exemplo: se você for salvar dados
       'delete-character',     // Exemplo: se você for deletar um personagem
       'create-character',     // Exemplo: se você for deletar um personagem
+           'request-next-turn',        // NOVO: Para avançar o turno
+      'request-previous-turn',    // NOVO: Para retroceder o turno
+      'update-combatant-initiative',
     ];
 
     if (validInvokeChannels.includes(channel)) {

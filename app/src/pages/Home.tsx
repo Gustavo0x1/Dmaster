@@ -55,7 +55,7 @@ const Home: React.FC = () => {
             // Coluna da Esquerda: Combat Tracker
             addContentToLeft(
                 <CombatTracker 
-                    combatants={combatants} 
+                 
                     currentUserId={currentUserId}
                    
                 />

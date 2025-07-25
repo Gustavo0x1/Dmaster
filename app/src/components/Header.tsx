@@ -12,15 +12,17 @@ function Header() {
   // Usar o hook useAudio para acessar o contexto e as novas funções
   const { currentSongName, volume, setVolume, playMusic, pauseMusic, resumeMusic, isPlaying } = useAudio();
   // NEW: Use useTurn hook to get turn information
-  const { currentTurnIndex, combatantsInTurnOrder, goToNextTurn } = useTurn();
+  const { currentTurnIndex, combatantsInTurnOrder } = useTurn();
+  let turnCount=0
+if(currentTurnIndex!=null){
+   turnCount = combatantsInTurnOrder.length > 0 ? currentTurnIndex + 1 : 0;
 
-  // NEW: Calculate turnCount from currentTurnIndex
-  const turnCount = combatantsInTurnOrder.length > 0 ? currentTurnIndex + 1 : 0;
+}
 
 
   const handleNextTurn = () => {
     console.log('Passar Turno clicado!');
-    goToNextTurn(); // NEW: Call goToNextTurn from TurnContext
+    
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {

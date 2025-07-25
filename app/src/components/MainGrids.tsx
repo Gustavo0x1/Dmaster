@@ -648,36 +648,36 @@ const onTokenSelected = (tokenPath: string) => {
 
 
   // NEW: handleAddToInitiative function
-  const handleAddToInitiative = useCallback(() => {
-    const electron = (window as any).electron;
-    if (!electron?.send) {
-      console.warn('Electron IPC send not available.');
-      return;
-    }
+const handleAddToInitiative = useCallback(() => {
+  const electron = (window as any).electron;
+  if (!electron?.send) { // Use 'send' for simple IPC without awaiting a reply from main process
+    console.warn('Electron IPC send not available.');
+    return;
+  }
 
-    const tokensToAdd = scenario.tokens
-      .filter(token => selectedGridTokenIds.includes(token.id))
-      .map(token => ({
-        id: token.id,
-        name: token.name,
-        portraitUrl: token.portraitUrl,
-        initiative: 0,
-        currentHp: token.currentHp,
-        maxHp: token.maxHp,
-        ac: token.ac,
-        danoCausado: 0,
-        danoSofrido: 0,
-        type: 'ally', // Você pode determinar isso dinamicamente ou deixar como 'ally'
-        playerId: token.playerId || null // Adicione esta linha: Usa o playerId do token, ou null se não definido
-      }));
+  const tokensToAdd = scenario.tokens
+    .filter(token => selectedGridTokenIds.includes(token.id))
+    .map(token => ({
+      id: token.id,
+      name: token.name,
+      portraitUrl: token.portraitUrl,
+      initiative: 0, // Default initiative, server will handle sorting
+      currentHp: token.currentHp,
+      maxHp: token.maxHp,
+      ac: token.ac,
+      danoCausado: 0,
+      danoSofrido: 0,
+      type: 'ally',
+      playerId: token.playerId || null
+    }));
 
-    if (tokensToAdd.length > 0) {
-      electron.send('add-tokens-to-initiative', tokensToAdd);
-      setContextMenu({ visible: false, x: 0, y: 0, tokens: [] });
-      setSelectedGridTokenIds([]);
-      requestDraw();
-    }
-  }, [selectedGridTokenIds, scenario.tokens, requestDraw]);
+  if (tokensToAdd.length > 0) {
+    electron.send('add-tokens-to-initiative', tokensToAdd); // Send to main.js
+    setContextMenu({ visible: false, x: 0, y: 0, tokens: [] });
+    setSelectedGridTokenIds([]);
+    requestDraw();
+  }
+}, [selectedGridTokenIds, scenario.tokens, requestDraw]);
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
 

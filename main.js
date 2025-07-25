@@ -434,6 +434,7 @@ function startWebSocket() {
   });
 
   ws.on("message", (message) => {
+
     try {
       const parsedMessage = JSON.parse(message); // Parseie a mensagem uma vez
       const { type, data } = parsedMessage;
@@ -464,6 +465,10 @@ function startWebSocket() {
         }
         return; // Consome a mensagem de login
       }
+if (type === "initiative-sync") {
+    console.log("[Main Process] Sincronização de iniciativa recebida. Enviando para o frontend.");
+    if (MainWindow) MainWindow.webContents.send("initiative-sync-from-server", data);
+}
 
       if (type === "sendActiveScenarioToRequester") {
         console.log("[Main Process] Recebido cenário ativo exclusivo do servidor:", data);
@@ -1269,7 +1274,50 @@ ipcMain.on('add-tokens-to-initiative', (event, tokens) => {
       console.log('Notificações não são suportadas neste sistema operacional.');
     }
   });
+ipcMain.on('add-tokens-to-initiative', (event, tokens) => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "add-tokens-to-initiative-server", data: tokens }));
+    console.log("[Main Process] Tokens de iniciativa enviados ao servidor.");
+  } else {
+    console.warn("[Main Process] WebSocket não conectado. Não foi possível adicionar tokens à iniciativa.");
+  }
+});
 
+// NEW: IPC handler for next turn command
+ipcMain.handle('request-next-turn', async () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "next-turn-server" }));
+        console.log("[Main Process] Requisição de próximo turno enviada ao servidor.");
+        return { success: true };
+    } else {
+        console.error("[Main Process] WebSocket não está conectado. Não foi possível avançar o turno.");
+        return { success: false, message: "WebSocket não conectado." };
+    }
+});
+
+// NEW: IPC handler for previous turn command
+ipcMain.handle('request-previous-turn', async () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "previous-turn-server" }));
+        console.log("[Main Process] Requisição de turno anterior enviada ao servidor.");
+        return { success: true };
+    } else {
+        console.error("[Main Process] WebSocket não está conectado. Não foi possível retroceder o turno.");
+        return { success: false, message: "WebSocket não conectado." };
+    }
+});
+
+// NEW: IPC handler for updating a combatant's initiative value
+ipcMain.handle('update-combatant-initiative', async (event, tokenId, newValue) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "update-initiative-value-server", data: { tokenId, newValue } }));
+        console.log(`[Main Process] Atualização de iniciativa para token ${tokenId} enviada ao servidor.`);
+        return { success: true };
+    } else {
+        console.error("[Main Process] WebSocket não está conectado. Não foi possível atualizar a iniciativa.");
+        return { success: false, message: "WebSocket não conectado." };
+    }
+});
 ipcMain.handle('save-scenario', async (event, scenarioData, scenarioName) => {
   if(ws){
     console.log("[Main Process] Enviando sinal de sincronização de cenário para null.")

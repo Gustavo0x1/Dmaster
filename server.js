@@ -11,12 +11,16 @@ const { open } = require('sqlite');
 // Adicione as referências aos manifestos de assets
 const tokenManifestPath = path.join(__dirname, 'tokens.json');
 const mapManifestPath = path.join(__dirname, 'maps.json');
-const audioManifestPath = path.join(__dirname, 'audio.json'); // NOVO: Caminho para o manifesto de áudio
-const ASSETS_AUDIO_PATH = path.join(__dirname, 'assets', 'audios'); // NOVO: Caminho para a pasta de arquivos de áudio
+const audioManifestPath = path.join(__dirname, 'audio.json');
+const ASSETS_AUDIO_PATH = path.join(__dirname, 'assets', 'audios');
 
 // Banco de dados em memória para armazenar o CENÁRIO ATIVO.
 let activeScenario = null;
 let db; // Objeto do banco de dados para o server.js
+
+// NOVO: Estados para a iniciativa de combate
+let combatantsInTurnOrder = []; // Array para armazenar os combatentes na ordem de iniciativa
+let currentTurnIndex = 0; // Índice do turno atual na ordem de combatentes
 
 // Caminho para o arquivo de histórico de chat JSON
 const CHAT_HISTORY_FILE = path.join(__dirname, 'chatHistory.json');
@@ -107,11 +111,9 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// NOVO: Rota para servir arquivos de áudio
-// Isso expõe a pasta assets/audios via HTTP
+// Rota para servir arquivos de áudio
 app.use('/audio-assets', express.static(ASSETS_AUDIO_PATH));
 
-// Opcional: Rota mais controlada para servir áudios pelo ID do asset
 app.get('/audio/:assetId', (req, res) => {
     const assetId = parseInt(req.params.assetId, 10);
     try {
@@ -119,13 +121,12 @@ app.get('/audio/:assetId', (req, res) => {
         const audioAsset = audioManifest.find(a => a.id === assetId);
 
         if (audioAsset) {
-            const filePath = path.join(ASSETS_AUDIO_PATH, audioAsset.name); // audioAsset.name deve ser o nome original do arquivo
+            const filePath = path.join(ASSETS_AUDIO_PATH, audioAsset.name);
             if (fs.existsSync(filePath)) {
                 res.setHeader('Content-Type', audioAsset.type);
                 res.sendFile(filePath);
             } else {
                 console.warn(`[Server] Arquivo de áudio não encontrado no disco para asset ID ${assetId}: ${filePath}`);
-                // Fallback: decodificar do base64 se o arquivo não estiver no disco (menos eficiente)
                 const audioBuffer = Buffer.from(audioAsset.data, 'base64');
                 res.setHeader('Content-Type', audioAsset.type);
                 res.send(audioBuffer);
@@ -138,7 +139,6 @@ app.get('/audio/:assetId', (req, res) => {
         res.status(500).send('Internal server error');
     }
 });
-
 
 // Carregar o histórico ao iniciar o servidor
 loadChatHistory();
@@ -171,6 +171,11 @@ async function broadcastConnectedUsers() {
     broadcast({ type: "connected-users-list", data: connectedUserIds });
 }
 
+// Função auxiliar para broadcast da iniciativa
+function broadcastInitiativeState() {
+    broadcast({ type: "initiative-sync", data: { combatants: combatantsInTurnOrder, currentTurnIndex: currentTurnIndex } });
+}
+
 // Quando um cliente se conecta via WebSocket
 wss.on("connection", async (ws) => {
   console.log("Novo cliente conectado.");
@@ -180,6 +185,12 @@ wss.on("connection", async (ws) => {
       ws.send(JSON.stringify({ type: "syncActiveScenario", data: activeScenario }));
       console.log("Cenário ativo enviado para o novo cliente.");
   }
+  // NOVO: Enviar o estado de iniciativa atual para o cliente recém-conectado
+  if (combatantsInTurnOrder.length > 0) {
+      ws.send(JSON.stringify({ type: "initiative-sync", data: { combatants: combatantsInTurnOrder, currentTurnIndex: currentTurnIndex } }));
+      console.log("Estado de iniciativa enviado para o novo cliente.");
+  }
+
 
   ws.on("message", async (message) => {
     try {
@@ -253,22 +264,21 @@ wss.on("connection", async (ws) => {
         })
       }
       if (type === "play-audio-command") {
-          // NOVO: Agora, data deve conter audioId em vez de audioUrl
-          const { audioId, volume, loop, targetUserId } = data; // Espera 'audioId'
+          const { audioId, volume, loop, targetUserId } = data;
           console.log(`[Server] Recebida requisição para tocar áudio. ID: ${audioId}, Target: ${targetUserId}`);
 
-          // Constrói a URL que os clientes usarão para baixar o áudio do servidor
-          const serverIp = "26.61.163.136"; // Substitua pelo IP REAL do seu servidor
+          // Usar um IP real, ou uma configuração de ambiente
+          const serverIp = "26.61.163.136";
           const audioDownloadUrl = `http://${serverIp}:5000/audio/${audioId}`;
 
           const audioPayload = {
-              audioUrl: audioDownloadUrl, // Envia a URL do servidor
+              audioUrl: audioDownloadUrl,
               volume,
               loop,
               targetUserId
           };
 
-          if (targetUserId === -1) { // -1 significa "all"
+          if (targetUserId === -1) {
               broadcast({ type: "play-audio", data: audioPayload });
           } else {
               sendToUser(targetUserId, { type: "play-audio", data: audioPayload });
@@ -373,6 +383,56 @@ wss.on("connection", async (ws) => {
         } else {
           ws.send(JSON.stringify({ type: "syncActiveScenario", data: null }));
         }
+      }
+      // NOVO: Handler para adicionar tokens à iniciativa
+      if (type === "add-tokens-to-initiative-server") {
+          const newTokens = data;
+          const existingTokenIds = new Set(combatantsInTurnOrder.map(c => c.id));
+          const filteredNewTokens = newTokens.filter(newToken => !existingTokenIds.has(newToken.id));
+
+          combatantsInTurnOrder = [...combatantsInTurnOrder, ...filteredNewTokens];
+          // Ordena os combatentes por iniciativa (decrescente) após adicionar
+          combatantsInTurnOrder.sort((a, b) => b.initiative - a.initiative);
+
+          // Reseta o índice do turno se estiver fora dos limites ou se não houver combatentes
+          if (combatantsInTurnOrder.length === 0) {
+              currentTurnIndex = 0;
+          } else if (currentTurnIndex >= combatantsInTurnOrder.length) {
+              currentTurnIndex = combatantsInTurnOrder.length - 1;
+          }
+          console.log(`[Server] Tokens adicionados à iniciativa. Combatentes totais: ${combatantsInTurnOrder.length}`);
+          broadcastInitiativeState(); // Broadcast o novo estado de iniciativa
+      }
+
+      // NOVO: Handler para avançar o turno
+      if (type === "next-turn-server") {
+          if (combatantsInTurnOrder.length > 0) {
+              currentTurnIndex = (currentTurnIndex + 1) % combatantsInTurnOrder.length;
+              broadcastInitiativeState(); // Broadcast o novo estado de iniciativa
+              console.log(`[Server] Próximo turno. Índice: ${currentTurnIndex}`);
+          }
+      }
+
+      // NOVO: Handler para retroceder o turno
+      if (type === "previous-turn-server") {
+          if (combatantsInTurnOrder.length > 0) {
+              currentTurnIndex = (currentTurnIndex - 1 + combatantsInTurnOrder.length) % combatantsInTurnOrder.length;
+              broadcastInitiativeState(); // Broadcast o novo estado de iniciativa
+              console.log(`[Server] Turno anterior. Índice: ${currentTurnIndex}`);
+          }
+      }
+
+      // NOVO: Handler para atualizar o valor de iniciativa de um combatente
+      if (type === "update-initiative-value-server") {
+          const { tokenId, newValue } = data;
+          const tokenIndex = combatantsInTurnOrder.findIndex(t => t.id === tokenId);
+          if (tokenIndex !== -1) {
+              combatantsInTurnOrder[tokenIndex].initiative = newValue;
+              // Re-ordenar após a mudança de valor e broadcast
+              combatantsInTurnOrder.sort((a, b) => b.initiative - a.initiative);
+              broadcastInitiativeState();
+              console.log(`[Server] Iniciativa do token ${tokenId} atualizada para ${newValue}. Reordenando.`);
+          }
       }
     } catch (err) {
       console.error("Erro ao processar mensagem:", err);

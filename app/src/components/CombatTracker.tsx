@@ -5,27 +5,24 @@ import { useTurn } from '../components/contexts/TurnContext';
 import '../css/CombatTracker/CombatTracker.css'
 
 interface CombatTrackerProps {
-  combatants: CombatTrackerToken[];
-  currentUserId: number | null; // Adicione esta prop
+  currentUserId: number | null; // A prop currentUserId é mantida
 }
 
-const CombatTracker: React.FC<CombatTrackerProps> = ({ combatants: initialCombatants, currentUserId }) => { // Recebe currentUserId
+const CombatTracker: React.FC<CombatTrackerProps> = ({ currentUserId }) => {
   const [activeTab, setActiveTab] = useState<'iniciativa' | 'party' | 'historico'>('iniciativa');
   const {
     currentTurnIndex,
     combatantsInTurnOrder,
-    goToNextTurn,
-    goToPreviousTurn,
-    setCombatantsInTurnOrder
+    setCombatantsInTurnOrder, // Mantido para atualizar o estado local com dados do servidor
+    setCurrentTurnIndex       // Mantido para atualizar o estado local com dados do servidor
   } = useTurn();
 
   const [editingInitiativeId, setEditingInitiativeId] = useState<number | null>(null);
   const [editingInitiativeValue, setEditingInitiativeValue] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    setCombatantsInTurnOrder(initialCombatants);
-  }, [initialCombatants, setCombatantsInTurnOrder]);
+  // Removido o useEffect que inicializava combatants do prop initialCombatants,
+  // pois agora o estado será sincronizado pelo servidor.
 
   useEffect(() => {
     const electron = (window as any).electron;
@@ -34,20 +31,21 @@ const CombatTracker: React.FC<CombatTrackerProps> = ({ combatants: initialCombat
       return;
     }
 
-    const handleAddTokensToInitiative = (newTokens: CombatTrackerToken[]) => {
-      setCombatantsInTurnOrder(prevCombatants => {
-        const existingTokenIds = new Set(prevCombatants.map(c => c.id));
-        const filteredNewTokens = newTokens.filter(newToken => !existingTokenIds.has(newToken.id));
-        return [...prevCombatants, ...filteredNewTokens];
-      });
+    // Handler para receber a sincronização de iniciativa do servidor
+    const handleInitiativeSync = (data: { combatants: CombatTrackerToken[]; currentTurnIndex: number }) => {
+      console.log("Recebida sincronização de iniciativa do servidor:", data);
+      setCombatantsInTurnOrder(data.combatants);
+      setCurrentTurnIndex(data.currentTurnIndex);
     };
 
-    electron.on('add-tokens-to-combat-tracker', handleAddTokensToInitiative);
+    // Assina o evento para receber atualizações do servidor via main.js
+    electron.on('initiative-sync-from-server', handleInitiativeSync);
 
     return () => {
-      electron.DoremoveListener('add-tokens-to-combat-tracker', handleAddTokensToInitiative);
+      // Remove o listener ao desmontar o componente
+      electron.DoremoveListener('initiative-sync-from-server', handleInitiativeSync);
     };
-  }, [setCombatantsInTurnOrder]);
+  }, [setCombatantsInTurnOrder, setCurrentTurnIndex]); // Dependências para garantir que o efeito seja re-executado se essas funções mudarem
 
   // NOVO useEffect para notificação de turno
   useEffect(() => {
@@ -84,16 +82,19 @@ const CombatTracker: React.FC<CombatTrackerProps> = ({ combatants: initialCombat
     setEditingInitiativeValue(e.target.value);
   };
 
-  const handleInitiativeBlur = () => {
+  const handleInitiativeBlur = async () => { // Função agora é assíncrona
     if (editingInitiativeId === null) return;
 
     const newInitiative = parseInt(editingInitiativeValue);
+    const tokenIdToUpdate = editingInitiativeId; // Captura o ID antes de resetar o estado
 
-    setCombatantsInTurnOrder(prevCombatants => prevCombatants.map(token =>
-      token.id === editingInitiativeId
-        ? { ...token, initiative: isNaN(newInitiative) ? token.initiative : newInitiative }
-        : token
-    ));
+    if (!isNaN(newInitiative)) {
+        const electron = (window as any).electron;
+        if (electron?.invoke) {
+            // Envia a atualização para o processo principal (main.js), que a retransmitirá para o servidor
+            await electron.invoke('update-combatant-initiative', tokenIdToUpdate, newInitiative);
+        }
+    }
 
     setEditingInitiativeId(null);
     setEditingInitiativeValue('');
@@ -105,13 +106,29 @@ const CombatTracker: React.FC<CombatTrackerProps> = ({ combatants: initialCombat
     }
   };
 
+  const handleGoToNextTurn = async () => { // Função agora é assíncrona
+    const electron = (window as any).electron;
+    if (electron?.invoke) {
+        // Solicita ao processo principal (main.js) para avançar o turno no servidor
+        await electron.invoke('request-next-turn');
+    }
+  };
+
+  const handleGoToPreviousTurn = async () => { // Função agora é assíncrona
+    const electron = (window as any).electron;
+    if (electron?.invoke) {
+        // Solicita ao processo principal (main.js) para retroceder o turno no servidor
+        await electron.invoke('request-previous-turn');
+    }
+  };
+
   const renderInitiativeTab = () => (
     <>
       <div className="d-flex justify-content-around mb-2">
-        <button className="btn btn-outline-light btn-sm" onClick={goToPreviousTurn}>
+        <button className="btn btn-outline-light btn-sm" onClick={handleGoToPreviousTurn}> {/* Atualizado onClick */}
           <i className="bi bi-arrow-left-circle"></i> Turno Anterior
         </button>
-        <button className="btn btn-outline-light btn-sm" onClick={goToNextTurn}>
+        <button className="btn btn-outline-light btn-sm" onClick={handleGoToNextTurn}> {/* Atualizado onClick */}
           Próximo Turno <i className="bi bi bi-arrow-right-circle"></i>
         </button>
       </div>
