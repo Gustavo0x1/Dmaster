@@ -1,25 +1,34 @@
 // src/components/AudioControlTab.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import '../../css/AudioControlTab/AudioControlTab.css';
+//import '../../css/AudioControlTab/AudioControlTab.css';
 import { AudioFile, ConnectedUser, AudioCommandData, StopAudioCommandData } from '../../types';
+import { useLayout } from '../Layout';
+
+interface AudioFileWithCategory extends AudioFile {
+    category: 'music' | 'effect';
+}
 
 const AudioControlTab: React.FC = () => {
     const electron = (window as any).electron;
-    const [audioFiles, setAudioFiles] = useState<AudioFile[]>([]);
+    const { addContentToLeft, addContentToCenter, addContentToRight, clearContentFromLeft, clearContentFromCenter, clearContentFromRight } = useLayout();
+
+    const [audioFiles, setAudioFiles] = useState<AudioFileWithCategory[]>([]);
     const [connectedUsers, setConnectedUsers] = useState<ConnectedUser[]>([]);
-    const [selectedAudio, setSelectedAudio] = useState<AudioFile | null>(null);
+    const [selectedAudio, setSelectedAudio] = useState<AudioFileWithCategory | null>(null);
     const [volume, setVolumeState] = useState<number>(0.5);
     const [loopMusic, setLoopMusic] = useState<boolean>(false);
-    const [targetUser, setTargetUser] = useState<number>(-1);
+    const [targetUsers, setTargetUsers] = useState<number[]>([]);
+
+    const [musicSearchTerm, setMusicSearchTerm] = useState<string>('');
+    const [effectSearchTerm, setEffectSearchTerm] = useState<string>('');
+    const [newAudioName, setNewAudioName] = useState<string>('');
+    const [newAudioType, setNewAudioType] = useState<'music' | 'effect'>('music');
 
     const musicPlayerRef = useRef<HTMLAudioElement>(new Audio());
     const fxPlayerRef = useRef<HTMLAudioElement>(new Audio());
 
-    // Ref para armazenar as Blob URLs criadas, para revogação e lookup
-    // Mantido para a pré-visualização local e para carregar a lista de arquivos
     const blobUrlsRef = useRef<Record<number, string>>({});
 
-    // Função para criar a Blob URL a partir dos dados Base64
     const createBlobUrl = useCallback((base64Data: string, mimeType: string): string | null => {
         if (!base64Data || !mimeType) {
             console.error("Missing base64Data or mimeType for Blob URL creation.");
@@ -44,22 +53,20 @@ const AudioControlTab: React.FC = () => {
         }
     }, []);
 
-    // Atualizado para usar createBlobUrl e remover o filtro problemático
     const loadAudioFiles = useCallback(async () => {
         const result = await electron.getAudioPool();
         if (result) {
-            // Revoga URLs antigas antes de criar novas
             Object.values(blobUrlsRef.current).forEach(url => URL.revokeObjectURL(url));
             blobUrlsRef.current = {};
 
-            const filesWithUrls: AudioFile[] = result.map((file: AudioFile) => {
+            const filesWithUrls: AudioFileWithCategory[] = result.map((file: AudioFileWithCategory) => {
                 const blobUrl = createBlobUrl(file.data, file.type);
                 if (blobUrl) {
                     blobUrlsRef.current[file.id] = blobUrl;
                 }
                 return {
                     ...file,
-                    url: blobUrl || '' // Atribui a Blob URL, ou string vazia se for null
+                    url: blobUrl || ''
                 };
             });
             setAudioFiles(filesWithUrls);
@@ -71,10 +78,111 @@ const AudioControlTab: React.FC = () => {
         if (result.success) {
             const users: ConnectedUser[] = result.data.map((id: number) => ({ userId: id, username: `Jogador ${id}` }));
             setConnectedUsers(users);
+            setTargetUsers([-1]); // Default to "Todos os Jogadores"
         } else {
             console.error("Erro ao carregar usuários conectados:");
         }
     }, [electron]);
+
+const handleAddAudio = useCallback(async () => {
+    if (!newAudioName.trim()) {
+        alert("Por favor, insira um nome para o áudio.");
+        return;
+    }
+    // Pass newAudioName and newAudioType as arguments to the IPC call
+    const updatedPool = await electron.addAudio(newAudioName, newAudioType);
+    if (updatedPool) {
+        // Revoke old URLs before creating new ones
+        Object.values(blobUrlsRef.current).forEach(url => URL.revokeObjectURL(url));
+        blobUrlsRef.current = {};
+
+        // Map updated files to create new Blob URLs
+        const filesWithUrls: AudioFileWithCategory[] = updatedPool.map((file: AudioFileWithCategory) => {
+            const blobUrl = createBlobUrl(file.data, file.type);
+            if (blobUrl) {
+                blobUrlsRef.current[file.id] = blobUrl;
+            }
+            return {
+                ...file,
+                url: blobUrl || ''
+            };
+        });
+        setAudioFiles(filesWithUrls);
+        // Clear input fields after successful addition
+        setNewAudioName('');
+        setNewAudioType('music'); // Reset to default 'music'
+    }
+}, [newAudioName, newAudioType, createBlobUrl, electron]);
+
+    // MUDANÇA: Memoize handleSendAudioCommand
+    const handleSendAudioCommand = useCallback(async (audioFile: AudioFileWithCategory, isMusic: boolean) => {
+        if (!audioFile) {
+            alert("Selecione um arquivo de áudio primeiro!");
+            return;
+        }
+
+        const targetsToSend = targetUsers.includes(-1) ? [-1] : targetUsers;
+
+        if (targetsToSend.length === 0) {
+            alert("Selecione para quem tocar o áudio (Todos os Jogadores ou jogadores específicos).");
+            return;
+        }
+
+        for (const targetId of targetsToSend) {
+            const data: AudioCommandData = {
+                audioId: audioFile.id,
+                audioUrl: audioFile.url || '',
+                volume: parseFloat(volume.toString()),
+                loop: isMusic && loopMusic,
+                targetUserId: targetId
+            };
+            console.log("sending data with id: " + audioFile.id + ", URL: " + audioFile.url + ", to target: " + targetId);
+            const result = await electron.sendAudioCommand("play-audio-command", data);
+            if (!result.success) {
+                console.error("Falha ao enviar comando de áudio para " + targetId + ":", result.message);
+                alert(`Erro ao tocar áudio para ${targetId}: ${result.message}`);
+            }
+        }
+    }, [targetUsers, volume, loopMusic, electron]); // Dependências para handleSendAudioCommand
+
+    // MUDANÇA: Memoize handleSendStopCommand
+    const handleSendStopCommand = useCallback(async () => {
+        const targetsToSend = targetUsers.includes(-1) ? [-1] : targetUsers;
+
+        if (targetsToSend.length === 0) {
+            alert("Selecione para quem parar o áudio (Todos os Jogadores ou jogadores específicos).");
+            return;
+        }
+
+        for (const targetId of targetsToSend) {
+            const data: StopAudioCommandData = {
+                targetUserId: targetId
+            };
+
+            const result = await electron.sendAudioCommand("stop-audio-command", data);
+            if (!result.success) {
+                console.error("Falha ao enviar comando de parada de áudio para " + targetId + ":", result.message);
+                alert(`Erro ao parar áudio para ${targetId}: ${result.message}`);
+            }
+        }
+    }, [targetUsers, electron]); // Dependências para handleSendStopCommand
+
+    // MUDANÇA: Memoize handleToggleUserSelection
+    const handleToggleUserSelection = useCallback((userId: number) => {
+        setTargetUsers(prevSelectedUsers => {
+            if (userId === -1) {
+                return prevSelectedUsers.includes(-1) ? [] : [-1];
+            }
+
+            const updatedUsers = prevSelectedUsers.filter(id => id !== -1);
+
+            if (updatedUsers.includes(userId)) {
+                return updatedUsers.filter(id => id !== userId);
+            } else {
+                return [...updatedUsers, userId];
+            }
+        });
+    }, []); // Sem dependências se setTargetUsers não mudar
 
     useEffect(() => {
         const fetchAndSetUserId = async () => {
@@ -91,7 +199,7 @@ const AudioControlTab: React.FC = () => {
         loadAudioFiles();
         loadConnectedUsers();
 
-        const handlePlayAudioCommand = async (data: AudioCommandData) => {
+        const handlePlayAudioCommandReceived = async (data: AudioCommandData) => {
             const currentUserId = await electron.getUserId();
             const parsedCurrentUserId = currentUserId ? parseInt(currentUserId, 10) : null;
 
@@ -113,7 +221,7 @@ const AudioControlTab: React.FC = () => {
             }
         };
 
-        const handleStopAudioCommand = async (data: StopAudioCommandData) => {
+        const handleStopAudioCommandReceived = async (data: StopAudioCommandData) => {
             const currentUserId = await electron.getUserId();
             const parsedCurrentUserId = currentUserId ? parseInt(currentUserId, 10) : null;
 
@@ -130,124 +238,176 @@ const AudioControlTab: React.FC = () => {
             }
         };
 
-        electron.onPlayAudio(handlePlayAudioCommand);
-        electron.onStopAudio(handleStopAudioCommand);
+        electron.onPlayAudio(handlePlayAudioCommandReceived);
+        electron.onStopAudio(handleStopAudioCommandReceived);
 
         return () => {
             Object.values(blobUrlsRef.current).forEach(url => URL.revokeObjectURL(url));
             blobUrlsRef.current = {};
+            clearContentFromRight();
+            clearContentFromCenter();
+            clearContentFromLeft();
         };
-    }, [loadAudioFiles, loadConnectedUsers, electron, createBlobUrl]);
+    }, [loadAudioFiles, loadConnectedUsers, electron, clearContentFromRight, clearContentFromCenter, clearContentFromLeft]);
 
-    // Atualizado para usar createBlobUrl e remover o filtro problemático
-    const handleAddAudio = async () => {
-        const updatedPool = await electron.addAudio();
-        if (updatedPool) {
-            Object.values(blobUrlsRef.current).forEach(url => URL.revokeObjectURL(url));
-            blobUrlsRef.current = {};
+    useEffect(() => {
+        // Content for the right column (Add Audio)
+        const rightColumnContent = (
+            <div className="audio-right-column">
+                <div className="audio-add-section">
+                    <h3>Adicionar Novo Áudio</h3>
+                    <input
+                        type="text"
+                        placeholder="Nome do Áudio"
+                        value={newAudioName}
+                        onChange={(e) => setNewAudioName(e.target.value)}
+                    />
+                    <select
+                        value={newAudioType}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewAudioType(e.target.value as 'music' | 'effect')}
+                    >
+                        <option value="music">Música</option>
+                        <option value="effect">Efeito Sonoro</option>
+                    </select>
+                    <button onClick={handleAddAudio}>Selecionar e Adicionar Arquivo</button>
+                </div>
+            </div>
+        );
+        addContentToRight(rightColumnContent);
 
-            const filesWithUrls: AudioFile[] = updatedPool.map((file: AudioFile) => {
-                const blobUrl = createBlobUrl(file.data, file.type);
-                if (blobUrl) {
-                    blobUrlsRef.current[file.id] = blobUrl;
-                }
-                return {
-                    ...file,
-                    url: blobUrl || ''
-                };
-            });
-            setAudioFiles(filesWithUrls);
-        }
-    };
+        // Content for the left column (Target User Selection as Cards)
+        const leftColumnContent = (
+            <div className="audio-left-column">
+                <h3>Tocar Para:</h3>
+                <div className="user-cards-container">
+                    {/* Card para "Todos os Jogadores" */}
+                    <div className={`user-card ${targetUsers.includes(-1) ? 'selected' : ''}`}>
+                        <label>
+                            <input
+                                type="checkbox"
+                                value={-1}
+                                checked={targetUsers.includes(-1)}
+                                onChange={() => handleToggleUserSelection(-1)}
+                            />
+                            Todos os Jogadores
+                            {/* Ícone virá aqui posteriormente */}
+                        </label>
+                    </div>
 
-    const handleSendAudioCommand = async (isMusic: boolean) => {
-        if (!selectedAudio) { // Verifica se selectedAudio não é null
-            alert("Selecione um arquivo de áudio primeiro!");
-            return;
-        }
-        // selectedAudio.id só será acessado se selectedAudio não for null
-        const data: AudioCommandData = {
-            audioId: selectedAudio.id, // <-- Aqui!
-            audioUrl: '',
-            volume: parseFloat(volume.toString()),
-            loop: isMusic && loopMusic,
-            targetUserId: targetUser
-        };
-        console.log("sending data with id: "+selectedAudio.id)
-        const result = await electron.sendAudioCommand("play-audio-command", data);
-        if (!result.success) {
-            console.error("Falha ao enviar comando de áudio:", result.message);
-            alert(`Erro: ${result.message}`);
-        }
-    };
+                    {/* Cards para usuários conectados */}
+                    {connectedUsers.map(user => (
+                        <div key={user.userId} className={`user-card ${targetUsers.includes(user.userId) ? 'selected' : ''}`}>
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    value={user.userId}
+                                    checked={targetUsers.includes(user.userId)}
+                                    onChange={() => handleToggleUserSelection(user.userId)}
+                                />
+                                {user.username || `Jogador ${user.userId}`}
+                                {/* Ícone virá aqui posteriormente */}
+                            </label>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+        addContentToLeft(leftColumnContent);
 
-    const handleSendStopCommand = async () => {
-        const data: StopAudioCommandData = {
-            targetUserId: targetUser
-        };
+        // Content for the center column (Music and FX tables)
+        const centerColumnContent = (
+            <div className="audio-center-column">
 
-        const result = await electron.sendAudioCommand("stop-audio-command", data);
-        if (!result.success) {
-            console.error("Falha ao enviar comando de parada de áudio:", result.message);
-            alert(`Erro ao parar áudio: ${result.message}`);
-        }
-    };
+
+                <h3>Músicas</h3>
+                <input
+                    type="text"
+                    placeholder="Pesquisar músicas..."
+                    value={musicSearchTerm}
+                    onChange={(e) => setMusicSearchTerm(e.target.value)}
+                />
+                <div className="audio-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {audioFiles
+                                .filter(file => file.category === 'music' && file.name.toLowerCase().includes(musicSearchTerm.toLowerCase()))
+                                .map(file => (
+                                    <tr key={file.id}>
+                                        <td>{file.name}</td>
+                                        <td>
+                                            <button onClick={() => handleSendAudioCommand(file, true)}>Play</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Efeitos Sonoros</h3>
+                <input
+                    type="text"
+                    placeholder="Pesquisar efeitos..."
+                    value={effectSearchTerm}
+                    onChange={(e) => setEffectSearchTerm(e.target.value)}
+                />
+                <div className="audio-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {audioFiles
+                                .filter(file => file.category === 'effect' && file.name.toLowerCase().includes(effectSearchTerm.toLowerCase()))
+                                .map(file => (
+                                    <tr key={file.id}>
+                                        <td>{file.name}</td>
+                                        <td>
+                                            <button onClick={() => handleSendAudioCommand(file, false)}>Play</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                        </tbody>
+                    </table>
+                </div>
+                <div className="action-buttons">
+                    <button onClick={handleSendStopCommand}>Parar Áudio</button>
+                </div>
+            </div>
+        );
+        addContentToCenter(centerColumnContent);
+
+
+    }, [
+        connectedUsers,
+        audioFiles,
+        volume,
+        loopMusic,
+        targetUsers,
+        musicSearchTerm,
+        effectSearchTerm,
+        newAudioName,
+        newAudioType,
+        addContentToRight,
+        addContentToCenter,
+        addContentToLeft,
+        handleAddAudio,
+        handleSendAudioCommand,
+        handleSendStopCommand,
+        handleToggleUserSelection
+    ]);
+
 
     return (
         <div className="audio-control-tab">
-            <h2>Controle de Áudio</h2>
-
-            <div className="audio-section">
-                <h3>Biblioteca de Áudio</h3>
-                <select onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedAudio(audioFiles.find(f => f.id === parseInt(e.target.value)) || null)}>
-                    <option value="">Selecione um Áudio</option>
-                    {audioFiles.map(file => (
-                        <option key={file.id} value={file.id}>{file.name}</option>
-                    ))}
-                </select>
-                <button onClick={handleAddAudio}>Adicionar Áudio</button>
-            </div>
-
-            <div className="audio-controls">
-                <h3>Controles de Reprodução</h3>
-                <label>
-                    Volume:
-                    <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={volume}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVolumeState(parseFloat(e.target.value))}
-                    />
-                    {(volume * 100).toFixed(0)}%
-                </label>
-                <label>
-                    <input
-                        type="checkbox"
-                        checked={loopMusic}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLoopMusic(e.target.checked)}
-                    />
-                    Loop (para música)
-                </label>
-            </div>
-
-            <div className="target-selection">
-                <h3>Tocar Para:</h3>
-                <select onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTargetUser(parseInt(e.target.value, 10))} value={targetUser}>
-                    <option value={-1}>Todos os Jogadores</option>
-                    {connectedUsers.map(user => (
-                        <option key={user.userId} value={user.userId}>{user.username || `Jogador ${user.userId}`}</option>
-                    ))}
-                </select>
-            </div>
-
-            <div className="action-buttons">
-                <button onClick={() => handleSendAudioCommand(true)}>Tocar Música</button>
-                <button onClick={() => handleSendAudioCommand(false)}>Tocar Efeito Sonoro</button>
-                <button onClick={handleSendStopCommand}>Parar Áudio</button>
-            </div>
-
             <audio ref={musicPlayerRef} style={{ display: 'none' }} />
             <audio ref={fxPlayerRef} style={{ display: 'none' }} />
         </div>

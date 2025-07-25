@@ -1,38 +1,6 @@
 [
   {
     "type": "chat-message",
-    "timestamp": "2025-06-23T17:57:07.645Z",
-    "message": "a",
-    "id": 33,
-    "senderName": "Você",
-    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-23T17:57:07.750Z",
-    "message": "a",
-    "id": 33,
-    "senderName": "Você",
-    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-23T17:57:07.894Z",
-    "message": "a",
-    "id": 33,
-    "senderName": "Você",
-    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-23T17:57:08.045Z",
-    "message": "a",
-    "id": 33,
-    "senderName": "Você",
-    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
     "timestamp": "2025-06-23T17:57:08.181Z",
     "message": "a",
     "id": 33,
@@ -388,5 +356,29 @@
     "id": 17,
     "senderName": "Você",
     "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-07-25T04:39:08.827Z",
+    "message": "Rolagem 1d20 + 0: 4 = 4!",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-07-25T04:39:14.114Z",
+    "message": "Rolagem 1d20 + 0: 6 = 6!",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-07-25T04:52:30.355Z",
+    "message": "__actioncard: name:Ataque de Espada Longa, type:attack, effectCategory:damage, description:Um golpe padrão com sua espada longa.",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-07-25T04:54:03.694Z",
+    "message": "__actioncard: name:Armadura de Agathys, type:spell, effectCategory:utility, description:Uma força magica protetora envolve você, manifestando- se como um frio espectral que cobre você e seu equipamento. Você ganha 5 pontos de vida temporários pela duração. Se uma criatura atingir você com um ataque corpo-a-corpo enquanto estiver com esses pontos de vida, a criatura sofrerá 5 de dano de frio.",
+    "id": -1
   }
 ]

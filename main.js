@@ -558,7 +558,7 @@ function createMainWindow(){
         pathname:path.join(__dirname,'./app/build/index.html'),
         protocol:'file'
     })
-    MainWindow.loadURL(startUrl) // Certifique-se de que este é o URL correto do seu React App
+    MainWindow.loadURL("http://localhost:3000") // Certifique-se de que este é o URL correto do seu React App
 }
 
 app.whenReady().then(()=>{
@@ -1210,11 +1210,11 @@ ipcMain.handle('manage-assets:get-audio-pool', async (event) => {
 });
 
 // NOVO: IPC para adicionar um arquivo de áudio
-ipcMain.handle('manage-assets:add-audio', async (event) => {
+ipcMain.handle('manage-assets:add-audio', async (event, newAudioName, newAudioType) => { // ADD newAudioName and newAudioType here
   const { canceled, filePaths } = await dialog.showOpenDialog({
       title: 'Adicionar Novo Arquivo de Áudio',
       properties: ['openFile'],
-      filters: [{ name: 'Áudios', extensions: ['mp3', 'wav', 'ogg'] }] // Tipos de áudio comuns
+      filters: [{ name: 'Áudios', extensions: ['mp3', 'wav', 'ogg'] }]
   });
 
   if (canceled || filePaths.length === 0) {
@@ -1224,7 +1224,6 @@ ipcMain.handle('manage-assets:add-audio', async (event) => {
   const originalPath = filePaths[0];
   const manifestData = JSON.parse(fs.readFileSync(audioManifestPath, 'utf8'));
 
-  // A pasta de destino dentro de 'assets'
   const audioAssetsDir = path.join(assetsPath, 'audios');
   if (!fs.existsSync(audioAssetsDir)) {
       fs.mkdirSync(audioAssetsDir, { recursive: true });
@@ -1233,18 +1232,17 @@ ipcMain.handle('manage-assets:add-audio', async (event) => {
   const fileName = path.basename(originalPath);
   const destinationPath = path.join(audioAssetsDir, fileName);
 
-  // Copia o arquivo para a pasta de assets
   fs.copyFileSync(originalPath, destinationPath);
 
-  // Agora, leia o arquivo copiado para obter o base64
   const audioBuffer = fs.readFileSync(destinationPath);
   const base64Data = audioBuffer.toString('base64');
   const mimeType = `audio/${path.extname(originalPath).substring(1)}`;
 
   const newAsset = {
       id: Date.now(),
-      name: fileName,
+      name: newAudioName.trim() || fileName, // This line will now correctly use newAudioName
       type: mimeType,
+      category: newAudioType, // Save the category here!
       data: base64Data
   };
 
@@ -1253,7 +1251,6 @@ ipcMain.handle('manage-assets:add-audio', async (event) => {
 
   return manifestData;
 });
-
 ipcMain.on('add-tokens-to-initiative', (event, tokens) => {
   if (MainWindow) {
     MainWindow.webContents.send('add-tokens-to-combat-tracker', tokens);

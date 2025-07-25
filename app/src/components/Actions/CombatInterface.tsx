@@ -60,7 +60,7 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
 
   useEffect(() => {
     if (1) {
-      electron.invoke('request-character-data', 1)
+      electron.invoke('request-character-data', 2)
         .then((response: any) => {
           if (response.success && response.data) {
             const data = response.data;

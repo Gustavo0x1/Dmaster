@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld('electron',{
     
     sendAudioCommand: (commandType, audioData) => ipcRenderer.invoke('send-audio-command', commandType, audioData),
     getAudioPool: () => ipcRenderer.invoke('manage-assets:get-audio-pool'),
-    addAudio: () => ipcRenderer.invoke('manage-assets:add-audio'),
+addAudio: (newAudioName, newAudioType) => ipcRenderer.invoke('manage-assets:add-audio', newAudioName, newAudioType),
    getConnectedUsers: () => ipcRenderer.invoke('get-connected-users'),
  onPlayAudio: (callback) => ipcRenderer.on('play-audio-to-frontend', (event, args) => callback(args)),
     onStopAudio: (callback) => ipcRenderer.on('stop-audio-to-frontend', (event, args) => callback(args)),
@@ -74,6 +74,7 @@ on: (channel, callback) => {
       'send-message',
       'set-userid',
       'get-userid',
+      
       'manage-assets:get-pool',
       'manage-assets:add-image',
       'MovePlayersToScenario',
