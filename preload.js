@@ -33,7 +33,7 @@ on: (channel, callback) => {
     // === LISTA DE CANAIS PERMITIDOS ===
     // Adicione AQUI todos os canais que seu renderer process OUVIRÁ (ex: 'SyncTokenPosition', 'chatMessage')
     const validChannels = ['SyncTokenPosition',
-      'initiative-sync-from-server', 'new-chat-message','send-message-ack','chat-history','syncActiveScenario','sendActiveScenarioToRequester','add-tokens-to-combat-tracker']; 
+      'initiative-sync-from-server', 'remove-token-from-scenario-client','new-chat-message','send-message-ack','chat-history','syncActiveScenario','sendActiveScenarioToRequester','add-tokens-to-combat-tracker']; 
 
     if (validChannels.includes(channel)) {
       // Cria um wrapper para o callback para evitar que o objeto 'event' do Electron
@@ -74,7 +74,7 @@ on: (channel, callback) => {
       'delete-action',
       'update-character-attributes',
       'remove-token-from-scenario',
-      'remove-token-from-scenario-client',
+      
       'send-message',
       'set-userid',
       'get-userid',

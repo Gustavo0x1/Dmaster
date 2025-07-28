@@ -447,7 +447,12 @@ function startWebSocket() {
         // Continua processando mensagens que não dependem da MainWindow, como login-response
       }
 
-      // Manipula a resposta de login do servidor
+   if (type === "remove-token-from-scenario") { // <--- ESTE `type` DEVE CORRESPONDER AO QUE O SERVIDOR BROADCASTA
+        console.log("[Main Process] Recebida instrução do servidor para remover token:", data.tokenId, "do cenário:", data.scenarioId);
+        if (MainWindow) MainWindow.webContents.send("remove-token-from-scenario-client", data.tokenId);
+        return; // Consome a mensagem
+    }
+
       if (type === "login-response") {
         console.log("[Main Process] Recebida resposta de login do servidor:", parsedMessage.success);
         if (parsedMessage.success) { // Se o login foi bem-sucedido
