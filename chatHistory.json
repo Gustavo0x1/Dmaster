@@ -1,62 +1,6 @@
 [
   {
     "type": "chat-message",
-    "timestamp": "2025-06-23T17:57:08.181Z",
-    "message": "a",
-    "id": 33,
-    "senderName": "Você",
-    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-23T17:57:08.400Z",
-    "message": "a",
-    "id": 33,
-    "senderName": "Você",
-    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-23T17:57:08.546Z",
-    "message": "a",
-    "id": 33,
-    "senderName": "Você",
-    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-23T17:57:08.680Z",
-    "message": "a",
-    "id": 33,
-    "senderName": "Você",
-    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-23T17:57:08.816Z",
-    "message": "a",
-    "id": 33,
-    "senderName": "Você",
-    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-23T17:57:09.106Z",
-    "message": "a",
-    "id": 33,
-    "senderName": "Você",
-    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
-    "timestamp": "2025-06-23T17:57:09.210Z",
-    "message": "a",
-    "id": 33,
-    "senderName": "Você",
-    "senderAvatar": "./static/media/bot.3a81260ba44013becb43.png"
-  },
-  {
-    "type": "chat-message",
     "timestamp": "2025-06-23T17:57:09.347Z",
     "message": "a",
     "id": 33,
@@ -379,6 +323,56 @@
     "type": "chat-message",
     "timestamp": "2025-07-25T04:54:03.694Z",
     "message": "__actioncard: name:Armadura de Agathys, type:spell, effectCategory:utility, description:Uma força magica protetora envolve você, manifestando- se como um frio espectral que cobre você e seu equipamento. Você ganha 5 pontos de vida temporários pela duração. Se uma criatura atingir você com um ataque corpo-a-corpo enquanto estiver com esses pontos de vida, a criatura sofrerá 5 de dano de frio.",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-07-25T06:18:36.135Z",
+    "message": "__actioncard: name:Globos de Luz, type:spell, effectCategory:utility, description:Você cria até quatro luzes do tamanho de tochas dentro do alcance, fazendo-as parecerem tochas, lanternas ou esferas luminosas que flutuam no ar pela duração. Você também pode combinar as quatro luzes em uma forma luminosa, vagamente humanoide, de tamanho Médio. Qualquer que seja a forma que você escolher, cada luz produz penumbra num raio de 3 metros.\n\nCom uma ação bônus, no seu turno, você pode mover as luzes, até 18 metros, para um novo local dentro do alcance. Uma luz deve estar a, pelo menos, 6 metros de outra luz criada por essa magia e uma luz some se exceder o alcance da magia.",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-07-25T06:26:07.330Z",
+    "message": "Comando desconhecido: /r 1d20",
+    "id": -1,
+    "senderName": "Sistema",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-07-25T06:26:10.899Z",
+    "message": "Comando: Rolando 1d20...",
+    "id": 17,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-07-25T06:26:13.913Z",
+    "message": "Rolagem 1d20: 14 = 14!",
+    "id": -1
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-07-26T23:15:34.791Z",
+    "message": "Teste",
+    "id": 1,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-07-27T05:03:48.406Z",
+    "message": "asdf",
+    "id": 34,
+    "senderName": "Você",
+    "senderAvatar": "/static/media/bot.3a81260ba44013becb43.png"
+  },
+  {
+    "type": "chat-message",
+    "timestamp": "2025-07-28T02:46:24.632Z",
+    "message": "__actioncard: name:Inspiração Bárdica, type:utility, effectCategory:utility, description:Você inspira uma criatura, que pode adicionar um d6 a um teste de atributo, ataque ou resistência.",
     "id": -1
   }
 ]

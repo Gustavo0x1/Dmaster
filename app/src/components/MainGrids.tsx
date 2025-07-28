@@ -1,3 +1,4 @@
+// src/components/MainGrids.tsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import initialMapImage from '../img/3.jpeg';
@@ -6,12 +7,12 @@ import { useLayout } from "./Layout";
 import { Token as AppToken } from '../types';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { AssetPool } from './AssetsPool';
-
 import { ScenarioPool } from './ScenarioPool';
+import CharacterTokenPool from './CreateTokenPool';
 import '../css/MainGrid/MainGrid.css';
 
 interface Position { x: number; y: number; }
-interface GridToken extends AppToken { id: number; playerId?: number | null; } // Modificado
+interface GridToken extends AppToken { id: number; playerId?: number | null; }
 type ToolMode = 'cursor' | 'paint' | 'erase' | 'fog-area';
 
 interface RPGGridProps {
@@ -35,7 +36,7 @@ const RPGGrid: React.FC<RPGGridProps> = ({ currentUserId }) => {
   const fogAreaPreviewEndRef = useRef<Position | null>(null);
   const [fogAreaMode, setFogAreaMode] = useState<'paint' | 'erase'>('paint');
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null); // Initialize with null
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const mapImageRef = useRef<HTMLImageElement | null>(null);
   const tokenImages = useRef<Record<number, HTMLImageElement>>({});
   const dragPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -48,9 +49,7 @@ const RPGGrid: React.FC<RPGGridProps> = ({ currentUserId }) => {
 
   const [scenario, setScenario] = useState<Scenario>({
     mapImageUrl: "",
-    tokens: [
-
-    ],
+    tokens: [],
     fogGrid: []
   });
   const [currentScenarioId, setCurrentScenarioId] = useState<number | null>(null);
@@ -70,6 +69,7 @@ const RPGGrid: React.FC<RPGGridProps> = ({ currentUserId }) => {
 
   const [showTokenPool, setShowTokenPool] = useState(false);
   const [showMapPool, setShowMapPool] = useState(false);
+  const [showCharacterTokenPool, setShowCharacterTokenPool] = useState(false);
 
   const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; tokens: GridToken[] }>({
     visible: false,
@@ -84,6 +84,10 @@ const RPGGrid: React.FC<RPGGridProps> = ({ currentUserId }) => {
 
   const handleAddToken = () => {
     setShowTokenPool(true);
+  };
+
+  const handleAddCharacterToken = () => {
+    setShowCharacterTokenPool(true);
   };
 
   const onMapSelected = (mapDataUrl: string) => {
@@ -117,35 +121,57 @@ const RPGGrid: React.FC<RPGGridProps> = ({ currentUserId }) => {
       setCurrentScenarioId(scenarioId);
 
     } else {
-
       setCurrentScenarioId(null);
     }
-
     setShowScenarioPool(false);
   };
 
-const onTokenSelected = (tokenPath: string) => {
+  const prepareAndSetAddingToken = useCallback((tokenData: Partial<GridToken>, isCharacter: boolean = false) => {
     let TokenID = Date.now();
-    console.log("ADDING TOKEN ON ID: " + TokenID);
+
+    const defaultTokenProps = {
+      x: 0, y: 0,
+      width: 1, height: 1,
+      name: "Novo Token",
+      currentHp: 10, maxHp: 10, ac: 10, damageDealt: "1d4",
+      playerId: null
+    };
 
     const newToken: GridToken = {
-      id: TokenID, x: 0, y: 0, image: tokenPath, portraitUrl: tokenPath,
-      width: 1, height: 1, name: "Novo Token", currentHp: 10, maxHp: 10, ac: 10, damageDealt: "1d4",
-      playerId: null // Define como nulo por padrão ao adicionar um novo token
+      ...defaultTokenProps,
+      ...tokenData,
+      id: TokenID,
+      playerId: isCharacter ? (tokenData.playerId || currentUserId) : null,
+      image: tokenData.image || '',
+      portraitUrl: tokenData.portraitUrl || tokenData.image || ''
     };
 
     const img = new Image();
-    img.src = tokenPath;
+    img.src = newToken.image;
     img.onload = () => {
       tokenImages.current[newToken.id] = img;
       setAddingToken(newToken);
-      setShowTokenPool(false);
       setActiveTool('cursor');
     };
     img.onerror = () => {
-      console.error("Falha ao carregar a imagem do token:", tokenPath);
+      console.error("Falha ao carregar a imagem do token:", newToken.image);
+      setAddingToken({ ...newToken, image: 'caminho/para/token_erro.png' });
+      setActiveTool('cursor');
     };
-  };
+  }, [currentUserId]);
+
+  const onTokenSelected = useCallback((tokenPath: string) => {
+    prepareAndSetAddingToken({ image: tokenPath, portraitUrl: tokenPath, name: "Novo Token" }, false);
+    setShowTokenPool(false);
+  }, [prepareAndSetAddingToken]);
+
+  const onCharactersSelected = useCallback((selectedCharacters: GridToken[]) => {
+    if (selectedCharacters.length > 0) {
+      prepareAndSetAddingToken(selectedCharacters[0], true);
+    }
+    setShowCharacterTokenPool(false);
+  }, [prepareAndSetAddingToken]);
+
 
   const moveToken = useCallback((id: number, newX: number, newY: number) => {
     setScenario(prev => ({
@@ -168,97 +194,10 @@ const onTokenSelected = (tokenPath: string) => {
       electron.DoremoveListener("SyncTokenPosition", handleSyncTokenPosition);
     };
   }, [moveToken]);
-
-  useEffect(() => {
-    const electron = (window as any).electron;
-    if (!electron) {
-      console.warn('Objeto electron não encontrado. Ignorando listeners.');
-      return;
-    }
-    const handleExclusiveScenario = (data: Scenario) => {
-      console.log("Recebido cenário exclusivo do servidor:", data);
-      if (data && data.mapImageUrl) {
-        console.log("Setting scenario")
-        console.log(data)
-        setScenario(data);
-      }
-    };
-    electron.on("sendActiveScenarioToRequester", handleExclusiveScenario);
-    console.log("Componente MainGrids montado. Solicitando cenário inicial exclusivo...");
-    electron.invoke('request-initial-scenario');
-    const handleSyncScenarioBroadcast = (data: Scenario) => {
-      console.log("Recebido cenário ativo do servidor (broadcast):", data);
-      if (data && data.mapImageUrl) {
-        setScenario(data);
-      }
-    };
-    electron.on("syncActiveScenario", handleSyncScenarioBroadcast);
-    return () => {
-      electron.DoremoveListener("sendActiveScenarioToRequester", handleExclusiveScenario);
-      electron.DoremoveListener("syncActiveScenario", handleSyncScenarioBroadcast);
-    };
-  }, []);
-
-  const paintFogOnCell = useCallback((e: React.MouseEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const gridX = Math.floor(((e.clientX - rect.left) - position.current.x) / zoom.current / GRID_SIZE);
-    const gridY = Math.floor(((e.clientY - rect.top) - position.current.y) / zoom.current / GRID_SIZE);
-    const paintValue = activeTool === 'paint' ? 1 : 0;
-    setScenario(prev => {
-      const newGrid = prev.fogGrid.map(row => [...row]);
-      if (newGrid[gridY]?.[gridX] !== undefined) {
-        newGrid[gridY][gridX] = paintValue;
-      }
-      return { ...prev, fogGrid: newGrid };
-    });
-  }, [zoom, activeTool, position]);
-
-  const handleSaveAsScenario = () => {
-    setScenarioNameInput('');
-    setShowSaveModal(true);
-  };
-  const handleUpdateScenario = async () => {
-    if (!currentScenarioId) {
-      return;
-    }
-    const electron = (window as any).electron;
-    if (!electron?.invoke) return;
-    const result = await electron.invoke('update-scenario', currentScenarioId, scenario);
-  };
-
-  const executeSaveScenario = async () => {
-    if (!scenarioNameInput) { return; }
-    const electron = (window as any).electron;
-    if (!electron?.invoke) return;
-    const result = await electron.invoke('save-scenario', scenario, scenarioNameInput);
-    if (result.success) {
-      setCurrentScenarioId(result.newId);
-    } else {
-
-    }
-    setShowSaveModal(false);
-  };
-
   const drawGrid = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
-    const drawGridLines = (mapWidth: number, mapHeight: number) => {
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-      ctx.lineWidth = 1 / zoom.current;
-      ctx.beginPath();
-      for (let x = 0; x <= mapWidth; x += GRID_SIZE) {
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, mapHeight);
-      }
-      for (let y = 0; y <= mapHeight; y += GRID_SIZE) {
-        ctx.moveTo(0, y);
-        ctx.lineTo(mapWidth, y);
-      }
-      ctx.stroke();
-    };
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -267,6 +206,20 @@ const onTokenSelected = (tokenPath: string) => {
     const mapImg = mapImageRef.current;
     if (mapImg) {
       ctx.drawImage(mapImg, 0, 0, mapImg.width, mapImg.height);
+      const drawGridLines = (mapWidth: number, mapHeight: number) => {
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.lineWidth = 1 / zoom.current;
+        ctx.beginPath();
+        for (let x = 0; x <= mapWidth; x += GRID_SIZE) {
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, mapHeight);
+        }
+        for (let y = 0; y <= mapHeight; y += GRID_SIZE) {
+          ctx.moveTo(0, y);
+          ctx.lineTo(mapWidth, y);
+        }
+        ctx.stroke();
+      };
       drawGridLines(mapImg.width, mapImg.height);
     }
     scenario.tokens.forEach((token) => {
@@ -325,6 +278,116 @@ const onTokenSelected = (tokenPath: string) => {
     ctx.restore();
   }, [zoom, scenario, selectedGridTokenIds, ghostToken, addingToken, activeTool, fogAreaStart, fogAreaPreviewEndRef, fogAreaMode])
 
+  const requestDraw = useCallback(() => {
+    if (animationFrameId.current) {
+      cancelAnimationFrame(animationFrameId.current);
+    }
+    animationFrameId.current = requestAnimationFrame(() => {
+      drawGrid();
+      animationFrameId.current = null;
+    });
+  }, [drawGrid]);
+  useEffect(() => {
+    const electron = (window as any).electron;
+    if (!electron) {
+      console.warn('Objeto electron não encontrado. Ignorando listeners.');
+      return;
+    }
+    const handleRemoveTokenClient = (tokenId: number) => {
+      setScenario(prev => ({
+        ...prev,
+        tokens: prev.tokens.filter(token => token.id !== tokenId)
+      }));
+      setSelectedGridTokenIds(prev => prev.filter(id => id !== tokenId)); // Desseleciona se removido
+      requestDraw();
+    };
+    electron.on("remove-token-from-scenario-client", handleRemoveTokenClient);
+    return () => {
+      electron.DoremoveListener("remove-token-from-scenario-client", handleRemoveTokenClient);
+    };
+  }, [requestDraw]);
+
+
+  useEffect(() => {
+    const electron = (window as any).electron;
+    if (!electron) {
+      console.warn('Objeto electron não encontrado. Ignorando listeners.');
+      return;
+    }
+    const handleExclusiveScenario = (data: Scenario) => {
+      console.log("Recebido cenário exclusivo do servidor:", data);
+      if (data && data.mapImageUrl) {
+        console.log("Setting scenario")
+        console.log(data)
+        setScenario(data);
+      }
+    };
+    electron.on("sendActiveScenarioToRequester", handleExclusiveScenario);
+    console.log("Componente MainGrids montado. Solicitando cenário inicial exclusivo...");
+    electron.invoke('request-initial-scenario');
+    const handleSyncScenarioBroadcast = (data: Scenario) => {
+      console.log("Recebido cenário ativo do servidor (broadcast):", data);
+      if (data && data.mapImageUrl) {
+        setScenario(data);
+      }
+    };
+    electron.on("syncActiveScenario", handleSyncScenarioBroadcast);
+    return () => {
+      electron.DoremoveListener("sendActiveScenarioToRequester", handleExclusiveScenario);
+      electron.DoremoveListener("syncActiveScenario", handleSyncScenarioBroadcast);
+    };
+  }, []);
+
+  const paintFogOnCell = useCallback((e: React.MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const gridX = Math.floor(((e.clientX - rect.left) - position.current.x) / zoom.current / GRID_SIZE);
+    const gridY = Math.floor(((e.clientY - rect.top) - position.current.y) / zoom.current / GRID_SIZE);
+    const paintValue = activeTool === 'paint' ? 1 : 0;
+    setScenario(prev => {
+      const newGrid = prev.fogGrid.map(row => [...row]);
+      if (newGrid[gridY]?.[gridX] !== undefined) {
+        newGrid[gridY][gridX] = paintValue;
+      }
+      return { ...prev, fogGrid: newGrid };
+    });
+  }, [zoom, activeTool, position]);
+
+  const handleSaveAsScenario = () => {
+    setScenarioNameInput('');
+    setShowSaveModal(true);
+  };
+  const handleUpdateScenario = async () => {
+    if (!currentScenarioId) {
+      alert("Não há cenário atual para atualizar. Salve-o como um novo cenário primeiro.");
+      return;
+    }
+    const electron = (window as any).electron;
+    if (!electron?.invoke) return;
+    const result = await electron.invoke('update-scenario', currentScenarioId, scenario);
+    if (result.success) {
+      alert("Cenário atualizado com sucesso!");
+    } else {
+      alert(`Erro ao atualizar cenário: ${result.message}`);
+    }
+  };
+
+  const executeSaveScenario = async () => {
+    if (!scenarioNameInput) { alert("Por favor, insira um nome para o cenário."); return; }
+    const electron = (window as any).electron;
+    if (!electron?.invoke) return;
+    const result = await electron.invoke('save-scenario', scenario, scenarioNameInput);
+    if (result.success) {
+      setCurrentScenarioId(result.newId);
+      alert("Cenário salvo como novo com sucesso!");
+    } else {
+      alert(`Erro ao salvar novo cenário: ${result.message}`);
+    }
+    setShowSaveModal(false);
+  };
+
+
   const applyFogArea = useCallback((start: Position, end: Position) => {
     const paintValue = fogAreaMode === 'paint' ? 1 : 0;
     const startX = Math.min(start.x, end.x);
@@ -343,15 +406,7 @@ const onTokenSelected = (tokenPath: string) => {
       return { ...prev, fogGrid: newGrid };
     });
   }, [fogAreaMode]);
-  const requestDraw = useCallback(() => {
-    if (animationFrameId.current) {
-      cancelAnimationFrame(animationFrameId.current);
-    }
-    animationFrameId.current = requestAnimationFrame(() => {
-      drawGrid();
-      animationFrameId.current = null;
-    });
-  }, [drawGrid]);
+
 
   useEffect(() => {
     requestDraw();
@@ -487,10 +542,13 @@ const onTokenSelected = (tokenPath: string) => {
         return;
       } else if (activeTool === 'cursor') {
         if (addingToken) {
-          setScenario(prev => ({
-            ...prev,
-            tokens: [...prev.tokens, { ...addingToken, x: gridX, y: gridY }]
-          }));
+          setScenario(prev => {
+            const updatedTokens = [...prev.tokens, { ...addingToken, x: gridX, y: gridY }];
+            return {
+              ...prev,
+              tokens: updatedTokens
+            };
+          });
           setAddingToken(null);
           requestDraw();
           return;
@@ -505,24 +563,19 @@ const onTokenSelected = (tokenPath: string) => {
           if (e.ctrlKey) {
             setSelectedGridTokenIds(prev => prev.includes(clickedToken.id) ? prev.filter(id => id !== clickedToken.id) : [...prev, clickedToken.id]);
           } else {
-            // AQUI É A MUDANÇA PRINCIPAL
-            // Se o token clicado JÁ ESTÁ selecionado (e pode ser parte de uma seleção múltipla),
-            // NÃO reseta a seleção. Apenas define o draggedToken para iniciar o arrasto.
             if (selectedGridTokenIds.includes(clickedToken.id)) {
-                // A seleção já está correta, não a alteramos.
-                // Apenas preparamos para arrastar o grupo ou o token individual se já selecionado.
+                // Already selected, prepare to drag the group
             } else {
-                // Se o token clicado NÃO está selecionado, aí sim, reseta para apenas ele.
                 setSelectedGridTokenIds([clickedToken.id]);
             }
             setDraggedToken(clickedToken);
             setDragOffset({ x: mouseGridX - clickedToken.x * GRID_SIZE, y: mouseGridY - clickedToken.y * GRID_SIZE });
             setGhostToken({ token: { ...clickedToken }, opacity: 0.5 });
           }
-        } else { // Clicou no vazio
+        } else {
           setIsPanning(true);
           setPanStart({ x: e.clientX, y: e.clientY });
-          setSelectedGridTokenIds([]); // Desseleciona tudo ao clicar no vazio
+          setSelectedGridTokenIds([]);
         }
         requestDraw();
       }
@@ -646,38 +699,67 @@ const onTokenSelected = (tokenPath: string) => {
     mouseDownCoordsRef.current = null;
   }, [activeTool, draggedToken, moveToken, addingToken, requestDraw, scenario.tokens, selectedGridTokenIds]);
 
+  const handleAddToInitiative = useCallback(() => {
+    const electron = (window as any).electron;
+    if (!electron?.send) {
+      console.warn('Electron IPC send not available.');
+      return;
+    }
 
-  // NEW: handleAddToInitiative function
-const handleAddToInitiative = useCallback(() => {
-  const electron = (window as any).electron;
-  if (!electron?.send) { // Use 'send' for simple IPC without awaiting a reply from main process
-    console.warn('Electron IPC send not available.');
-    return;
-  }
+    const tokensToAdd = scenario.tokens
+      .filter(token => selectedGridTokenIds.includes(token.id))
+      .map(token => ({
+        id: token.id,
+        name: token.name,
+        portraitUrl: token.portraitUrl,
+        initiative: 0,
+        currentHp: token.currentHp,
+        maxHp: token.maxHp,
+        ac: token.ac,
+        danoCausado: 0,
+        danoSofrido: 0,
+        type: (token.playerId !== null && token.playerId !== undefined) ? 'ally' : 'enemy',
+        playerId: token.playerId || null
+      }));
 
-  const tokensToAdd = scenario.tokens
-    .filter(token => selectedGridTokenIds.includes(token.id))
-    .map(token => ({
-      id: token.id,
-      name: token.name,
-      portraitUrl: token.portraitUrl,
-      initiative: 0, // Default initiative, server will handle sorting
-      currentHp: token.currentHp,
-      maxHp: token.maxHp,
-      ac: token.ac,
-      danoCausado: 0,
-      danoSofrido: 0,
-      type: 'ally',
-      playerId: token.playerId || null
+    if (tokensToAdd.length > 0) {
+      electron.send('add-tokens-to-initiative', tokensToAdd);
+      setContextMenu({ visible: false, x: 0, y: 0, tokens: [] });
+      setSelectedGridTokenIds([]);
+      requestDraw();
+    }
+  }, [selectedGridTokenIds, scenario.tokens, requestDraw]);
+
+  // NEW: handleRemoveToken function
+  const handleRemoveToken = useCallback(async (tokenId: number) => {
+    const electron = (window as any).electron;
+    if (!electron?.invoke || !currentScenarioId) {
+      console.warn('Electron IPC invoke not available or no current scenario to remove token from.');
+      return;
+    }
+
+
+    // Remove token from local state
+    setScenario(prev => ({
+      ...prev,
+      tokens: prev.tokens.filter(token => token.id !== tokenId)
     }));
+    setSelectedGridTokenIds(prev => prev.filter(id => id !== tokenId)); // Desseleciona se removido
+    setContextMenu({ visible: false, x: 0, y: 0, tokens: [] }); // Close context menu
+    requestDraw(); // Redraw canvas
 
-  if (tokensToAdd.length > 0) {
-    electron.send('add-tokens-to-initiative', tokensToAdd); // Send to main.js
-    setContextMenu({ visible: false, x: 0, y: 0, tokens: [] });
-    setSelectedGridTokenIds([]);
-    requestDraw();
-  }
-}, [selectedGridTokenIds, scenario.tokens, requestDraw]);
+    // Inform main process to remove from DB and sync with other clients
+    const result = await electron.invoke('remove-token-from-scenario', currentScenarioId, tokenId);
+    if (result.success) {
+        console.log(`Token ${tokenId} removido do cenário e sincronizado com o servidor.`);
+        // No further action needed as scenario state is updated by 'remove-token-from-scenario-client' listener
+    } else {
+        console.error(`Erro ao remover token ${tokenId}: ${result.message}`);
+        // Optionally, revert the local state if removal failed on backend
+    }
+  }, [currentScenarioId, requestDraw]);
+
+
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
 
@@ -710,11 +792,9 @@ const handleAddToInitiative = useCallback(() => {
       let tokensForMenu: GridToken[] = [];
       let newSelectedIds: number[] = [...selectedGridTokenIds];
 
-      // Cenário 1: Clique direito em um token JÁ SELECIONADO e há MÚLTIPLOS selecionados (sem Ctrl)
       if (!e.ctrlKey && selectedGridTokenIds.includes(clickedToken.id) && selectedGridTokenIds.length > 1) {
           tokensForMenu = scenario.tokens.filter(t => selectedGridTokenIds.includes(t.id));
       }
-      // Cenário 2: Clique direito com Ctrl OU token clicado não está na seleção múltipla
       else {
           if (e.ctrlKey) {
               if (selectedGridTokenIds.includes(clickedToken.id)) {
@@ -805,8 +885,11 @@ const handleAddToInitiative = useCallback(() => {
             <button className="btn btn-outline-success" title="Adicionar Mapa" onClick={handleAddMap}>
               <i className="bi bi-map"></i>
             </button>
-            <button className="btn btn-outline-success" title="Adicionar Token" onClick={handleAddToken}>
+            <button className="btn btn-outline-success" title="Adicionar Token (Monstro/Objeto)" onClick={handleAddToken}>
               <i className="bi bi-plus-circle"></i>
+            </button>
+            <button className="btn btn-outline-success" title="Adicionar Token de Personagem" onClick={handleAddCharacterToken}>
+              <i className="bi bi-person-fill-add"></i>
             </button>
           </div>
 
@@ -875,7 +958,7 @@ const handleAddToInitiative = useCallback(() => {
         style={{ cursor: activeTool !== 'cursor' ? 'crosshair' : 'default' }}
         className="w-100 h-100"
       />
-      {contextMenu.visible && (
+      {contextMenu.visible && contextMenu.tokens.length > 0 && ( // Adicionado check de tokens.length para evitar menu vazio
         <div
           className="context-menu"
           style={{
@@ -898,7 +981,7 @@ const handleAddToInitiative = useCallback(() => {
               <div className="context-menu-item">
                 Editar Token: {contextMenu.tokens[0].name}
               </div>
-              <div className="context-menu-item">
+              <div className="context-menu-item" onClick={() => handleRemoveToken(contextMenu.tokens[0].id)} style={{ cursor: 'pointer' }}> {/* Adicionado onClick */}
                 Remover Token: {contextMenu.tokens[0].name}
               </div>
               <hr style={{ margin: '0.5rem 0', borderColor: '#495057' }} />
@@ -908,7 +991,7 @@ const handleAddToInitiative = useCallback(() => {
               <div className="context-menu-item">
                 Mudar Posição
               </div>
-              <div className="context-menu-item" onClick={handleAddToInitiative} style={{ cursor: 'pointer' }}> {/* NEW */}
+              <div className="context-menu-item" onClick={handleAddToInitiative} style={{ cursor: 'pointer' }}>
                 Adicionar à Iniciativa
               </div>
             </>
@@ -918,13 +1001,13 @@ const handleAddToInitiative = useCallback(() => {
                 Mover Seleção
               </div>
               <div className="context-menu-item">
-                Excluir Seleção ({contextMenu.tokens.length} tokens)
+                Excluir Seleção ({contextMenu.tokens.length} tokens) {/* Para múltiplos, a lógica de exclusão precisa ser expandida */}
               </div>
               <hr style={{ margin: '0.5rem 0', borderColor: '#495057' }} />
               <div className="context-menu-item">
                 Propriedades de Grupo
               </div>
-              <div className="context-menu-item" onClick={handleAddToInitiative} style={{ cursor: 'pointer' }}> {/* NEW */}
+              <div className="context-menu-item" onClick={handleAddToInitiative} style={{ cursor: 'pointer' }}>
                 Adicionar Seleção à Iniciativa
               </div>
             </>
@@ -942,12 +1025,18 @@ const handleAddToInitiative = useCallback(() => {
 
       <Modal show={showTokenPool} onHide={() => setShowTokenPool(false)} size="lg" centered>
         <Modal.Header closeButton>
-          <Modal.Title>Biblioteca de Tokens</Modal.Title>
+          <Modal.Title>Biblioteca de Tokens (Monstros/Objetos)</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <AssetPool assetType="token" onSelectAsset={onTokenSelected} />
         </Modal.Body>
       </Modal>
+
+      <CharacterTokenPool
+        show={showCharacterTokenPool}
+        onHide={() => setShowCharacterTokenPool(false)}
+        onSelectCharacters={onCharactersSelected}
+      />
 
       <Modal show={showSaveModal} onHide={() => setShowSaveModal(false)} centered>
         <Modal.Header closeButton>

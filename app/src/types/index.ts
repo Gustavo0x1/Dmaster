@@ -107,12 +107,14 @@ export interface Token {
   maxHp: number;     // HP máximo do token
   ac: number;        // Classe de Armadura (AC) do token
   damageDealt?: string; // Algum indicador de dano causado por este token, se aplicável
-  // Propriedades adicionais para o Grid (MainGrid.tsx)
+  damageTaken?: string; // Algum indicador de dano causado por este token, se aplicável
+  isPlayer?: boolean | false
   x: number; // Coordenada X no grid
   y: number; // Coordenada Y no grid
   image: string; // URL da imagem do token para o canvas (poderia ser portraitUrl, mas mantido para clareza)
   width: number; // Largura do token no grid
   height: number; // Altura do token no grid
+   playerId?: number | null;
 }
 export interface AudioFile {
     id: number;

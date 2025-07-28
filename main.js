@@ -223,6 +223,7 @@ db.exec(`
         FOREIGN KEY(character_id) REFERENCES characters(id) ON DELETE CASCADE
       );
     `);
+        const insertPlayer = db.prepare(`INSERT INTO players (user, password) VALUES (?, ?)`);
 
     // --- Lógica para adicionar um personagem padrão se o DB estiver vazio ---
     const count = db.prepare('SELECT COUNT(*) FROM characters').get();
@@ -233,8 +234,7 @@ db.exec(`
       let defaultPlayerId = 1;
       const playerExists = db.prepare('SELECT id FROM players WHERE user = ?').get('admin');
       if (!playerExists) {
-          const insertPlayer = db.prepare(`INSERT INTO players (user, password) VALUES (?, ?)`);
-          const playerInfo = insertPlayer.run('admin', 'admin');
+     
           defaultPlayerId = playerInfo.lastInsertRowid;
           console.log(`[Main Process] Jogador padrão 'admin' inserido com ID: ${defaultPlayerId}`);
       } else {
@@ -260,6 +260,7 @@ db.exec(`
         defaultCharacterData.Race,
         defaultCharacterData.Class,
         defaultCharacterData.SubClass,
+
         defaultCharacterData.Level,
         defaultCharacterData.XP,
         defaultPlayerId, // <<<< AGORA PREENCHE PLayer_ID
@@ -466,9 +467,12 @@ function startWebSocket() {
         return; // Consome a mensagem de login
       }
 if (type === "initiative-sync") {
-    console.log("[Main Process] Sincronização de iniciativa recebida. Enviando para o frontend.");
+
+ 
+
     if (MainWindow) MainWindow.webContents.send("initiative-sync-from-server", data);
 }
+
 
       if (type === "sendActiveScenarioToRequester") {
         console.log("[Main Process] Recebido cenário ativo exclusivo do servidor:", data);
@@ -599,7 +603,97 @@ app.on('before-quit', () => {
     console.log('[Main Process] Banco de dados SQLite fechado.');
   }
 });
-// IPC Handler para buscar personagens por Player ID (direto na coluna PLayer_ID)
+ipcMain.handle('get-all-characters-for-tokens', async () => {
+  console.log(`[Main Process] Buscando todos os personagens para uso como tokens.`);
+  try {
+    // Seleciona id, CHARNAME, Token_image e PLayer_ID da tabela characters
+    const characterRows = db.prepare('SELECT id, CHARNAME, Token_image, PLayer_ID FROM characters').all();
+
+    const charactersWithImages = characterRows.map(row => {
+        let tokenImageBase64 = null;
+        if (row.Token_image) {
+            // Converte o Buffer (BLOB) para Base64. Assumindo 'image/png' por padrão.
+            // Se você armazena o mimeType, use-o aqui: `data:${row.Token_mimeType};base64,`
+            tokenImageBase64 = `data:image/png;base64,${row.Token_image.toString('base64')}`;
+        }
+        return {
+            id: row.id,
+            name: row.CHARNAME, // Use 'name' to align with Token interface
+            image: tokenImageBase64, // Use 'image' to align with Token interface
+            portraitUrl: tokenImageBase64, // Use 'portraitUrl' for consistency if needed
+            playerId: row.PLayer_ID,
+            isPlayer: true,
+            width: 1, // Default to 1x1 grid size
+            height: 1, // Default to 1x1 grid size
+            currentHp: 10,
+            maxHp: 10,
+            ac: 10,
+            damageDealt: "1d4"
+        };
+    });
+
+    return { success: true, data: charactersWithImages };
+  } catch (error) {
+    console.error(`[Main Process] Erro ao buscar todos os personagens para tokens:`, error);
+    return { success: false, message: `Erro ao carregar personagens para tokens: ${error.message}` };
+  }
+});
+ipcMain.handle('get-action-character-options', async () => {
+  console.log(`[Main Process] Buscando IDs únicos de personagens com ações e seus nomes.`);
+  try {
+    // Primeiro, obtenha os character_id únicos da tabela character_actions
+    const uniqueCharacterIdsRows = db.prepare('SELECT DISTINCT character_id FROM character_actions').all();
+
+    // Extraia os IDs para uma array simples
+    const uniqueCharacterIds = uniqueCharacterIdsRows.map(row => row.character_id);
+
+    if (uniqueCharacterIds.length === 0) {
+      return { success: true, data: [] }; // Nenhuma ação encontrada, retorna lista vazia
+    }
+
+    // Converta a array de IDs em uma string para a cláusula IN da SQL
+    const placeholders = uniqueCharacterIds.map(() => '?').join(',');
+
+    // Agora, selecione os nomes dos personagens com base nesses IDs
+    const characterNamesRows = db.prepare(`SELECT id, CHARNAME FROM characters WHERE id IN (${placeholders})`).all(...uniqueCharacterIds);
+
+    // Mapeie para o formato desejado { id: number, name: string }
+    const characterOptions = characterNamesRows.map(row => ({
+        id: row.id,
+        name: row.CHARNAME
+    }));
+
+    return { success: true, data: characterOptions };
+  } catch (error) {
+    console.error(`[Main Process] Erro ao buscar opções de personagens com ações:`, error);
+    return { success: false, message: `Erro ao carregar opções de personagens: ${error.message}` };
+  }
+});
+ipcMain.on('request-initial-initiative-state', (event) => {
+    console.log("[Main Process] Requisição de estado inicial da iniciativa recebida do frontend.");
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "request-initiative-state" })); //
+        console.log("[Main Process] Enviando requisição de iniciativa para o server.js.");
+    } else {
+        console.warn("[Main Process] WebSocket não está aberto para requisitar iniciativa.");
+        // Opcional: Enviar um estado vazio ou erro de volta para o frontend
+        if (MainWindow) MainWindow.webContents.send("initiative-sync-from-server", { combatants: [], allies: [], enemies: [], currentTurnIndex: 0 });
+    }
+});
+
+ipcMain.handle('request-current-initiative-state', async (event) => {
+    // É crucial que o server.js ou alguma parte do backend
+    // mantenha o estado da iniciativa e o torne acessível aqui.
+    // Por exemplo, se `setupWebSocketServer` retornar um objeto com um getter para o estado:
+    if (wssInstance && wssInstance.getInitiativeState) {
+        const currentState = wssInstance.getInitiativeState();
+        return { success: true, data: currentState };
+    } else {
+        console.warn("WebSocket server instance or getInitiativeState not available.");
+        // Retorne um estado padrão ou vazio se o servidor ainda não estiver pronto
+        return { success: false, message: "Initiative state not available." };
+    }
+});
 ipcMain.handle('get-characters-by-player-id', async (event, playerId) => {
   console.log(`[Main Process] Buscando personagens para o Player ID: ${playerId}.`);
   try {
@@ -638,6 +732,51 @@ ipcMain.handle('request-initial-scenario', async (event) => {
     return { success: false, message: "WebSocket não conectado." };
   }
 });
+// Adicione esta função auxiliar em seu main.js (por exemplo, após ensureTokenAssetExists, se você a manteve)
+async function upsertTokenAssetToManifest(tokenBase64Image, tokenId, tokenName, tokenType = 'image/png') {
+    const manifestPath = tokenManifestPath; // O caminho para seu tokens.json
+    const manifestData = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+    const base64DataOnly = tokenBase64Image.split(',')[1];
+
+    let existingAssetIndex = -1;
+    // Tenta encontrar pelo ID do token se ele já tem um ID de asset associado
+    // ou se já existe um asset com a mesma data (imagem)
+    existingAssetIndex = manifestData.findIndex(asset => 
+        (asset.id === tokenId) || (asset.data === base64DataOnly)
+    );
+
+    if (existingAssetIndex !== -1) {
+        // ATUALIZAÇÃO: Se o asset já existe (pelo ID ou pela data)
+        const existingAsset = manifestData[existingAssetIndex];
+        // Atualiza apenas se houver alguma mudança relevante ou para garantir consistência
+        if (existingAsset.data !== base64DataOnly || existingAsset.name !== tokenName || existingAsset.type !== tokenType) {
+            manifestData[existingAssetIndex] = {
+                id: existingAsset.id, // Mantém o ID existente
+                name: tokenName || existingAsset.name, // Atualiza nome se fornecido
+                type: tokenType || existingAsset.type, // Atualiza tipo se fornecido
+                data: base64DataOnly // Garante que os dados da imagem estejam atualizados
+            };
+            fs.writeFileSync(manifestPath, JSON.stringify(manifestData, null, 2), 'utf8');
+            console.log(`[Main Process - Asset] Asset '${tokenName}' (ID: ${existingAsset.id}) atualizado no manifest.`);
+        } else {
+            console.log(`[Main Process - Asset] Asset '${tokenName}' (ID: ${existingAsset.id}) já existe e está atualizado no manifest.`);
+        }
+        return manifestData[existingAssetIndex].id; // Retorna o ID existente
+    } else {
+        // INSERÇÃO: Se o asset não existe
+        const newAsset = {
+            id: Date.now(), // Gerar um novo ID para o asset no manifest. Considere usar UUID aqui se Date.now() for um problema.
+            name: tokenName,
+            type: tokenType,
+            data: base64DataOnly
+        };
+        manifestData.push(newAsset);
+        fs.writeFileSync(manifestPath, JSON.stringify(manifestData, null, 2), 'utf8');
+        console.log(`[Main Process - Asset] Novo asset '${tokenName}' adicionado ao manifest. ID: ${newAsset.id}`);
+        return newAsset.id; // Retorna o ID do novo asset
+    }
+}
 ipcMain.handle('update-scenario', async (event, scenarioId, scenarioData) => {
   console.log(`[Main Process] Recebida requisição para ATUALIZAR cenário ID: ${scenarioId}.`);
 
@@ -646,20 +785,49 @@ ipcMain.handle('update-scenario', async (event, scenarioId, scenarioData) => {
   }
 
   try {
-    // A lógica de processamento dos dados é a mesma do save-scenario
-    const mapsManifest = JSON.parse(fs.readFileSync(mapManifestPath));
+    const mapsManifest = JSON.parse(fs.readFileSync(mapManifestPath, 'utf8'));
     const mapBase64Data = scenarioData.mapImageUrl.split(',')[1];
     const mapAsset = mapsManifest.find(map => map.data === mapBase64Data);
     if (!mapAsset) return { success: false, message: "Mapa não encontrado." };
     const mapAssetId = mapAsset.id;
 
-    const tokensManifest = JSON.parse(fs.readFileSync(tokenManifestPath));
-    const scenarioTokens = scenarioData.tokens.map(token => {
-        const tokenBase64Data = token.image.split(',')[1];
-        const tokenAsset = tokensManifest.find(t => t.data === tokenBase64Data);
-        if (!tokenAsset) return null;
-        return { assetId: tokenAsset.id, x: token.x, y: token.y, width: token.width, height: token.height };
-    }).filter(t => t !== null);
+    // Processar os tokens - AGORA USANDO upsertTokenAssetToManifest
+    const processedTokensPromises = scenarioData.tokens.map(async token => {
+        if (!token.image || typeof token.image !== 'string' || !token.image.startsWith('data:')) {
+            console.warn(`Token inválido para atualização (sem imagem base64 válida ou formato data:):`, token);
+            return null;
+        }
+
+        // NOVO: Garante que o asset da imagem do token esteja no manifest para atualização
+        const assetIdForManifest = await upsertTokenAssetToManifest(
+            token.image,
+            token.id, // Passa o ID do token da grid
+            token.name || `token-${token.id}`,
+            'image/png'
+        );
+
+        if (!assetIdForManifest) {
+          console.warn(`Falha ao garantir que o asset da imagem para '${token.name}' existe durante a atualização. Token será ignorado.`);
+          return null;
+        }
+
+        return {
+            id: token.id,
+            assetId: assetIdForManifest, // Use o assetId garantido
+            x: token.x,
+            y: token.y,
+            width: token.width,
+            height: token.height,
+            name: token.name,
+            playerId: token.playerId || null,
+            currentHp: token.currentHp,
+            maxHp: token.maxHp,
+            ac: token.ac,
+            damageDealt: token.damageDealt,
+            portraitUrl: token.portraitUrl
+        };
+    });
+    const scenarioTokens = (await Promise.all(processedTokensPromises)).filter(t => t !== null);
 
     const tokensJson = JSON.stringify(scenarioTokens);
     const fogGridJson = JSON.stringify(scenarioData.fogGrid);
@@ -672,8 +840,6 @@ ipcMain.handle('update-scenario', async (event, scenarioId, scenarioData) => {
     `);
     stmt.run(mapAssetId, tokensJson, fogGridJson, scenarioId);
 
-    // ... (lógica de sincronização via WebSocket, se desejar) ...
-
     return { success: true, message: "Cenário atualizado com sucesso!" };
 
   } catch (error) {
@@ -681,6 +847,7 @@ ipcMain.handle('update-scenario', async (event, scenarioId, scenarioData) => {
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
+
 ipcMain.handle('request-chat-history', async (event) => {
   if (ws && ws.readyState === WebSocket.OPEN) {
     // Envia uma mensagem para o servidor solicitando o histórico
@@ -1214,6 +1381,65 @@ ipcMain.handle('manage-assets:get-audio-pool', async (event) => {
   return JSON.parse(data);
 });
 
+
+ipcMain.handle('manage-assets:add-image', async (event, assetType) => {
+  const manifestPath = assetType === 'token' ? tokenManifestPath : mapManifestPath;
+
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: `Adicionar Novo ${assetType === 'token' ? 'Token' : 'Mapa'}`,
+    properties: ['openFile'],
+    filters: [{ name: 'Imagens', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+  });
+
+  if (canceled || filePaths.length === 0) {
+    return null;
+  }
+  
+  const originalPath = filePaths[0];
+
+  let newAsset;
+  const manifestData = JSON.parse(fs.readFileSync(manifestPath));
+  
+  // Inicia o pipeline de processamento com sharp para ambos os casos
+  let imagePipeline = sharp(originalPath);
+  
+  // Pega os metadados para obter dimensões e formato
+  const metadata = await imagePipeline.metadata();
+  
+  // SE FOR UM MAPA, APLICA O REDIMENSIONAMENTO SE NECESSÁRIO
+  if (assetType === 'map') {
+    if (metadata.width > MAX_MAP_DIMENSION || metadata.height > MAX_MAP_DIMENSION) {
+      console.log(`[Main Process] Mapa grande detectado (${metadata.width}x${metadata.height}). Redimensionando...`);
+      imagePipeline.resize({
+        width: MAX_MAP_DIMENSION,
+        height: MAX_MAP_DIMENSION,
+        fit: 'inside',
+        withoutEnlargement: true
+      });
+    }
+  }
+
+  // CONVERTE O RESULTADO (REDIMENSIONADO OU NÃO) PARA BASE64
+  // O método .toBuffer() obtém a imagem processada
+  const processedImageBuffer = await imagePipeline.toBuffer();
+  const base64Data = processedImageBuffer.toString('base64');
+  
+  // O formato é pego dos metadados para maior precisão
+  const mimeType = `image/${metadata.format}`;
+
+  // Cria o objeto do asset. Agora mapas e tokens têm a MESMA ESTRUTURA.
+  newAsset = {
+    id: Date.now(),
+    name: path.basename(originalPath),
+    type: mimeType,
+    data: base64Data
+  };
+  
+  manifestData.push(newAsset);
+  fs.writeFileSync(manifestPath, JSON.stringify(manifestData, null, 2));
+
+  return manifestData;
+});
 // NOVO: IPC para adicionar um arquivo de áudio
 ipcMain.handle('manage-assets:add-audio', async (event, newAudioName, newAudioType) => { // ADD newAudioName and newAudioType here
   const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -1319,79 +1545,167 @@ ipcMain.handle('update-combatant-initiative', async (event, tokenId, newValue) =
     }
 });
 ipcMain.handle('save-scenario', async (event, scenarioData, scenarioName) => {
-  if(ws){
-    console.log("[Main Process] Enviando sinal de sincronização de cenário para null.")
-    ws.send(JSON.stringify({ type: "sync-scenario", data: null }))
-  }else{
-    console.log("[Main Process] WebSocket não está conectado. Não foi possível enviar sinal de sincronização.")
+  if (ws) {
+    console.log("[Main Process] Enviando sinal de sincronização de cenário para null.");
+    ws.send(JSON.stringify({ type: "sync-scenario", data: null }));
+  } else {
+    console.log("[Main Process] WebSocket não está conectado. Não foi possível enviar sinal de sincronização.");
   }
   console.log('[Main Process] Recebida requisição para salvar cenário.');
+  // >>> PONTO DE DEPURACAO 1: Logar scenarioData.tokens AQUI
+  console.log('[Main Process] scenarioData.tokens recebido:', scenarioData.tokens); // Adicione esta linha
 
   try {
-    // 1. Encontrar o ID do mapa
-    const mapsManifest = JSON.parse(fs.readFileSync(mapManifestPath));
-    const mapBase64Data = scenarioData.mapImageUrl.split(',')[1]; // Extrai o dado base64 da URL
+    const mapsManifest = JSON.parse(fs.readFileSync(mapManifestPath, 'utf8'));
+    const mapBase64Data = scenarioData.mapImageUrl.split(',')[1];
     const mapAsset = mapsManifest.find(map => map.data === mapBase64Data);
     if (!mapAsset) {
       return { success: false, message: "Mapa do cenário não encontrado na biblioteca de mapas." };
     }
     const mapAssetId = mapAsset.id;
 
-    // 2. Processar os tokens
-    const tokensManifest = JSON.parse(fs.readFileSync(tokenManifestPath));
-    const scenarioTokens = scenarioData.tokens.map(token => {
-      const tokenBase64Data = token.image.split(',')[1];
-      const tokenAsset = tokensManifest.find(t => t.data === tokenBase64Data);
+    // Processar os tokens - AGORA USANDO upsertTokenAssetToManifest
+    const processedTokensPromises = scenarioData.tokens.map(async token => {
+      // Verificação da imagem do token
+      if (!token.image || typeof token.image !== 'string' || !token.image.startsWith('data:')) {
+          console.warn(`Token inválido encontrado (sem imagem base64 válida ou formato data:):`, token);
+          return null;
+      }
 
-      if (!tokenAsset) {
-        console.warn(`Token com imagem ${token.name} não encontrado na biblioteca, será ignorado.`);
+      // NOVO: Garante que o asset da imagem do token (genérico ou de personagem) esteja no manifest
+      // O 'token.id' é o ID da instância do token na grid, NÃO o ID do asset no manifest.
+      // Vamos usar um ID derivado ou apenas a data base64 para a busca no manifest.
+      // A função upsertTokenAssetToManifest cuidará do ID do asset.
+      const assetIdForManifest = await upsertTokenAssetToManifest(
+          token.image,
+          token.id, // Passamos o ID do token da grid, a função pode usar isso ou gerar um novo ID para o asset.
+                    // Se o ID do token da grid for o mesmo que o ID do personagem no DB (para tokens de personagem),
+                    // isso ajuda a função a encontrar o asset existente.
+          token.name || `token-${token.id}`, // Nome para o asset no manifest
+          'image/png' // Tipo mime, você pode tentar inferir a partir de token.image se houver um tipo no prefixo data:
+      );
+
+      if (!assetIdForManifest) {
+        console.warn(`Falha ao garantir que o asset da imagem para '${token.name}' existe. Token será ignorado.`);
         return null;
       }
 
-      // Armazenamos apenas a informação essencial
       return {
-        id: token.id,
-        assetId: tokenAsset.id, // ID do token no manifest
+        id: token.id, // O ID único do token na grid (Date.now())
+        assetId: assetIdForManifest, // O ID do asset no manifest (gerado/encontrado por upsertTokenAssetToManifest)
         x: token.x,
         y: token.y,
         width: token.width,
         height: token.height,
-        // Você pode adicionar outros dados que precisam ser salvos por token aqui
-        // Ex: currentHp: token.currentHp
+        name: token.name,
+        playerId: token.playerId || null,
+        currentHp: token.currentHp,
+        maxHp: token.maxHp,
+        ac: token.ac,
+        damageDealt: token.damageDealt,
+        portraitUrl: token.portraitUrl
       };
-    }).filter(t => t !== null); // Remove tokens que não foram encontrados
+    });
+
+    const scenarioTokens = (await Promise.all(processedTokensPromises)).filter(t => t !== null);
+    // >>> PONTO DE DEPURACAO 4: Logar o resultado final do processamento dos tokens
+    console.log('[Main Process] scenarioTokens processados para salvar:', scenarioTokens); // Adicione esta linha
+
 
     // 3. Stringify dos dados complexos para armazenamento
-    const tokensJson = JSON.stringify(scenarioTokens);
+    const tokensJson = JSON.stringify(scenarioTokens); // <<-- SE scenarioTokens ESTIVER VAZIO, ISSO SERÁ '[]'
     const fogGridJson = JSON.stringify(scenarioData.fogGrid);
 
-    // 4. Salvar no banco de dados
-    // Usamos 'INSERT OR REPLACE' para sempre atualizar o cenário de ID 1 (o "cenário ativo")
-    // A query agora é um INSERT simples, pois o ID é AUTOINCREMENT
+    // >>> PONTO DE DEPURACAO 5: Logar a string JSON final dos tokens
+    console.log('[Main Process] tokensJson final para DB:', tokensJson.substring(0, 500) + (tokensJson.length > 500 ? '...' : '')); // Log dos primeiros 500 caracteres
+
+
+    // 4. Salvar no banco de dados (INSERT para criar um novo cenário)
     const stmt = db.prepare(`
       INSERT INTO scenarios (name, map_asset_id, tokens, fog_of_war)
       VALUES (?, ?, ?, ?)
     `);
     const info = stmt.run(scenarioName, mapAssetId, tokensJson, fogGridJson);
+    const newScenarioId = info.lastInsertRowid; // Obtém o ID do cenário recém-salvo
 
     // Enviar sinal de sincronização para outros clientes via WebSocket
     if (ws && ws.readyState === WebSocket.OPEN) {
       const syncData = {
+          scenarioId: newScenarioId, // Envia o ID do cenário recém-salvo
           mapAssetId: mapAssetId,
-          tokens: scenarioTokens,
+          tokens: scenarioTokens, // Enviando os tokens já processados
           fogOfWar: scenarioData.fogGrid,
       };
       ws.send(JSON.stringify({ type: "syncAll", data: syncData }));
       console.log("[Main Process] Cenário salvo e enviado para sincronização.");
     }
 
-    return { success: true, message: "Cenário salvo com sucesso!" };
-
+    return { success: true, message: "Cenário salvo com sucesso!", newId: newScenarioId };
   } catch (error) {
     console.error('[Main Process] Erro ao salvar cenário:', error);
     return { success: false, message: `Erro ao salvar cenário: ${error.message}` };
   }
 });
+ipcMain.handle('remove-token-from-scenario', async (event, scenarioId, tokenIdToRemove) => {
+    console.log(`[Main Process] Recebida requisição para remover token ${tokenIdToRemove} do cenário ${scenarioId}.`);
+
+    if (!scenarioId) {
+        return { success: false, message: "ID do cenário é obrigatório para remover token." };
+    }
+    if (!tokenIdToRemove) {
+        return { success: false, message: "ID do token é obrigatório para remover token." };
+    }
+
+    try {
+        // 1. Carregar o cenário atual do DB
+        const scenarioRow = db.prepare('SELECT * FROM scenarios WHERE id = ?').get(scenarioId);
+        if (!scenarioRow) {
+            return { success: false, message: "Cenário não encontrado no banco de dados." };
+        }
+
+        let currentTokens = JSON.parse(scenarioRow.tokens);
+        const initialTokenCount = currentTokens.length;
+
+        // 2. Filtrar o token a ser removido
+        const updatedTokens = currentTokens.filter(token => token.id !== tokenIdToRemove);
+
+        if (updatedTokens.length === initialTokenCount) {
+            // Token não foi encontrado no array, talvez já tenha sido removido ou o ID está errado
+            console.warn(`[Main Process] Tentativa de remover token ${tokenIdToRemove}, mas não encontrado no cenário ${scenarioId}.`);
+            // Retorna sucesso para evitar loops, mas loga o aviso.
+            return { success: true, message: "Token não encontrado no cenário (já removido ou ID inválido)." };
+        }
+
+        // 3. Serializar o novo array de tokens
+        const updatedTokensJson = JSON.stringify(updatedTokens);
+
+        // 4. Atualizar o cenário no DB com a nova lista de tokens
+        const stmt = db.prepare(`
+            UPDATE scenarios
+            SET tokens = ?
+            WHERE id = ?
+        `);
+        const info = stmt.run(updatedTokensJson, scenarioId);
+
+        if (info.changes === 0) {
+            return { success: false, message: "Cenário não atualizado após remoção do token." };
+        }
+
+        // 5. Notificar outros clientes via WebSocket sobre a remoção
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            // Envie a instrução para remover o token pelo ID para todos os clientes
+            ws.send(JSON.stringify({ type: "remove-token-from-scenario", data: { scenarioId: scenarioId, tokenId: tokenIdToRemove } }));
+            console.log(`[Main Process] Token ${tokenIdToRemove} removido do cenário ${scenarioId} e instrução enviada via WebSocket.`);
+        }
+
+        return { success: true, message: "Token removido com sucesso do cenário." };
+
+    } catch (error) {
+        console.error(`[Main Process] Erro ao remover token ${tokenIdToRemove} do cenário ${scenarioId}:`, error);
+        return { success: false, message: `Erro ao remover token: ${error.message}` };
+    }
+});
+
 ipcMain.handle('MovePlayersToScenario', async (event, scenarioId) => {
 
   if(ws){
@@ -1402,18 +1716,18 @@ ipcMain.handle('MovePlayersToScenario', async (event, scenarioId) => {
   return { success:false}
 
 });
-ipcMain.handle('load-scenario', async (event,scenarioId) => {
+ipcMain.handle('load-scenario', async (event, scenarioId) => {
   console.log('[Main Process] Carregando cenário salvo.');
   try {
-  const scenarioRow = db.prepare('SELECT * FROM scenarios WHERE id = ?').get(scenarioId);
+    const scenarioRow = db.prepare('SELECT * FROM scenarios WHERE id = ?').get(scenarioId);
 
     if (!scenarioRow) {
       return { success: false, message: "Nenhum cenário salvo encontrado." };
     }
 
     // O processo inverso: reconstruir o objeto de cenário para o frontend
-    const mapsManifest = JSON.parse(fs.readFileSync(mapManifestPath));
-    const tokensManifest = JSON.parse(fs.readFileSync(tokenManifestPath));
+    const mapsManifest = JSON.parse(fs.readFileSync(mapManifestPath, 'utf8')); // Adicione 'utf8'
+    const tokensManifest = JSON.parse(fs.readFileSync(tokenManifestPath, 'utf8')); // Adicione 'utf8'
 
     // 1. Encontrar o mapa
     const mapAsset = mapsManifest.find(map => map.id === scenarioRow.map_asset_id);
@@ -1422,24 +1736,32 @@ ipcMain.handle('load-scenario', async (event,scenarioId) => {
     }
     const mapImageUrl = `data:${mapAsset.type};base64,${mapAsset.data}`;
 
-    // 2. Reconstruir os tokens
-    const savedTokens = JSON.parse(scenarioRow.tokens);
+    // 2. Reconstruir os tokens - *** ALTERADO AQUI ***
+    const savedTokens = JSON.parse(scenarioRow.tokens); // Estes são os objetos salvos com id, assetId, x, y, width, height, etc.
     const scenarioTokens = savedTokens.map(savedToken => {
       const tokenAsset = tokensManifest.find(t => t.id === savedToken.assetId);
-      if (!tokenAsset) return null;
-      console.log("TOKEN ID :"+savedToken.id)
-      // Recria o objeto completo que o frontend espera
+      if (!tokenAsset) {
+        console.warn(`Asset para token salvo (assetId: ${savedToken.assetId}) não encontrado no manifest. Token será ignorado.`);
+        return null;
+      }
+      
+      // Recria o objeto completo que o frontend espera, usando os dados salvos E os dados do asset
       return {
-        ...savedToken, // x, y, width, height
-
-        name: tokenAsset.name,
-        image: `data:${tokenAsset.type};base64,${tokenAsset.data}`,
-        portraitUrl: `data:${tokenAsset.type};base64,${tokenAsset.data}`,
-        // Preencha outros dados com valores padrão ou salvos
-        currentHp: 10,
-        maxHp: 10,
-        ac: 10,
-        damageDealt: "1d4"
+        id: savedToken.id, // ID original salvo
+        x: savedToken.x,
+        y: savedToken.y,
+        width: savedToken.width,
+        height: savedToken.height,
+        
+        name: savedToken.name, // Nome customizado salvo
+        image: `data:${tokenAsset.type};base64,${tokenAsset.data}`, // Imagem vem do asset
+        portraitUrl: savedToken.portraitUrl, // Portrait URL salvo
+        playerId: savedToken.playerId, // CRÍTICO: playerId salvo
+        currentHp: savedToken.currentHp, // HP atual salvo
+        maxHp: savedToken.maxHp, // HP máximo salvo
+        ac: savedToken.ac, // AC salvo
+        damageDealt: savedToken.damageDealt // damageDealt salvo
+        // Garanta que todas as propriedades que você espera no frontend estejam aqui
       };
     }).filter(t => t !== null);
 

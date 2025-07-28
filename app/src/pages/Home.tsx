@@ -10,9 +10,10 @@ import { CombatTrackerToken } from '../types';
 import Img1 from '../img/0.png'
 import Img2 from '../img/1.png'
 import Img3 from '../img/15.png'
+import MasterRequestManager from '../components/MasterRequestManager';
 
 const Home: React.FC = () => {
-    const { addContentToCenter, addContentToRight, addContentToLeft, clearContentFromCenter, clearContentFromRight, clearContentFromLeft } = useLayout();
+    const { addContentToCenter, addContentToRight, addContentToLeft,addContentToBottomLeft,addContentToUpperLeft, clearContentFromCenter, clearContentFromRight, clearContentFromLeft } = useLayout();
     const [isFogModeActive, setIsFogModeActive] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [isLoadingUserId, setIsLoadingUserId] = useState<boolean>(true);
@@ -53,13 +54,17 @@ const Home: React.FC = () => {
     useEffect(() => {
         if (!isLoadingUserId && currentUserId !== null) {
             // Coluna da Esquerda: Combat Tracker
-            addContentToLeft(
+            addContentToUpperLeft(
                 <CombatTracker 
                  
                     currentUserId={currentUserId}
                    
                 />
             );
+            addContentToBottomLeft(
+                <MasterRequestManager></MasterRequestManager>
+
+            )
 
             // Coluna Central: Grid e Botão de Fog
             addContentToCenter(

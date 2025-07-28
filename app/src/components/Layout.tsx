@@ -12,10 +12,15 @@ interface LayoutContextProps {
   addContentToLeft: (content: ReactNode) => void;
   addContentToCenter: (content: ReactNode) => void;
   addContentToRight: (content: ReactNode) => void;
+  addContentToUpperLeft: (content: ReactNode) => void; // NOVO: Adiciona conteúdo à metade superior esquerda
+  addContentToBottomLeft: (content: ReactNode) => void; // NOVO: Adiciona conteúdo à metade inferior esquerda
+
 
    clearContentFromLeft: () => void; // NOVO: Limpa apenas a coluna esquerda
   clearContentFromCenter: () => void; // NOVO: Limpa apenas a coluna central
   clearContentFromRight: () => void; // NOVO: Limpa apenas a coluna direita
+  clearContentFromUpperLeft: () => void; // NOVO: Limpa o conteúdo da metade superior esquerda
+  clearContentFromBottomLeft: () => void; // NOVO: Limpa o conteúdo da metade inferior esquerda
   selectedTokens: Token[]; // NOVO: Tokens selecionados do grid
   setSelectedTokens: (tokens: Token[]) => void; // NOVO: Função para atualizar os tokens selecionados
 }
@@ -36,6 +41,8 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
 
   const [column, setColumn] = useState<"left" | "center" | "right">("center");
   const [leftContent, setLeftContent] = useState<React.ReactNode>(null);
+  const [upperLeftContent, setUpperLeftContent] = useState<React.ReactNode>(null); // NOVO
+  const [bottomLeftContent, setBottomLeftContent] = useState<React.ReactNode>(null); // NOVO
   const [centerContent, setCenterContent] = useState<React.ReactNode>(null);
   const [rightContent, setRightContent] = useState<React.ReactNode>(null);
   const [selectedTokens, setSelectedTokens] = useState<Token[]>([]); // NOVO: Estado para tokens selecionados no Layout
@@ -70,8 +77,21 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
 
       getUserIdFromMain();
   }, [electron]);
+
   const addContentToLeft = useCallback((content: ReactNode) => {
     setLeftContent(content);
+    setUpperLeftContent(null); // Clear upper/bottom left if general left content is set
+    setBottomLeftContent(null);
+  }, []);
+
+  const addContentToUpperLeft = useCallback((content: ReactNode) => {
+    setUpperLeftContent(content);
+    setLeftContent(null); // Clear general left content if upper/bottom left content is set
+  }, []);
+
+  const addContentToBottomLeft = useCallback((content: ReactNode) => {
+    setBottomLeftContent(content);
+    setLeftContent(null); // Clear general left content if upper/bottom left content is set
   }, []);
 
   const addContentToCenter = useCallback((content: ReactNode) => {
@@ -84,6 +104,16 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
 
   const clearContentFromLeft = useCallback(() => {
     setLeftContent(null);
+    setUpperLeftContent(null);
+    setBottomLeftContent(null);
+  }, []);
+
+  const clearContentFromUpperLeft = useCallback(() => {
+    setUpperLeftContent(null);
+  }, []);
+
+  const clearContentFromBottomLeft = useCallback(() => {
+    setBottomLeftContent(null);
   }, []);
 
   const clearContentFromCenter = useCallback(() => {
@@ -103,9 +133,13 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
               addContentToLeft,
               addContentToCenter,
               addContentToRight,
+              addContentToUpperLeft, // NOVO
+              addContentToBottomLeft, // NOVO
               clearContentFromLeft,
               clearContentFromCenter,
               clearContentFromRight,
+              clearContentFromUpperLeft, // NOVO
+              clearContentFromBottomLeft, // NOVO
               selectedTokens,
               setSelectedTokens,
             }}
@@ -117,7 +151,18 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
             <div className="layout-container">
 
               <div className={`column left-column ${column === "left" ? "active" : ""}`}>
-                {leftContent}
+                {leftContent ? (
+                  leftContent
+                ) : (
+                  <>
+                    <div className="upper-left-content">
+                      {upperLeftContent}
+                    </div>
+                    <div className="bottom-left-content">
+                      {bottomLeftContent}
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className={`column tavern center-column ${column === "center" ? "active" : ""}`}>

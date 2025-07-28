@@ -19,8 +19,12 @@ let activeScenario = null;
 let db; // Objeto do banco de dados para o server.js
 
 // NOVO: Estados para a iniciativa de combate
-let combatantsInTurnOrder = []; // Array para armazenar os combatentes na ordem de iniciativa
-let currentTurnIndex = 0; // Índice do turno atual na ordem de combatentes
+let initiativeState = {
+    combatants: [],
+    allies: [],
+    enemies: [],
+    currentTurnIndex: 0
+};
 
 // Caminho para o arquivo de histórico de chat JSON
 const CHAT_HISTORY_FILE = path.join(__dirname, 'chatHistory.json');
@@ -173,21 +177,34 @@ async function broadcastConnectedUsers() {
 
 // Função auxiliar para broadcast da iniciativa
 function broadcastInitiativeState() {
-    broadcast({ type: "initiative-sync", data: { combatants: combatantsInTurnOrder, currentTurnIndex: currentTurnIndex } });
+    const message = JSON.stringify({
+        type: 'initiative-sync',
+        data: initiativeState
+    });
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(message);
+        }
+    });
 }
+
+
 
 // Quando um cliente se conecta via WebSocket
 wss.on("connection", async (ws) => {
   console.log("Novo cliente conectado.");
-
+  ws.send(JSON.stringify({
+            type: 'initiative-sync',
+            data: initiativeState
+        }));
   // Enviar o cenário ativo atual para o cliente recém-conectado
   if (activeScenario) {
       ws.send(JSON.stringify({ type: "syncActiveScenario", data: activeScenario }));
       console.log("Cenário ativo enviado para o novo cliente.");
   }
   // NOVO: Enviar o estado de iniciativa atual para o cliente recém-conectado
-  if (combatantsInTurnOrder.length > 0) {
-      ws.send(JSON.stringify({ type: "initiative-sync", data: { combatants: combatantsInTurnOrder, currentTurnIndex: currentTurnIndex } }));
+  if (initiativeState.combatants.length > 0) {
+      ws.send(JSON.stringify({ type: "initiative-sync", data: initiativeState }));
       console.log("Estado de iniciativa enviado para o novo cliente.");
   }
 
@@ -205,6 +222,8 @@ wss.on("connection", async (ws) => {
           console.log(`Mensagem adicionada ao histórico. Total: ${chatHistory.length}`);
           broadcast(data);
       }
+
+            
       if (type === "login-request") {
         const { username, password } = data;
         console.log(`[Server] Tentativa de login para usuário: ${username}`);
@@ -384,52 +403,110 @@ wss.on("connection", async (ws) => {
           ws.send(JSON.stringify({ type: "syncActiveScenario", data: null }));
         }
       }
-      // NOVO: Handler para adicionar tokens à iniciativa
+  
+        if (type === 'request-initiative') { // <--- NOVO TIPO DE REQUISIÇÃO
+            console.log("Cliente solicitou estado da iniciativa.");
+            // Envia o estado atual da iniciativa de volta para o cliente que solicitou
+            ws.send(JSON.stringify({
+                type: 'initiative-response', // <--- NOVO TIPO DE RESPOSTA
+                data: initiativeState
+            }));
+        }
       if (type === "add-tokens-to-initiative-server") {
-          const newTokens = data;
-          const existingTokenIds = new Set(combatantsInTurnOrder.map(c => c.id));
+          const newTokens = data; // newTokens will be an array of token objects
+          const existingTokenIds = new Set(initiativeState.combatants.map(c => c.id));
           const filteredNewTokens = newTokens.filter(newToken => !existingTokenIds.has(newToken.id));
 
-          combatantsInTurnOrder = [...combatantsInTurnOrder, ...filteredNewTokens];
-          // Ordena os combatentes por iniciativa (decrescente) após adicionar
-          combatantsInTurnOrder.sort((a, b) => b.initiative - a.initiative);
+          // Clear allies and enemies before repopulating to ensure they are always fresh
+          // This is important if tokens can change type or be removed from combat
+          // Alternatively, you could just add/remove from these lists when adding/removing from combatants
+          // For simplicity and ensuring consistency, we'll rebuild them each time combatants are added.
+          // If performance is critical with very large lists, consider incremental updates.
+          initiativeState.allies = [];
+          initiativeState.enemies = [];
+
+          // Add new tokens to combatants and categorize them
+          filteredNewTokens.forEach(newToken => {
+              initiativeState.combatants.push(newToken); // Add to main combatants list
+
+              // Determine if the token is an 'ally' (player character) or 'enemy' (NPC/monster)
+              // Logic: If it has a playerId AND is explicitly marked as isPlayer: true, it's an ally.
+              // Otherwise, it's an an enemy.
+              // You'll need to ensure the 'data' sent from the client includes 'isPlayer'
+              if (newToken.playerId && newToken.isPlayer) { // Assuming isPlayer is a boolean
+                  initiativeState.allies.push(newToken);
+              } else {
+                  initiativeState.enemies.push(newToken);
+              }
+          });
+                // Sort the main combatants list by initiative (decrescente) after adding
+          initiativeState.combatants.sort((a, b) => b.initiative - a.initiative);
+
+          // After updating combatants, also re-sort allies and enemies if their order matters,
+          // or if they are just for display. If they are merely filtered views, re-filtering is fine.
+          // For now, they're just populated, sorting them would mean another sort operation.
+          // Usually, only `combatants` needs to be sorted for turn order.
 
           // Reseta o índice do turno se estiver fora dos limites ou se não houver combatentes
-          if (combatantsInTurnOrder.length === 0) {
-              currentTurnIndex = 0;
-          } else if (currentTurnIndex >= combatantsInTurnOrder.length) {
-              currentTurnIndex = combatantsInTurnOrder.length - 1;
+          if (initiativeState.combatants.length === 0) {
+              initiativeState.currentTurnIndex = 0;
+          } else if (initiativeState.currentTurnIndex >= initiativeState.combatants.length) {
+              initiativeState.currentTurnIndex = initiativeState.combatants.length - 1;
           }
-          console.log(`[Server] Tokens adicionados à iniciativa. Combatentes totais: ${combatantsInTurnOrder.length}`);
+          console.log(`[Server] Tokens adicionados à iniciativa. Combatentes totais: ${initiativeState.combatants.length}`);
+          console.log(`[Server] Aliados: ${initiativeState.allies.length}, Inimigos: ${initiativeState.enemies.length}`);
+          
           broadcastInitiativeState(); // Broadcast o novo estado de iniciativa
       }
 
       // NOVO: Handler para avançar o turno
       if (type === "next-turn-server") {
-          if (combatantsInTurnOrder.length > 0) {
-              currentTurnIndex = (currentTurnIndex + 1) % combatantsInTurnOrder.length;
+          if (initiativeState.combatants.length > 0) {
+              initiativeState.currentTurnIndex = (initiativeState.currentTurnIndex + 1) % initiativeState.combatants.length;
               broadcastInitiativeState(); // Broadcast o novo estado de iniciativa
-              console.log(`[Server] Próximo turno. Índice: ${currentTurnIndex}`);
+              console.log(`[Server] Próximo turno. Índice: ${initiativeState.currentTurnIndex}`);
           }
       }
 
       // NOVO: Handler para retroceder o turno
       if (type === "previous-turn-server") {
-          if (combatantsInTurnOrder.length > 0) {
-              currentTurnIndex = (currentTurnIndex - 1 + combatantsInTurnOrder.length) % combatantsInTurnOrder.length;
+          if (initiativeState.combatants.length > 0) {
+              initiativeState.currentTurnIndex = (initiativeState.currentTurnIndex - 1 + initiativeState.combatants.length) % initiativeState.combatants.length;
               broadcastInitiativeState(); // Broadcast o novo estado de iniciativa
-              console.log(`[Server] Turno anterior. Índice: ${currentTurnIndex}`);
+              console.log(`[Server] Turno anterior. Índice: ${initiativeState.currentTurnIndex}`);
           }
       }
-
+ if (type === "request-initiative-state") {
+          console.log("[Server] Recebida requisição de estado inicial da iniciativa.");
+       
+            console.log("\n--- [Server] initiativeState inicializado ---");
+for (const [key, value] of Object.entries(initiativeState)) {
+    console.log(`Key: ${key}, Value:`, value);
+    if (Array.isArray(value)) {
+        console.log(`  -- Items in ${key} array:`);
+        if (value.length === 0) {
+            console.log(`    (Array is empty)`);
+        } else {
+            value.forEach((item, index) => {
+                console.log(`    [${index}]:`, item);
+            });
+        }
+    }
+}
+console.log("-------------------------------------------\n");
+          ws.send(JSON.stringify({
+              type: 'initiative-sync', //
+              data: initiativeState
+          }));
+      }
       // NOVO: Handler para atualizar o valor de iniciativa de um combatente
       if (type === "update-initiative-value-server") {
           const { tokenId, newValue } = data;
-          const tokenIndex = combatantsInTurnOrder.findIndex(t => t.id === tokenId);
+          const tokenIndex = initiativeState.combatants.findIndex(t => t.id === tokenId);
           if (tokenIndex !== -1) {
-              combatantsInTurnOrder[tokenIndex].initiative = newValue;
+              initiativeState.combatants[tokenIndex].initiative = newValue;
               // Re-ordenar após a mudança de valor e broadcast
-              combatantsInTurnOrder.sort((a, b) => b.initiative - a.initiative);
+              initiativeState.combatants.sort((a, b) => b.initiative - a.initiative);
               broadcastInitiativeState();
               console.log(`[Server] Iniciativa do token ${tokenId} atualizada para ${newValue}. Reordenando.`);
           }

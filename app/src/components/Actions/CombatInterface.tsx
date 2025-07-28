@@ -1,80 +1,133 @@
 // src/components/CombatInterface/CombatInterface.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import CombatActions from './CombatActions';
 import CombatTokensDisplay from '../CombatTokenDisplay';
 import { CharacterAction, Token } from '../../types';
 import { useLayout } from '../Layout';
+// Importação de uuidv4 e SampleToken podem ser removidas se não forem mais usadas para mocks de tokens
 import { v4 as uuidv4 } from 'uuid';
 import SampleToken from '../../img/0.png';
 import SampleToken2 from '../../img/1.png';
 
-interface CombatInterfaceProps {
-  // Se as ações fossem gerenciadas por um pai mais acima, elas viriam aqui
-  // Por agora, vamos simular que este componente "recebe" ações e também as cria.
+interface CombatInterfaceProps {}
+
+interface CharacterOption {
+  id: number;
+  name: string;
 }
 
 const CombatInterface: React.FC<CombatInterfaceProps> = () => {
-
-  // NOVO: Ações de combate gerenciadas aqui.
-  const [combatActions, setCombatActions] = useState<CharacterAction[]>([]);
-  // Mudar a forma como os tokens são gerenciados
-  const [enemies, setEnemies] = useState<Token[]>([]);
   const electron = (window as any).electron;
+
+  // Manter enemies e allies para o CombatTokensDisplay, como você indicou que é separado.
+  // Em um cenário real, estes viriam de alguma fonte de dados de combate/mapa.
+  const [enemies, setEnemies] = useState<Token[]>([]);
   const [allies, setAllies] = useState<Token[]>([]);
-  const [selectedTokens, setSelectedTokens] = useState<Token[]>([]); // NOVO: Estado para tokens selecionados
+  const [selectedTokens, setSelectedTokens] = useState<Token[]>([]);
+interface InitiativeState {
+  combatants: Token[];
+  allies: Token[];
+  enemies: Token[];
+  currentTurnIndex: number;
+}
+  // Estado para as ações do personagem ATIVO, carregadas do DB
+  const [activeCharacterActions, setActiveCharacterActions] = useState<CharacterAction[]>([]);
+  // Estado para o ID do personagem atualmente selecionado no dropdown
+  const [activeCharacterId, setActiveCharacterId] = useState<number | null>(null);
+  // Estado para a lista de personagens para popular o dropdown (ID e Nome)
+  const [characterOptions, setCharacterOptions] = useState<CharacterOption[]>([]);
 
-  // useLayout para injetar o CombatTokensDisplay na coluna esquerda
   const { addContentToLeft, clearContentFromLeft, addContentToRight, clearContentFromRight } = useLayout();
-
-  // State to hold the JSX for the Damage Formula section
   const [damageFormulaContent, setDamageFormulaContent] = useState<React.ReactNode | null>(null);
-  // NEW State to hold the JSX for the Hit Formula section
   const [hitFormulaContent, setHitFormulaContent] = useState<React.ReactNode | null>(null);
-
-
-  // Callback to receive the Damage Formula JSX from CombatActions
+ const [currentInitiativeState, setCurrentInitiativeState] = useState<InitiativeState>({
+    combatants: [],
+    allies: [],
+    enemies: [],
+    currentTurnIndex: 0
+  });
   const handleRenderDamageFormula = useCallback((formulaJSX: React.ReactNode) => {
     setDamageFormulaContent(formulaJSX);
   }, []);
 
-  // NEW Callback to receive the Hit Formula JSX from CombatActions
   const handleRenderHitFormula = useCallback((formulaJSX: React.ReactNode) => {
     setHitFormulaContent(formulaJSX);
   }, []);
 
-  // Mocks de tokens disponíveis para o combate
+  // Mocks de tokens para o CombatTokensDisplay (mantidos como você os tinha)
   useEffect(() => {
-    // Definindo inimigos e aliados na inicialização
-    const initialEnemies: Token[] = [
-      { id: 101, name: 'Goblin 1', portraitUrl: SampleToken, currentHp: 5, maxHp: 7, ac: 13, x: 1, y: 1, image: '', width: 1, height: 1 },
-      { id: 102, name: 'Orc Líder', portraitUrl: SampleToken, currentHp: 20, maxHp: 25, ac: 15, x: 2, y: 3, image: '', width: 1, height: 1 },
-      { id: 103, name: 'Esqueleto', portraitUrl: SampleToken, currentHp: 8, maxHp: 10, ac: 12, x: 4, y: 2, image: '', width: 1, height: 1 },
-    ];
-    const initialAllies: Token[] = [
-      { id: 201, name: 'Herói A', portraitUrl: SampleToken2, currentHp: 30, maxHp: 30, ac: 18, x: 5, y: 5, image: '', width: 1, height: 1 },
-      { id: 202, name: 'Curandeiro B', portraitUrl: SampleToken2, currentHp: 25, maxHp: 25, ac: 14, x: 6, y: 6, image: '', width: 1, height: 1 },
-    ];
-    setEnemies(initialEnemies);
-    setAllies(initialAllies);
-  }, []);
+    if (electron) {
 
-  useEffect(() => {
-    if (1) {
-      electron.invoke('request-character-data', 2)
-        .then((response: any) => {
-          if (response.success && response.data) {
-            const data = response.data;
-            setCombatActions(data.actions || []);
-            console.log("Dados do personagem carregados:", data);
-          } else {
-            console.error("Erro ao carregar dados do personagem:", response.message);
-          }
-        })
-        .catch((error: unknown) => {
-          console.error("Erro na comunicação IPC ao carregar dados do personagem:", error);
-        });
+      const handleInitiativeSync = ( data: any) => {
+        console.log("[CombatInterface] Dados de iniciativa recebidos do servidor:", data);
+        setAllies(data.allies)
+        setEnemies(data.enemies)
+        
+        setCurrentInitiativeState(data); // Atualiza o estado completo da iniciativa
+      };
+
+      electron.on('initiative-sync-from-server', handleInitiativeSync);
+
+      // NOVO: Envia uma requisição para o main.js para obter o estado inicial da iniciativa
+      console.log("[CombatInterface] Requisitando estado inicial da iniciativa...");
+      electron.send('request-initial-initiative-state'); //
+
+      return () => {
+        electron.DoremoveListener('initiative-sync-from-server', handleInitiativeSync);
+      };
     }
   }, [electron]);
+  // NOVO: useEffect para carregar a lista de personagens com ações para o select
+  useEffect(() => {
+    const fetchActionCharacterOptions = async () => {
+      if (electron) {
+        try {
+          // Invoca o novo handler para obter apenas os IDs e Nomes dos personagens com ações
+          const response = await electron.invoke('get-action-character-options');
+          if (response.success && response.data) {
+            setCharacterOptions(response.data);
+            // Define o primeiro personagem da lista como padrão, se nenhum estiver selecionado
+            if (activeCharacterId === null && response.data.length > 0) {
+              setActiveCharacterId(response.data[0].id);
+            }
+          } else {
+            console.error("Erro ao carregar opções de personagens com ações:", response.message);
+          }
+        } catch (error) {
+          console.error("Erro na comunicação IPC ao carregar opções de personagens com ações:", error);
+        }
+      }
+    };
+    fetchActionCharacterOptions();
+  }, [electron, activeCharacterId]); // Dependências: electron para chamar IPC, activeCharacterId para definir padrão na 1a vez
+
+
+  // NOVO: useEffect para carregar as ações do personagem selecionado
+  useEffect(() => {
+    const fetchActiveCharacterActions = async () => {
+      if (activeCharacterId !== null && electron) {
+        try {
+          // Usa o handler existente 'request-character-data' para obter os dados completos (incluindo ações)
+          const response = await electron.invoke('request-character-data', activeCharacterId);
+          if (response.success && response.data) {
+            setActiveCharacterActions(response.data.actions || []);
+            console.log(`Ações carregadas para o personagem ${activeCharacterId}:`, response.data.actions);
+          } else {
+            setActiveCharacterActions([]); // Limpa se houver erro ou personagem não encontrado
+            console.error(`Erro ao carregar ações para o personagem ${activeCharacterId}:`, response.message);
+          }
+        } catch (error) {
+          setActiveCharacterActions([]);
+          console.error(`Erro na comunicação IPC ao carregar ações do personagem ${activeCharacterId}:`, error);
+        }
+      } else {
+        setActiveCharacterActions([]); // Limpa as ações se nenhum personagem estiver selecionado
+      }
+    };
+
+    fetchActiveCharacterActions();
+  }, [activeCharacterId, electron]); // Dependências: activeCharacterId (para recarregar ao mudar) e electron
+
 
   useEffect(() => {
     // Renderiza o CombatTokensDisplay na coluna esquerda
@@ -83,13 +136,12 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
         enemies={enemies}
         allies={allies}
         selectedTokens={selectedTokens}
-        onTokenSelectionChange={setSelectedTokens} // Passa a função para atualizar os selecionados
+        onTokenSelectionChange={setSelectedTokens}
       />
     );
 
     // Renderiza o conteúdo das fórmulas de Dano e Acerto na coluna direita
     if (damageFormulaContent && hitFormulaContent) {
-      // You can arrange them as you like here, e.g., using a div to wrap them
       addContentToRight(
         <div>
           {damageFormulaContent}
@@ -102,14 +154,12 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
       addContentToRight(hitFormulaContent);
     }
 
-
-    // Limpa o conteúdo da coluna esquerda e direita quando o componente é desmontado
     return () => {
       clearContentFromLeft();
       clearContentFromRight();
     };
   }, [
-    enemies,
+    enemies, // Agora depende apenas dos mocks de enemies/allies
     allies,
     selectedTokens,
     addContentToLeft,
@@ -121,39 +171,108 @@ const CombatInterface: React.FC<CombatInterfaceProps> = () => {
   ]);
 
 
-  // Funções que o CombatActions usará para gerenciar as ações de combate
-  const handleEditCombatAction = (action: CharacterAction) => {
-    setCombatActions(prev => prev.map(a => a.id === action.id ? action : a));
-    console.log("Ação atualizada no CombatInterface:", action);
-    // IMPORTANTE: No cenário real, isso PRECISA notificar o CharacterSheet ou o gerenciador de estado global
-    // para que a edição seja persistente e consistente entre as duas telas.
-  };
-  const handleDeleteCombatAction = (actionId: number) => {
-    setCombatActions(prev => prev.filter(a => a.id !== actionId));
-    console.log("Ação deletada no CombatInterface:", actionId);
-    // IMPORTANTE: Notificar o CharacterSheet ou o gerenciador de estado global
-  };
+  // Funções que o CombatActions usará para gerenciar as ações de combate.
+  // AGORA, estas funções também precisarão invocar o IPC para persistir as mudanças no DB.
+
+  const handleEditCombatAction = useCallback(async (action: CharacterAction) => {
+    if (!activeCharacterId || !electron) return;
+
+    // Primeiro, atualize o DB via IPC
+    const response = await electron.invoke('edit-action', activeCharacterId, action);
+    if (response.success) {
+      // Se a atualização no DB foi bem-sucedida, atualize o estado local
+      setActiveCharacterActions(prev => prev.map(a => a.id === action.id ? action : a));
+      console.log("Ação atualizada no CombatInterface e DB:", action);
+    } else {
+      console.error("Falha ao atualizar ação no DB:", response.message);
+      // Opcional: mostrar um alerta para o usuário
+    }
+  }, [activeCharacterId, electron]);
+
+  const handleDeleteCombatAction = useCallback(async (actionId: number) => {
+    if (!activeCharacterId || !electron) return;
+
+    // Primeiro, confirme com o usuário se desejar (aqui omitido para brevidade)
+    // Depois, delete no DB via IPC
+    const response = await electron.invoke('delete-action', activeCharacterId, actionId);
+    if (response.success) {
+      // Se a exclusão no DB foi bem-sucedida, atualize o estado local
+      setActiveCharacterActions(prev => prev.filter(a => a.id !== actionId));
+      console.log("Ação deletada no CombatInterface e DB:", actionId);
+    } else {
+      console.error("Falha ao deletar ação no DB:", response.message);
+      // Opcional: mostrar um alerta para o usuário
+    }
+  }, [activeCharacterId, electron]);
 
 
-  const handleToggleCombatFavorite = (isFavorite: boolean, actionId?: number) => {
-    setCombatActions(prev => prev.map(a => a.id === actionId ? { ...a, isFavorite: isFavorite } : a));
-    console.log(`Ação ${actionId} favoritada: ${isFavorite} no CombatInterface.`);
-    // IMPORTANTE: Notificar o CharacterSheet ou o gerenciador de estado global
-  };
+  const handleToggleCombatFavorite = useCallback(async (isFavorite: boolean, actionId?: number) => {
+    if (!activeCharacterId || !electron || actionId === undefined) return;
+
+    // Encontre a ação para obter todos os seus dados antes de enviar para edição
+    const actionToUpdate = activeCharacterActions.find(a => a.id === actionId);
+    if (!actionToUpdate) return;
+
+    // Crie uma cópia da ação com o favorito atualizado
+    const updatedAction = { ...actionToUpdate, isFavorite: isFavorite };
+
+    // Atualize o DB via IPC
+    const response = await electron.invoke('edit-action', activeCharacterId, updatedAction);
+    if (response.success) {
+      // Se a atualização no DB foi bem-sucedida, atualize o estado local
+      setActiveCharacterActions(prev => prev.map(a => a.id === actionId ? updatedAction : a));
+      console.log(`Ação ${actionId} favoritada: ${isFavorite} no CombatInterface e DB.`);
+    } else {
+      console.error("Falha ao favoritar/desfavoritar ação no DB:", response.message);
+    }
+  }, [activeCharacterId, electron, activeCharacterActions]);
+
+
+  // Handler para selecionar um novo personagem ativo no dropdown
+  const handleSelectActiveCharacter = useCallback((characterIdString: number) => {
+
+    setActiveCharacterId(characterIdString);
+  }, []);
 
   return (
     <div className="combat-interface-container h-100 d-flex flex-column p-3">
       <h3 className="text-highlight-warning text-center mb-4">Mesa de Combate</h3>
 
+      {/* Dropdown de seleção de personagem */}
+      <div className="mb-3">
+        <label htmlFor="activeCharacterSelect" className="form-label text-white">Controlando:</label>
+        <select
+          id="activeCharacterSelect"
+          className="form-select bg-dark text-white border-secondary"
+          value={activeCharacterId === null ? '' : activeCharacterId}
+          onChange={(e) => handleSelectActiveCharacter(parseInt(e.target.value))}
+        >
+          <option value="">Selecione um Personagem</option>
+          {characterOptions.map(char => (
+            <option key={char.id} value={char.id}>
+              {char.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <hr className="border-secondary mb-4" />
+
       <div className="flex-grow-1 overflow-auto">
         <CombatActions
-          actions={combatActions}
+          actions={activeCharacterActions} // Passa as ações do personagem ativo carregadas do DB
           onDeleteAction={handleDeleteCombatAction}
           onEditAction={handleEditCombatAction}
           onToggleFavorite={handleToggleCombatFavorite}
           selectedTokens={selectedTokens}
-          onRenderDamageFormula={handleRenderDamageFormula} // Pass the new prop
-          onRenderHitFormula={handleRenderHitFormula} // NEW: Pass the hit formula prop
+          // availableTokens já não é mais necessário aqui para a seleção de personagem principal
+          // Se CombatActions ainda precisa de todos os tokens para outros fins (e.g., alvos), você pode passar enemies.concat(allies)
+          availableTokens={enemies.concat(allies)} // Ainda é necessário para o seletor de alvo!
+          onRenderDamageFormula={handleRenderDamageFormula}
+          onRenderHitFormula={handleRenderHitFormula}
+          // onSelectCharacter e activeCharacterId podem ser removidos do CombatActions.tsx se o dropdown for apenas aqui
+          // Mas manter se CombatActions usar esses props para feedback visual ou lógica interna.
+          
+          
         />
       </div>
     </div>

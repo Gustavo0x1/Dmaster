@@ -24,6 +24,30 @@ const CombatTracker: React.FC<CombatTrackerProps> = ({ currentUserId }) => {
   // Removido o useEffect que inicializava combatants do prop initialCombatants,
   // pois agora o estado será sincronizado pelo servidor.
 
+  // Mocks de tokens para o CombatTokensDisplay (mantidos como você os tinha)
+  useEffect(() => {
+        const electron = (window as any).electron;
+    if (electron) {
+
+
+      const handleInitiativeSync = ( data: any) => {
+        console.log("[CombatInterface] Dados de iniciativa recebidos do servidor:", data);
+        setCombatantsInTurnOrder(data.combatants)
+
+      };
+
+      electron.on('initiative-sync-from-server', handleInitiativeSync);
+
+      // NOVO: Envia uma requisição para o main.js para obter o estado inicial da iniciativa
+      console.log("[CombatInterface] Requisitando estado inicial da iniciativa...");
+      electron.send('request-initial-initiative-state'); //
+
+      return () => {
+        electron.DoremoveListener('initiative-sync-from-server', handleInitiativeSync);
+      };
+    }
+  }, []);
+  
   useEffect(() => {
     const electron = (window as any).electron;
     if (!electron) {

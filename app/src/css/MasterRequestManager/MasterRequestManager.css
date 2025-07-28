@@ -1,0 +1,199 @@
+.master-request-manager-container {
+  background-color: #282c34; /* Fundo escuro */
+  color: #f0f0f0; /* Texto claro */
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  max-width: 900px;
+  margin: 20px auto; /* Centraliza o componente */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.master-request-manager-container h2 {
+  color: #61dafb; /* Cor de destaque */
+  text-align: center;
+  margin-bottom: 25px;
+  font-size: 1.8em;
+}
+
+.requests-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.requests-table th,
+.requests-table td {
+  border: 1px solid #444;
+  padding: 12px;
+  text-align: left;
+}
+
+.requests-table th {
+  background-color: #333;
+  color: #61dafb;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.9em;
+}
+
+.requests-table tr:nth-child(even) {
+  background-color: #3a3f47; /* Linhas alternadas para melhor legibilidade */
+}
+
+.requests-table tr:hover {
+  background-color: #4a4f57; /* Efeito hover nas linhas */
+}
+
+.actions-cell {
+  text-align: center; /* Centraliza os botões */
+  white-space: nowrap; /* Evita que os botões quebrem a linha */
+}
+
+.accept-button,
+.reject-button {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s ease;
+  margin: 0 5px; /* Espaçamento entre os botões */
+}
+
+.accept-button {
+  background-color: #4CAF50; /* Verde */
+  color: white;
+}
+
+.accept-button:hover {
+  background-color: #45a049;
+}
+
+.reject-button {
+  background-color: #f44336; /* Vermelho */
+  color: white;
+}
+
+.reject-button:hover {
+  background-color: #da190b;
+}
+
+.master-request-manager-container p {
+  text-align: center;
+  font-style: italic;
+  color: #aaa;
+  margin-top: 30px;
+}
+/* MasterRequestManager.css */
+
+/* ... (seus estilos anteriores para .master-request-manager-container, .requests-table, botões, etc.) ... */
+
+
+/* --- Estilos para o Modal Integrado --- */
+
+.modal-overlay {
+  position: fixed; /* Fixa o overlay na janela de visualização */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7); /* Fundo semi-transparente escuro */
+  display: flex; /* Habilita o flexbox para centralização */
+  justify-content: center; /* Centraliza horizontalmente */
+  align-items: center; /* Centraliza verticalmente */
+  z-index: 1000; /* Garante que o modal esteja acima de outros elementos */
+  animation: fadeInOverlay 0.3s ease-out; /* Animação de entrada */
+}
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background-color: #3a3f47; /* Cor de fundo do modal, similar ao das linhas alternadas */
+  padding: 0; /* Remove padding default que possa existir */
+  border-radius: 10px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  max-width: 500px; /* Largura máxima do modal */
+  width: 90%; /* Ocupa 90% da largura do overlay, limitado por max-width */
+  position: relative; /* Para posicionar o botão de fechar */
+  color: #f0f0f0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  animation: fadeInModal 0.3s ease-out; /* Animação de entrada */
+  overflow: hidden; /* Garante bordas arredondadas para conteúdo interno */
+
+  /* Garantir que não haja margens ou transforms que o movam */
+  margin: auto; /* Centraliza o bloco, se não estiver usando flexbox para o pai */
+  /* Remove qualquer top/left/transform que possa ter sido aplicado antes */
+  top: unset;
+  left: unset;
+  transform: unset;
+}
+
+@keyframes fadeInModal {
+  from { opacity: 0; transform: translateY(-20px); } /* Pequeno deslocamento vertical na entrada */
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header-custom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #444;
+  background-color: #282c34;
+}
+
+.modal-title-custom {
+  color: #61dafb;
+  margin: 0;
+  font-size: 1.6em;
+}
+
+.modal-close-button-custom {
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  color: #aaa;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.modal-close-button-custom:hover {
+  color: #f44336;
+}
+
+.modal-body-custom {
+  padding: 20px;
+}
+
+.request-details-custom p {
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.request-details-custom strong {
+  color: #61dafb;
+  margin-right: 5px;
+}
+
+.modal-footer-custom {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 20px;
+  padding: 15px 20px;
+  border-top: 1px solid #444;
+  background-color: #282c34;
+}
+
+.modal-footer-custom .accept-button,
+.modal-footer-custom .reject-button {
+  padding: 10px 20px;
+  font-size: 1em;
+  border-radius: 5px;
+  min-width: 120px;
+  margin: 0;
+}

@@ -3,7 +3,7 @@ const os = require('os');
 contextBridge.exposeInMainWorld('electron',{
   send: (channel, data) => { // This is what MainGrids.tsx tries to call
     // Whitelist channels
-    let validChannels = ['add-tokens-to-initiative', 'request-token-move']; // Make sure 'request-token-move' is also here if used
+    let validChannels = ['add-tokens-to-initiative', 'request-token-move','request-initial-initiative-state']; // Make sure 'request-token-move' is also here if used
     if (validChannels.includes(channel)) {
       ipcRenderer.send(channel, data);
     }
@@ -67,14 +67,18 @@ on: (channel, callback) => {
       'request-character-data',
         'get-scenario-list',
       'save-action',
+      'get-all-characters-for-tokens',
       'edit-action',
       'load-scenario',
        'update-scenario',
       'delete-action',
       'update-character-attributes',
+      'remove-token-from-scenario',
+      'remove-token-from-scenario-client',
       'send-message',
       'set-userid',
       'get-userid',
+      'get-action-character-options',
       
       'manage-assets:get-pool',
       'manage-assets:add-image',
